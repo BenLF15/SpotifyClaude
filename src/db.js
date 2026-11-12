@@ -15,17 +15,31 @@ requireEnv('DATABASE_URL');
 function sslOption(url) {
   if (process.env.PGSSL === 'false') return false;
   if (process.env.PGSSL === 'true') return { rejectUnauthorized: false };
-  // Externe Render-URLs (…render.com) brauchen TLS, die interne URL nicht.
+  // Interne Render-Hosts (z. B. "dpg-xxxx-a") und localhost brauchen kein TLS.
+  // Externe Anbieter (Neon, Supabase, Render External URL, …) verlangen TLS.
   try {
     const host = new URL(url).hostname;
-    return host.endsWith('.render.com') ? { rejectUnauthorized: false } : false;
+    const local = !host.includes('.') || host === 'localhost' || /^(127\.|10\.|192\.168\.|::1)/.test(host);
+    return local ? false : { rejectUnauthorized: false };
   } catch {
     return false;
   }
 }
 
+// sslmode/channel_binding aus der URL entfernen – TLS steuert sslOption() (sonst überschreibt
+// der Connection-String die Einstellung, und je nach Version wird strenger geprüft).
+function cleanUrl(url) {
+  try {
+    const u = new URL(url);
+    for (const p of ['sslmode', 'channel_binding', 'sslrootcert']) u.searchParams.delete(p);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export const pool = new pg.Pool({
-  connectionString: config.databaseUrl,
+  connectionString: cleanUrl(config.databaseUrl),
   ssl: sslOption(config.databaseUrl),
   max: Number.parseInt(process.env.PG_POOL_MAX || '5', 10),
 });

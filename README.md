@@ -32,6 +32,16 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
    > Die kostenlose Render-Datenbank wird nach 30 Tagen gelöscht. Für eine dauerhafte Hörhistorie brauchst du einen bezahlten Plan (z. B. *Basic 256 MB*).
 4. Kopiere danach auf der Seite der Datenbank die **Internal Database URL**.
 
+#### Alternative: kostenlose Datenbank bei Neon (ohne Ablaufdatum)
+
+Statt Render-Postgres geht jeder Postgres-Anbieter, z. B. **[Neon](https://neon.tech)** (Free-Plan, 0,5 GB, ohne Ablaufdatum):
+
+1. Registriere dich auf neon.tech und lege ein **Project** an. Wähle als Region z. B. *AWS Europe Central (Frankfurt)*.
+2. Klicke im Projekt auf **Connect** und kopiere den **Connection string**. Er beginnt mit `postgresql://` und endet z. B. mit `?sslmode=require`.
+3. Trage diesen String in Render als `DATABASE_URL` ein. Die verschlüsselte Verbindung (TLS) schaltet die App automatisch ein.
+
+Ohne irgendeine Datenbank geht es nicht: Der kostenlose Render-Web-Service hat keine dauerhafte Festplatte. Lokale Dateien wären nach jedem Deploy weg.
+
 ### 2. Spotify-App anlegen
 
 1. Öffne <https://developer.spotify.com/dashboard> und klicke **Create app**.
@@ -147,7 +157,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | `CRON_SECRET` | – | Aktiviert `/cron/run?key=…` für externe Trigger |
 | `ENRICH_LIMIT` | – | Tracks bzw. Künstler, die pro Lauf angereichert werden (Standard 150) |
 | `MIN_PLAY_MS` | – | Mindestdauer für importierte Plays (Standard 30000) |
-| `PGSSL` | – | `true`/`false` erzwingt TLS für Postgres (sonst automatisch) |
+| `PGSSL` | – | `true`/`false` erzwingt TLS für Postgres (sonst automatisch: an für externe Hosts wie Neon/Supabase) |
 
 ## Lokale Entwicklung
 
