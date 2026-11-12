@@ -1,35 +1,182 @@
-// Nutzerverwaltung: Anlegen/Aktualisieren beim Spotify-Login, Admin-Übersicht, Konto löschen.
+// Konten & Nutzer:
+// - accounts: Spotlfy-Konto mit Benutzername + Passwort (scrypt-Hash), Admin-Flag, verknüpftes Spotify-Konto
+// - users:    verbundenes Spotify-Konto (Tokens, Profil); daran hängen plays/top_snapshots/sync_log
+import crypto from 'node:crypto';
+import { promisify } from 'node:util';
 import { config } from './config.js';
 import { query, withTransaction } from './db.js';
 import { bestImage } from './spotify.js';
 
-/** Speichert bzw. aktualisiert den Nutzer nach erfolgreichem Spotify-Login. */
-export async function upsertUserFromLogin({ profile, tokens }, { userAgent } = {}) {
-  return withTransaction(async (db) => {
-    const { rows: countRows } = await db.query(
-      'SELECT count(*) AS n, count(*) FILTER (WHERE is_admin) AS admins FROM users',
-    );
-    const isFirstUser = countRows[0].n === 0;
-    // Gibt es (noch) keinen Admin, wird der nächste Nutzer, der sich anmeldet, Admin.
-    const noAdminYet = countRows[0].admins === 0;
-    const isConfiguredAdmin =
-      config.adminIds.includes(profile.id) ||
-      config.adminNames.includes(String(profile.display_name || '').trim().toLowerCase());
+const scrypt = promisify(crypto.scrypt);
 
-    const { rows } = await db.query(
+export class UserError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+// ---------------------------------------------------------------- Passwörter
+
+export async function hashPassword(password) {
+  const salt = crypto.randomBytes(16);
+  const hash = await scrypt(String(password).normalize('NFKC'), salt, 64, { N: 16384, r: 8, p: 1 });
+  return `scrypt$${salt.toString('base64')}$${hash.toString('base64')}`;
+}
+
+export async function verifyPassword(password, stored) {
+  const [algo, saltB64, hashB64] = String(stored || '').split('$');
+  if (algo !== 'scrypt' || !saltB64 || !hashB64) return false;
+  const expected = Buffer.from(hashB64, 'base64');
+  const actual = await scrypt(String(password).normalize('NFKC'), Buffer.from(saltB64, 'base64'), expected.length, {
+    N: 16384,
+    r: 8,
+    p: 1,
+  });
+  return crypto.timingSafeEqual(actual, expected);
+}
+
+// Gleiche Rechenzeit für unbekannte Benutzernamen (verhindert Ausspähen per Timing).
+let dummyHash;
+const getDummyHash = async () => (dummyHash ||= await hashPassword('dummy-password-for-timing'));
+
+const USERNAME_RE = /^[A-Za-z0-9_.-]{3,24}$/;
+
+function validateCredentials(username, password) {
+  const u = String(username || '').trim();
+  if (!USERNAME_RE.test(u)) {
+    throw new UserError('Der Benutzername muss 3–24 Zeichen lang sein (Buchstaben, Zahlen, _ . -).');
+  }
+  if (String(password || '').length < 8) throw new UserError('Das Passwort muss mindestens 8 Zeichen lang sein.');
+  if (String(password).length > 200) throw new UserError('Das Passwort ist zu lang.');
+  return u;
+}
+
+// ---------------------------------------------------------------- Konten
+
+/** Legt das Admin-Konto aus ADMIN_USERNAME/ADMIN_PASSWORD an bzw. hält dessen Passwort aktuell. */
+export async function ensureAdminAccount() {
+  if (!config.adminPassword) {
+    console.warn(
+      `[admin] ADMIN_PASSWORD ist nicht gesetzt – der Benutzername „${config.adminUsername}“ ist reserviert, ` +
+        'aber noch nicht nutzbar. Setze ADMIN_PASSWORD in den Umgebungsvariablen.',
+    );
+    return;
+  }
+  const { rows } = await query('SELECT id, password_hash FROM accounts WHERE lower(username) = lower($1)', [
+    config.adminUsername,
+  ]);
+  if (!rows.length) {
+    await query('INSERT INTO accounts (username, password_hash, is_admin) VALUES ($1, $2, true)', [
+      config.adminUsername,
+      await hashPassword(config.adminPassword),
+    ]);
+    console.log(`[admin] Admin-Konto „${config.adminUsername}“ angelegt.`);
+  } else {
+    const same = await verifyPassword(config.adminPassword, rows[0].password_hash);
+    await query(
+      `UPDATE accounts SET is_admin = true, password_hash = COALESCE($2, password_hash), updated_at = now() WHERE id = $1`,
+      [rows[0].id, same ? null : await hashPassword(config.adminPassword)],
+    );
+    if (!same) console.log(`[admin] Passwort für „${config.adminUsername}“ aus ADMIN_PASSWORD übernommen.`);
+  }
+}
+
+export async function registerAccount(username, password) {
+  if (!config.allowRegistration) throw new UserError('Neue Registrierungen sind derzeit deaktiviert.', 403);
+  const u = validateCredentials(username, password);
+  if (u.toLowerCase() === config.adminUsername.toLowerCase()) {
+    throw new UserError('Dieser Benutzername ist bereits vergeben.', 409);
+  }
+  try {
+    const { rows } = await query(
+      'INSERT INTO accounts (username, password_hash) VALUES ($1, $2) RETURNING id, username, is_admin',
+      [u, await hashPassword(password)],
+    );
+    return rows[0];
+  } catch (err) {
+    if (err.code === '23505') throw new UserError('Dieser Benutzername ist bereits vergeben.', 409);
+    throw err;
+  }
+}
+
+/** Prüft Benutzername + Passwort. Gibt das Konto zurück oder null. */
+export async function authenticate(username, password) {
+  const { rows } = await query('SELECT id, username, password_hash, is_admin FROM accounts WHERE lower(username) = lower($1)', [
+    String(username || '').trim(),
+  ]);
+  const acc = rows[0];
+  const ok = await verifyPassword(password, acc ? acc.password_hash : await getDummyHash());
+  if (!acc || !ok) return null;
+  return { id: acc.id, username: acc.username, is_admin: acc.is_admin };
+}
+
+export async function recordLogin(accountId, userAgent) {
+  await query(
+    'UPDATE accounts SET login_count = login_count + 1, last_login_at = now(), last_seen_at = now() WHERE id = $1',
+    [accountId],
+  );
+  await query('INSERT INTO login_events (account_id, user_id, user_agent) VALUES ($1, (SELECT spotify_user_id FROM accounts WHERE id = $1), $2)', [
+    accountId,
+    userAgent ? String(userAgent).slice(0, 300) : null,
+  ]);
+}
+
+/** Konto inkl. verbundenem Spotify-Profil. */
+export async function getAccount(id) {
+  const { rows } = await query(
+    `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at,
+            u.display_name, u.email, u.avatar_url, u.country, u.product, u.auth_error
+       FROM accounts a LEFT JOIN users u ON u.id = a.spotify_user_id
+      WHERE a.id = $1`,
+    [id],
+  );
+  return rows[0] || null;
+}
+
+export function touchAccount(id) {
+  return query(
+    `UPDATE accounts SET last_seen_at = now() WHERE id = $1 AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes')`,
+    [id],
+  ).catch(() => {});
+}
+
+export async function changePassword(accountId, currentPassword, newPassword) {
+  const { rows } = await query('SELECT username, password_hash FROM accounts WHERE id = $1', [accountId]);
+  if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
+  if (rows[0].username.toLowerCase() === config.adminUsername.toLowerCase() && config.adminPassword) {
+    throw new UserError('Das Admin-Passwort wird über die Umgebungsvariable ADMIN_PASSWORD verwaltet.');
+  }
+  if (!(await verifyPassword(currentPassword, rows[0].password_hash))) throw new UserError('Das aktuelle Passwort stimmt nicht.');
+  validateCredentials(rows[0].username, newPassword);
+  await query('UPDATE accounts SET password_hash = $2, updated_at = now() WHERE id = $1', [accountId, await hashPassword(newPassword)]);
+}
+
+// ---------------------------------------------------------------- Spotify verbinden
+
+/**
+ * Speichert das Spotify-Konto (Tokens + Profil) und verknüpft es mit dem Spotlfy-Konto.
+ * Ein Spotify-Konto kann nur mit einem Spotlfy-Konto verbunden sein.
+ */
+export async function connectSpotify(accountId, { profile, tokens }) {
+  return withTransaction(async (db) => {
+    const { rows: taken } = await db.query('SELECT id FROM accounts WHERE spotify_user_id = $1 AND id <> $2', [
+      profile.id,
+      accountId,
+    ]);
+    if (taken.length) throw new UserError('Dieses Spotify-Konto ist bereits mit einem anderen Spotlfy-Konto verbunden.', 409);
+
+    const { rows: countRows } = await db.query('SELECT count(*) AS n FROM users');
+    await db.query(
       `INSERT INTO users (id, display_name, email, avatar_url, country, product,
-                          access_token, refresh_token, expires_at, scope, is_admin,
-                          login_count, last_login_at, last_seen_at, auth_error)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 1, now(), now(), NULL)
+                          access_token, refresh_token, expires_at, scope, auth_error, last_login_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL, now())
        ON CONFLICT (id) DO UPDATE SET
          display_name = EXCLUDED.display_name, email = EXCLUDED.email, avatar_url = EXCLUDED.avatar_url,
          country = EXCLUDED.country, product = EXCLUDED.product,
          access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token,
          expires_at = EXCLUDED.expires_at, scope = EXCLUDED.scope,
-         is_admin = users.is_admin OR EXCLUDED.is_admin,
-         login_count = users.login_count + 1, last_login_at = now(), last_seen_at = now(),
-         auth_error = NULL, updated_at = now()
-       RETURNING id, display_name, is_admin, (xmax = 0) AS created`,
+         auth_error = NULL, last_login_at = now(), updated_at = now()`,
       [
         profile.id,
         profile.display_name || profile.id,
@@ -41,52 +188,110 @@ export async function upsertUserFromLogin({ profile, tokens }, { userAgent } = {
         tokens.refreshToken,
         tokens.expiresAt,
         tokens.scope || null,
-        noAdminYet || isConfiguredAdmin,
       ],
     );
-    const user = rows[0];
-
-    // Daten aus der Einzelnutzer-Version (noch ohne Besitzer) übernimmt der erste Nutzer.
-    if (isFirstUser) {
-      await db.query('UPDATE plays SET user_id = $1 WHERE user_id IS NULL', [user.id]);
-      await db.query('UPDATE top_snapshots SET user_id = $1 WHERE user_id IS NULL', [user.id]);
+    // Bisher verknüpftes (anderes) Spotify-Konto wird gelöst, das neue verknüpft.
+    await db.query('UPDATE accounts SET spotify_user_id = $2, updated_at = now() WHERE id = $1', [accountId, profile.id]);
+    // Daten aus der Einzelnutzer-Version ohne Besitzer übernimmt das erste verbundene Spotify-Konto.
+    if (countRows[0].n === 0) {
+      await db.query('UPDATE plays SET user_id = $1 WHERE user_id IS NULL', [profile.id]);
+      await db.query('UPDATE top_snapshots SET user_id = $1 WHERE user_id IS NULL', [profile.id]);
     }
-    await db.query('INSERT INTO login_events (user_id, user_agent) VALUES ($1, $2)', [
-      user.id,
-      userAgent ? String(userAgent).slice(0, 300) : null,
-    ]);
-    return user;
+    return { spotifyUserId: profile.id };
   });
 }
 
-const withConfiguredAdmin = (u) => (u ? { ...u, is_admin: u.is_admin || config.adminIds.includes(u.id) } : null);
-
-export async function getUser(id) {
-  const { rows } = await query(
-    `SELECT id, display_name, email, avatar_url, country, product, is_admin, auth_error, created_at, last_login_at
-       FROM users WHERE id = $1`,
-    [id],
-  );
-  // ADMIN_SPOTIFY_IDS wirkt sofort, auch ohne erneuten Login.
-  return withConfiguredAdmin(rows[0] || null);
+/** Spotify-Verbindung lösen; Hördaten bleiben erhalten und kommen beim erneuten Verbinden zurück. */
+export async function disconnectSpotify(accountId) {
+  await query('UPDATE accounts SET spotify_user_id = NULL, updated_at = now() WHERE id = $1', [accountId]);
 }
 
-/** Admin-Rechte setzen/entziehen. Der letzte Admin kann nicht entfernt werden. */
-export async function setAdmin(id, isAdmin) {
+// ---------------------------------------------------------------- Sync-Ziele
+
+export async function allUserIds() {
+  const { rows } = await query('SELECT id FROM users WHERE auth_error IS NULL ORDER BY created_at');
+  return rows.map((r) => r.id);
+}
+
+// ---------------------------------------------------------------- Admin
+
+/** Admin: alle Konten mit Spotify-Profil und Kennzahlen + letzte Logins. */
+export async function adminOverview() {
+  const [accounts, logins] = await Promise.all([
+    query(
+      `SELECT a.id, a.username, a.is_admin, a.login_count, a.created_at, a.last_login_at, a.last_seen_at,
+              a.spotify_user_id, u.display_name, u.email, u.avatar_url, u.country, u.product,
+              u.auth_error IS NOT NULL AS auth_expired,
+              COALESCE(p.plays, 0) AS plays, COALESCE(p.minutes, 0) AS minutes, p.last_play,
+              s.last_sync, s.last_sync_ok
+         FROM accounts a
+         LEFT JOIN users u ON u.id = a.spotify_user_id
+         LEFT JOIN LATERAL (
+           SELECT count(*) AS plays, round(sum(ms_played) / 60000.0)::int AS minutes, max(played_at) AS last_play
+             FROM plays WHERE user_id = a.spotify_user_id
+         ) p ON true
+         LEFT JOIN LATERAL (
+           SELECT finished_at AS last_sync, ok AS last_sync_ok FROM sync_log
+            WHERE user_id = a.spotify_user_id AND job = 'recently_played' ORDER BY id DESC LIMIT 1
+         ) s ON true
+        ORDER BY a.last_login_at DESC NULLS LAST, a.created_at DESC`,
+    ),
+    query(
+      `SELECT l.at, l.user_agent, a.id AS account_id, a.username, u.display_name, u.email, u.avatar_url
+         FROM login_events l
+         JOIN accounts a ON a.id = l.account_id
+         LEFT JOIN users u ON u.id = a.spotify_user_id
+        ORDER BY l.at DESC LIMIT 50`,
+    ),
+  ]);
+  return { accounts: accounts.rows, logins: logins.rows };
+}
+
+/** Admin-Rechte setzen/entziehen. Das Admin-Konto aus ADMIN_USERNAME und der letzte Admin bleiben geschützt. */
+export async function setAdmin(accountId, isAdmin) {
   return withTransaction(async (db) => {
+    const { rows } = await db.query('SELECT username FROM accounts WHERE id = $1', [accountId]);
+    if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
     if (!isAdmin) {
-      const { rows } = await db.query('SELECT count(*) AS n FROM users WHERE is_admin AND id <> $1', [id]);
-      if (rows[0].n === 0 && !config.adminIds.length) {
-        const err = new Error('Der letzte Admin kann nicht entfernt werden.');
-        err.status = 400;
-        throw err;
+      if (rows[0].username.toLowerCase() === config.adminUsername.toLowerCase()) {
+        throw new UserError(`„${config.adminUsername}“ ist der Haupt-Admin und bleibt Admin.`);
       }
+      const { rows: others } = await db.query('SELECT count(*) AS n FROM accounts WHERE is_admin AND id <> $1', [accountId]);
+      if (others[0].n === 0) throw new UserError('Der letzte Admin kann nicht entfernt werden.');
     }
-    const { rowCount } = await db.query('UPDATE users SET is_admin = $2, updated_at = now() WHERE id = $1', [id, isAdmin]);
-    if (!rowCount) {
-      const err = new Error('Nutzer nicht gefunden.');
-      err.status = 404;
-      throw err;
+    await db.query('UPDATE accounts SET is_admin = $2, updated_at = now() WHERE id = $1', [accountId, isAdmin]);
+  });
+}
+
+/** Admin: setzt ein zufälliges neues Passwort und gibt es einmalig zurück. */
+export async function resetPassword(accountId) {
+  const { rows } = await query('SELECT username FROM accounts WHERE id = $1', [accountId]);
+  if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
+  if (rows[0].username.toLowerCase() === config.adminUsername.toLowerCase()) {
+    throw new UserError('Das Admin-Passwort wird über ADMIN_PASSWORD verwaltet.');
+  }
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const password = Array.from(crypto.randomBytes(12), (b) => alphabet[b % alphabet.length]).join('');
+  await query('UPDATE accounts SET password_hash = $2, updated_at = now() WHERE id = $1', [accountId, await hashPassword(password)]);
+  return { username: rows[0].username, password };
+}
+
+/** Löscht ein Spotlfy-Konto samt aller Hördaten des verbundenen Spotify-Kontos. */
+export async function deleteAccount(accountId) {
+  await withTransaction(async (db) => {
+    const { rows } = await db.query('SELECT username, spotify_user_id FROM accounts WHERE id = $1', [accountId]);
+    if (!rows.length) return;
+    if (rows[0].username.toLowerCase() === config.adminUsername.toLowerCase() && config.adminPassword) {
+      throw new UserError(`Das Admin-Konto „${config.adminUsername}“ kann nicht gelöscht werden.`);
+    }
+    const sid = rows[0].spotify_user_id;
+    await db.query('DELETE FROM accounts WHERE id = $1', [accountId]);
+    if (sid) {
+      await db.query('DELETE FROM plays WHERE user_id = $1', [sid]);
+      await db.query('DELETE FROM top_snapshots WHERE user_id = $1', [sid]);
+      await db.query('DELETE FROM sync_log WHERE user_id = $1', [sid]);
+      await db.query('DELETE FROM login_events WHERE user_id = $1', [sid]);
+      await db.query('DELETE FROM users WHERE id = $1', [sid]);
     }
   });
 }
@@ -103,8 +308,10 @@ export async function adminSystem() {
               (SELECT count(DISTINCT (user_id, snapshot_date)) FROM top_snapshots) AS snapshots`,
     ),
     query(
-      `SELECT l.id, l.job, l.started_at, l.message, u.id AS user_id, u.display_name
-         FROM sync_log l LEFT JOIN users u ON u.id = l.user_id
+      `SELECT l.id, l.job, l.started_at, l.message, l.user_id, u.display_name, a.username
+         FROM sync_log l
+         LEFT JOIN users u ON u.id = l.user_id
+         LEFT JOIN accounts a ON a.spotify_user_id = l.user_id
         WHERE l.ok = false ORDER BY l.id DESC LIMIT 20`,
     ),
     query(
@@ -124,76 +331,27 @@ export async function adminSystem() {
       syncIntervalMinutes: config.syncIntervalMinutes,
       internalScheduler: config.internalScheduler,
       keepAlive: Boolean(config.keepAliveUrl),
-      configuredAdmins: config.adminIds.length,
+      allowRegistration: config.allowRegistration,
+      adminUsername: config.adminUsername,
+      adminPasswordSet: Boolean(config.adminPassword),
     },
   };
 }
 
-/** CSV-Export aller Nutzer (für Excel: Semikolon + BOM). */
-export async function usersCsv() {
-  const { users } = await adminOverview();
+/** CSV-Export aller Konten (für Excel: Semikolon + BOM). */
+export async function accountsCsv() {
+  const { accounts } = await adminOverview();
   const cols = [
-    ['id', 'Spotify-ID'], ['display_name', 'Name'], ['email', 'E-Mail'], ['country', 'Land'], ['product', 'Abo'],
-    ['is_admin', 'Admin'], ['created_at', 'Registriert'], ['last_login_at', 'Letzter Login'], ['login_count', 'Logins'],
-    ['plays', 'Plays'], ['minutes', 'Minuten'], ['last_sync', 'Letzter Sync'],
+    ['username', 'Benutzername'], ['is_admin', 'Admin'], ['display_name', 'Spotify-Name'], ['email', 'E-Mail'],
+    ['spotify_user_id', 'Spotify-ID'], ['country', 'Land'], ['product', 'Abo'], ['created_at', 'Registriert'],
+    ['last_login_at', 'Letzter Login'], ['login_count', 'Logins'], ['plays', 'Plays'], ['minutes', 'Minuten'],
+    ['last_sync', 'Letzter Sync'],
   ];
   const cell = (v) => {
     if (v === null || v === undefined) return '';
     const str = v instanceof Date ? v.toISOString() : String(v);
     return /[";\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
   };
-  const lines = [cols.map((c) => c[1]).join(';'), ...users.map((u) => cols.map(([k]) => cell(u[k])).join(';'))];
-  return '\uFEFF' + lines.join('\r\n');
-}
-
-/** Aktualisiert last_seen_at höchstens alle 5 Minuten (spart Schreibzugriffe). */
-export function touchUser(id) {
-  return query(
-    `UPDATE users SET last_seen_at = now() WHERE id = $1 AND (last_seen_at IS NULL OR last_seen_at < now() - interval '5 minutes')`,
-    [id],
-  ).catch(() => {});
-}
-
-export async function allUserIds() {
-  const { rows } = await query('SELECT id FROM users WHERE auth_error IS NULL ORDER BY created_at');
-  return rows.map((r) => r.id);
-}
-
-/** Admin: alle Nutzer mit Kennzahlen + letzte Logins. */
-export async function adminOverview() {
-  const [users, logins] = await Promise.all([
-    query(
-      `SELECT u.id, u.display_name, u.email, u.avatar_url, u.country, u.product, u.is_admin,
-              u.auth_error IS NOT NULL AS auth_expired, u.login_count,
-              u.created_at, u.last_login_at, u.last_seen_at,
-              COALESCE(p.plays, 0) AS plays, COALESCE(p.minutes, 0) AS minutes, p.last_play,
-              s.last_sync, s.last_sync_ok
-         FROM users u
-         LEFT JOIN LATERAL (
-           SELECT count(*) AS plays, round(sum(ms_played) / 60000.0)::int AS minutes, max(played_at) AS last_play
-             FROM plays WHERE user_id = u.id
-         ) p ON true
-         LEFT JOIN LATERAL (
-           SELECT finished_at AS last_sync, ok AS last_sync_ok FROM sync_log
-            WHERE user_id = u.id AND job = 'recently_played' ORDER BY id DESC LIMIT 1
-         ) s ON true
-        ORDER BY u.last_login_at DESC NULLS LAST`,
-    ),
-    query(
-      `SELECT l.at, l.user_agent, u.id AS user_id, u.display_name, u.email, u.avatar_url
-         FROM login_events l JOIN users u ON u.id = l.user_id
-        ORDER BY l.at DESC LIMIT 50`,
-    ),
-  ]);
-  return { users: users.rows.map(withConfiguredAdmin), logins: logins.rows };
-}
-
-/** Löscht ein Konto samt aller Hördaten (Tracks/Künstler bleiben als gemeinsamer Katalog). */
-export async function deleteUser(id) {
-  await withTransaction(async (db) => {
-    await db.query('DELETE FROM plays WHERE user_id = $1', [id]);
-    await db.query('DELETE FROM top_snapshots WHERE user_id = $1', [id]);
-    await db.query('DELETE FROM sync_log WHERE user_id = $1', [id]);
-    await db.query('DELETE FROM users WHERE id = $1', [id]);
-  });
+  const lines = [cols.map((c) => c[1]).join(';'), ...accounts.map((u) => cols.map(([k]) => cell(u[k])).join(';'))];
+  return '﻿' + lines.join('\r\n');
 }

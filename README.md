@@ -17,12 +17,13 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
   - Spotify-Ranking mit Verlauf
   - Zuletzt gehört
 - Dunkles, mobilfreundliches Design mit flüssigen Animationen.
-- **Mehrere Nutzer**: Jeder meldet sich mit dem eigenen Spotify-Konto an und sieht nur die eigenen Werte.
+- **Eigene Konten**: Jeder registriert sich mit Benutzername und Passwort, verbindet danach sein Spotify-Konto und sieht nur die eigenen Werte.
 - **Admin-Tab „Admin“**: Wer Admin ist, sieht oben „Meine Statistik | Admin“. Dort gibt es:
 
 - **Kennzahlen**: registrierte Nutzer, Aktive der letzten 7 Tage, Logins, Plays.
-- **Nutzerliste** mit Suche: Name, E-Mail, Spotify-ID, Land, Abo, Registrierung, letzter Login und Sync, Plays. Pro Nutzer kannst du:
+- **Kontenliste** mit Suche: Benutzername, Spotify-Name, E-Mail, Spotify-ID, Land, Abo, Registrierung, letzter Login und Sync, Plays. Pro Konto kannst du:
   - **Jetzt synchronisieren**
+  - **Passwort zurücksetzen** (zeigt einmalig ein neues Zufallspasswort)
   - **Zum Admin machen** bzw. **Admin entziehen** (der letzte Admin bleibt geschützt)
   - **Löschen** (samt aller Hördaten)
 - **CSV-Export** aller Nutzer (öffnet sich direkt in Excel).
@@ -30,7 +31,7 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
 - **System**: Datenbankgröße, Katalog (Songs und Künstler, fehlende Cover und Genres), Sync-Läufe und Fehler der letzten 24 h, Zeitplan, Zeitzone.
 - **Sync-Fehler**: die letzten fehlgeschlagenen Läufe mit Fehlermeldung.
 
-**Admin werden**: Das Spotify-Konto mit dem Anzeigenamen **Nebs** wird beim Login automatisch Admin (`ADMIN_SPOTIFY_NAMES`). Außerdem wird Admin der erste Nutzer, der sich anmeldet (bzw. der nächste, solange es keinen Admin gibt), oder wer in `ADMIN_SPOTIFY_IDS` steht. Diese Variable wirkt sofort, ohne neuen Login. Deine Spotify-ID steht unten im Dashboard unter „Deine Spotify-ID“.
+**Admin-Konto**: Der Benutzername **Nebs** (`ADMIN_USERNAME`) ist das Admin-Konto. Sein Passwort steht ausschließlich in der Umgebungsvariable `ADMIN_PASSWORD`, nie im Code. Beim Start legt die App das Konto an bzw. übernimmt ein geändertes Passwort. Weitere Admins kannst du im Admin-Tab ernennen.
 
 ---
 
@@ -85,7 +86,7 @@ Ohne irgendeine Datenbank geht es nicht: Der kostenlose Render-Web-Service hat k
    | `DATABASE_URL` | die *Internal Database URL* aus Schritt 1 |
    | `SPOTIFY_CLIENT_ID` | aus Schritt 2 |
    | `SPOTIFY_CLIENT_SECRET` | aus Schritt 2 |
-   | `ADMIN_SPOTIFY_IDS` | *(optional)* deine Spotify-User-ID, damit nur du den Tab „Nutzer“ siehst; ohne Angabe wird der erste Nutzer Admin |
+   | `ADMIN_PASSWORD` | das Passwort für das Admin-Konto **Nebs** |
    | `TIMEZONE` | `Europe/Berlin` *(optional, ist Standard)* |
 
 4. Klicke **Deploy Web Service**.
@@ -104,9 +105,10 @@ Den Platzhalter `https://example.com/callback` kannst du entfernen.
 
 ### 5. Loslegen
 
-1. Öffne deine Render-URL und klicke **Mit Spotify anmelden**. Der erste Nutzer wird Admin.
-2. Bestätige bei Spotify den Zugriff.
+1. Öffne deine Render-URL und melde dich mit Benutzername **Nebs** und deinem `ADMIN_PASSWORD` an.
+2. Klicke **Mit Spotify verbinden** und bestätige bei Spotify.
 3. Danach läuft sofort ein erster Sync inklusive Top-Snapshot. Ab dann synchronisiert die App alle 30 Minuten von selbst.
+4. Andere registrieren sich auf der Login-Seite unter **Registrieren** mit eigenem Benutzernamen und Passwort und verbinden danach ihr Spotify.
 
 Siehst du statt des Logins eine Seite **„Einrichtung unvollständig“**, steht dort, welche Variable fehlt oder warum die Datenbank nicht erreichbar ist.
 
@@ -126,7 +128,7 @@ Jeder kann sich mit dem eigenen Spotify-Konto anmelden und sieht nur die eigenen
 
 Ohne Freischaltung zeigt die Login-Seite „Dein Spotify-Konto ist für diese App noch nicht freigeschaltet“. Im Development Mode ist die Zahl der Nutzer stark begrenzt (aktuell 5). Für mehr Nutzer bräuchte die App eine „Extended Quota“, die Spotify nur Unternehmen gewährt.
 
-**Admin-Tab „Nutzer“**: Wer Admin ist, sieht oben „Meine Statistik | Nutzer“. Dort stehen alle Konten mit Name, E-Mail, Spotify-ID, Land, Abo, Registrierung, letztem Login, Anzahl der Logins und Plays sowie die letzten 50 Anmeldungen mit Browser und Gerät. Admin wird der erste Nutzer, der sich anmeldet, oder wer in `ADMIN_SPOTIFY_IDS` steht. Deine Spotify-User-ID findest du in der Nutzerliste oder unter spotify.com → Konto.
+Ablauf für neue Nutzer: Login-Seite → **Registrieren** (Benutzername 3–24 Zeichen, Passwort mind. 8 Zeichen) → **Mit Spotify verbinden**. Ein Spotify-Konto kann nur mit einem Spotlfy-Konto verbunden sein. Wer sein Passwort vergisst, bekommt im Admin-Tab über **Passwort zurücksetzen** ein neues. Mit `ALLOW_REGISTRATION=false` schließt du die Registrierung.
 
 ## Damit der Free-Service nicht einschläft
 
@@ -170,8 +172,9 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | `DATABASE_URL` | ✔ | Postgres-Connection-String |
 | `SPOTIFY_CLIENT_ID` | ✔ | Spotify-App |
 | `SPOTIFY_CLIENT_SECRET` | ✔ | Spotify-App |
-| `ADMIN_SPOTIFY_IDS` | – | Spotify-User-IDs mit Admin-Rechten, Komma-getrennt (Standard: der erste Nutzer) |
-| `ADMIN_SPOTIFY_NAMES` | – | Spotify-Anzeigenamen, die beim Login automatisch Admin werden (Standard `Nebs`; leer setzen zum Abschalten). Anzeigenamen sind nicht eindeutig, sicherer ist `ADMIN_SPOTIFY_IDS`. |
+| `ADMIN_PASSWORD` | ✔ (für Admin) | Passwort des Admin-Kontos |
+| `ADMIN_USERNAME` | – | Benutzername des Admin-Kontos (Standard `Nebs`) |
+| `ALLOW_REGISTRATION` | – | Neue Registrierungen erlauben (Standard `true`) |
 | `SPOTIFY_REDIRECT_URI` | – | Standard: `${RENDER_EXTERNAL_URL}/auth/callback`; bei eigener Domain setzen |
 | `TIMEZONE` | – | Zeitzone für Tage, Heatmap und Snapshots (Standard `Europe/Berlin`) |
 | `SESSION_SECRET` | – | Cookie-Schlüssel; Standard: abgeleitet aus dem Client-Secret |

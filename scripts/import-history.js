@@ -1,7 +1,7 @@
 // Import der Spotify "Extended Streaming History".
 // Nutzung:
-//   DATABASE_URL=... node scripts/import-history.js [--user <spotify-id>] <Datei.json | Ordner> [weitere …]
-// Ohne --user wird in das Konto des ersten Admins importiert.
+//   DATABASE_URL=... node scripts/import-history.js [--user <benutzername|spotify-id>] <Datei.json | Ordner> [weitere …]
+// Ohne --user wird in das Konto des ersten Admins (mit verbundenem Spotify) importiert.
 // Es werden alle Streaming_History_Audio_*.json (bzw. alle .json) im Ordner gelesen.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,11 +33,19 @@ const files = inputs.flatMap(collect);
 let exitCode = 0;
 try {
   await migrate();
-  if (!userId) {
-    const { rows } = await query('SELECT id FROM users ORDER BY is_admin DESC, created_at LIMIT 1');
-    if (!rows.length) throw new Error('Noch kein Nutzer vorhanden – erst einmal im Dashboard mit Spotify anmelden.');
-    userId = rows[0].id;
-  }
+  // --user akzeptiert einen Spotlfy-Benutzernamen oder eine Spotify-User-ID.
+  const { rows } = userId
+    ? await query(
+        `SELECT COALESCE((SELECT spotify_user_id FROM accounts WHERE lower(username) = lower($1)),
+                         (SELECT id FROM users WHERE id = $1)) AS id`,
+        [userId],
+      )
+    : await query(
+        `SELECT spotify_user_id AS id FROM accounts WHERE spotify_user_id IS NOT NULL
+          ORDER BY is_admin DESC, created_at LIMIT 1`,
+      );
+  userId = rows[0]?.id;
+  if (!userId) throw new Error('Kein Konto mit verbundenem Spotify gefunden – erst im Dashboard anmelden und Spotify verbinden.');
   console.log(`Importiere für Nutzer: ${userId}`);
   const total = { inserted: 0, duplicates: 0 };
   for (const file of files) {

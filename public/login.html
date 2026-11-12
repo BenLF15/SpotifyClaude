@@ -14,16 +14,32 @@
   <main class="login-card">
     <img src="/assets/icon.svg" alt="" class="login-logo" width="56" height="56" />
     <h1>Spotlfy</h1>
-    <p class="muted">Deine persönliche Spotify-Statistik: Hörminuten, Top-Künstler, Heatmap und mehr.</p>
-    <a class="btn btn-primary btn-spotify" href="/auth/login">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M7 9.5c3.5-1 7-.7 10 1M7.8 12.7c2.8-.8 5.7-.5 8.2.9M8.6 15.7c2.2-.6 4.4-.4 6.3.7" /></svg>
-      Mit Spotify anmelden
-    </a>
-    <p id="error" class="login-error" role="alert" hidden></p>
+    <p class="muted">Deine persönliche Spotify-Statistik</p>
+
+    <div class="segmented login-tabs" id="auth-tabs" role="tablist">
+      <button type="button" role="tab" data-mode="login">Anmelden</button>
+      <button type="button" role="tab" data-mode="register">Registrieren</button>
+    </div>
+
+    <form class="login-form" id="auth-form" novalidate>
+      <label for="username" class="sr-only">Benutzername</label>
+      <input id="username" name="username" type="text" placeholder="Benutzername" autocomplete="username"
+             autocapitalize="none" spellcheck="false" maxlength="24" required autofocus />
+      <label for="password" class="sr-only">Passwort</label>
+      <input id="password" name="password" type="password" placeholder="Passwort" autocomplete="current-password" maxlength="200" required />
+      <div id="register-extra" hidden>
+        <label for="password2" class="sr-only">Passwort wiederholen</label>
+        <input id="password2" name="password2" type="password" placeholder="Passwort wiederholen" autocomplete="new-password" maxlength="200" />
+        <p class="login-hint">3–24 Zeichen (Buchstaben, Zahlen, _ . -) · Passwort mindestens 8 Zeichen</p>
+      </div>
+      <button type="submit" class="btn btn-primary" id="submit-btn">Anmelden</button>
+      <p id="error" class="login-error" role="alert" hidden></p>
+    </form>
+
     <p class="login-note">
-      Beim Anmelden werden dein Spotify-Name, deine E-Mail-Adresse und dein Hörverlauf gespeichert,
-      um deine Statistik zu berechnen. Der Betreiber dieser Seite kann Name und E-Mail sehen.
-      Du kannst dein Konto samt aller Daten jederzeit im Dashboard löschen.
+      Nach der Anmeldung verbindest du dein Spotify-Konto. Gespeichert werden dein Benutzername, dein
+      Spotify-Name, deine E-Mail-Adresse und dein Hörverlauf. Der Betreiber dieser Seite kann Benutzername,
+      Name und E-Mail sehen. Du kannst dein Konto samt aller Daten jederzeit im Dashboard löschen.
     </p>
   </main>
   <script src="/assets/login.js"></script>

@@ -59,36 +59,37 @@ function setCookie(res, name, value, maxAgeSec) {
   res.append('Set-Cookie', parts.join('; '));
 }
 
-// Session-Cookie: "<userId>.<ablauf>.<hmac>" – signiert, HttpOnly, SameSite=Lax.
-function sessionUserId(req) {
+// Session-Cookie: "<kontoId>.<ablauf>.<hmac>" – signiert, HttpOnly, SameSite=Lax.
+function sessionAccountId(req) {
   const token = parseCookies(req)[COOKIE];
   if (!token) return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;
-  const [uid64, exp, sig] = parts;
-  if (Number(exp) < Date.now()) return null;
-  const expected = sign(`session:${uid64}:${exp}`);
+  const [id, exp, sig] = parts;
+  if (!/^\d+$/.test(id) || Number(exp) < Date.now()) return null;
+  const expected = sign(`session:${id}:${exp}`);
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
-  return Buffer.from(uid64, 'base64url').toString('utf8');
+  return Number(id);
 }
 
-function startSession(res, userId) {
+function startSession(res, accountId) {
   const exp = Date.now() + config.sessionDays * 864e5;
-  const uid64 = Buffer.from(userId, 'utf8').toString('base64url');
-  setCookie(res, COOKIE, `${uid64}.${exp}.${sign(`session:${uid64}:${exp}`)}`, config.sessionDays * 86400);
+  setCookie(res, COOKIE, `${accountId}.${exp}.${sign(`session:${accountId}:${exp}`)}`, config.sessionDays * 86400);
 }
 
 async function requireAuth(req, res, next) {
   try {
-    const id = sessionUserId(req);
-    const user = id ? await users.getUser(id) : null;
-    if (user) {
-      req.user = user;
-      users.touchUser(user.id);
+    const id = sessionAccountId(req);
+    const account = id ? await users.getAccount(id) : null;
+    if (account) {
+      req.account = account;
+      users.touchAccount(account.id);
       return next();
     }
     if (id) setCookie(res, COOKIE, '', 0); // Konto gelöscht → Session beenden
-    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'unauthorized' });
+    if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
+      return req.path.startsWith('/api/') ? res.status(401).json({ error: 'unauthorized' }) : res.redirect('/login');
+    }
     return res.redirect('/login');
   } catch (err) {
     next(err);
@@ -96,8 +97,37 @@ async function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (req.user?.is_admin) return next();
+  if (req.account?.is_admin) return next();
   return res.status(403).json({ error: 'Nur für Admins.' });
+}
+
+// Daten-Endpunkte brauchen ein verbundenes Spotify-Konto.
+function requireSpotify(req, res, next) {
+  if (req.account?.spotify_user_id) {
+    req.sid = req.account.spotify_user_id;
+    return next();
+  }
+  return res.status(409).json({ error: 'Bitte verbinde zuerst dein Spotify-Konto.', code: 'NOT_CONNECTED' });
+}
+
+// Brute-Force-Bremse: max. 10 Fehlversuche pro IP bzw. Benutzername in 15 Minuten.
+const attempts = new Map();
+const WINDOW = 15 * 60_000;
+function blocked(...keys) {
+  const now = Date.now();
+  return keys.some((k) => {
+    const r = attempts.get(k);
+    return r && now - r.since < WINDOW && r.count >= 10;
+  });
+}
+function fail(...keys) {
+  const now = Date.now();
+  for (const k of keys) {
+    const r = attempts.get(k);
+    if (!r || now - r.since > WINDOW) attempts.set(k, { since: now, count: 1 });
+    else r.count++;
+  }
+  if (attempts.size > 10_000) attempts.clear();
 }
 
 // ---------------------------------------------------------------- Öffentliche Routen
@@ -126,36 +156,56 @@ app.get('/cron/run', async (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-  if (sessionUserId(req)) return res.redirect('/');
+  if (sessionAccountId(req)) return res.redirect('/');
   res.set('Cache-Control', 'no-store');
   res.sendFile(path.join(publicDir, 'login.html'));
 });
 
-// Anmeldung = Spotify-Login (Authorization Code Flow)
-app.get('/auth/login', (_req, res) => {
-  const state = crypto.randomBytes(16).toString('hex');
-  setCookie(res, 'sd_oauth_state', state, 600);
-  res.redirect(authorizeUrl(state));
-});
+app.get('/api/auth/config', (_req, res) => res.json({ allowRegistration: config.allowRegistration }));
 
-app.get('/auth/callback', async (req, res) => {
-  const { code, state, error } = req.query;
-  const expected = parseCookies(req).sd_oauth_state;
-  setCookie(res, 'sd_oauth_state', '', 0);
-  if (error) return res.redirect(`/login?error=${encodeURIComponent(error)}`);
-  if (!code || !state || state !== expected) return res.redirect('/login?error=state_mismatch');
-  try {
-    const result = await exchangeCode(String(code));
-    const user = await users.upsertUserFromLogin(result, { userAgent: req.get('user-agent') });
-    startSession(res, user.id);
-    // Erster Sync im Hintergrund (inkl. Top-Snapshot), damit das Dashboard sofort Daten hat.
-    triggerSync(user.id, { forceSnapshot: true }).catch((err) => console.error('[sync]', user.id, err.message));
-    res.redirect(user.created ? '/?welcome=1' : '/');
-  } catch (err) {
-    console.error('[oauth]', err.message);
-    res.redirect(`/login?error=${encodeURIComponent(err.spotifyError || 'token_exchange_failed')}`);
-  }
-});
+app.post(
+  '/api/auth/login',
+  express.json({ limit: '5kb' }),
+  async (req, res, next) => {
+    try {
+      const username = String(req.body?.username || '').trim();
+      const keys = [`ip:${req.ip}`, `u:${username.toLowerCase()}`];
+      if (blocked(...keys)) {
+        return res.status(429).json({ error: 'Zu viele Fehlversuche – bitte in 15 Minuten erneut versuchen.' });
+      }
+      const account = await users.authenticate(username, req.body?.password);
+      if (!account) {
+        fail(...keys);
+        return res.status(401).json({ error: 'Benutzername oder Passwort ist falsch.' });
+      }
+      await users.recordLogin(account.id, req.get('user-agent'));
+      startSession(res, account.id);
+      res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+app.post(
+  '/api/auth/register',
+  express.json({ limit: '5kb' }),
+  async (req, res, next) => {
+    try {
+      if (blocked(`reg:${req.ip}`)) {
+        return res.status(429).json({ error: 'Zu viele Registrierungen – bitte später erneut versuchen.' });
+      }
+      const account = await users.registerAccount(req.body?.username, req.body?.password);
+      fail(`reg:${req.ip}`); // zählt Registrierungen pro IP (max. 10 / 15 Min.)
+      await users.recordLogin(account.id, req.get('user-agent'));
+      startSession(res, account.id);
+      res.status(201).json({ ok: true });
+    } catch (err) {
+      if (err instanceof users.UserError) return res.status(err.status).json({ error: err.message });
+      next(err);
+    }
+  },
+);
 
 app.post('/logout', (_req, res) => {
   setCookie(res, COOKIE, '', 0);
@@ -172,9 +222,36 @@ app.get('/', (_req, res) => {
 });
 app.use(express.static(publicDir, { index: false, maxAge: '1h' }));
 
+// Spotify verbinden (nur für eingeloggte Spotlfy-Konten)
+app.get('/auth/login', (_req, res) => {
+  const state = crypto.randomBytes(16).toString('hex');
+  setCookie(res, 'sd_oauth_state', state, 600);
+  res.redirect(authorizeUrl(state));
+});
+
+app.get('/auth/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  const expected = parseCookies(req).sd_oauth_state;
+  setCookie(res, 'sd_oauth_state', '', 0);
+  if (error) return res.redirect(`/?spotify_error=${encodeURIComponent(error)}`);
+  if (!code || !state || state !== expected) return res.redirect('/?spotify_error=state_mismatch');
+  try {
+    const result = await exchangeCode(String(code));
+    const { spotifyUserId } = await users.connectSpotify(req.account.id, result);
+    // Erster Sync im Hintergrund (inkl. Top-Snapshot), damit das Dashboard sofort Daten hat.
+    triggerSync(spotifyUserId, { forceSnapshot: true }).catch((err) => console.error('[sync]', spotifyUserId, err.message));
+    res.redirect('/?connected=1');
+  } catch (err) {
+    console.error('[oauth]', err.message);
+    const code = err instanceof users.UserError ? 'already_linked' : err.spotifyError || 'token_exchange_failed';
+    res.redirect(`/?spotify_error=${encodeURIComponent(code)}`);
+  }
+});
+
 const api = express.Router();
 const wrap = (fn) => (req, res) =>
   fn(req, res).catch((err) => {
+    if (err instanceof users.UserError) return res.status(err.status).json({ error: err.message });
     console.error('[api]', req.path, err);
     res.status(err.code === 'AUTH_EXPIRED' ? 409 : 500).json({ error: err.message, code: err.code });
   });
@@ -183,16 +260,125 @@ const rangeDays = (req) => stats.RANGE_DAYS[req.query.range] ?? 30;
 api.get(
   '/status',
   wrap(async (req, res) => {
-    const s = await stats.status(req.user.id);
-    // is_admin inkl. ADMIN_SPOTIFY_IDS (siehe users.getUser)
-    res.json({ ...s, user: s.user && { ...s.user, is_admin: req.user.is_admin } });
+    const a = req.account;
+    const base = {
+      account: { id: a.id, username: a.username, is_admin: a.is_admin },
+      spotify: a.spotify_user_id
+        ? {
+            id: a.spotify_user_id,
+            display_name: a.display_name,
+            email: a.email,
+            avatar_url: a.avatar_url,
+            auth_expired: Boolean(a.auth_error),
+          }
+        : null,
+    };
+    if (!a.spotify_user_id) return res.json(base);
+    const s = await stats.status(a.spotify_user_id);
+    res.json({ ...base, counts: s.counts, jobs: s.jobs, snapshots: s.snapshots });
   }),
 );
+
+// Eigenes Passwort ändern
+api.post(
+  '/me/password',
+  express.json({ limit: '5kb' }),
+  wrap(async (req, res) => {
+    await users.changePassword(req.account.id, req.body?.current, req.body?.next);
+    res.json({ ok: true });
+  }),
+);
+
+// Spotify-Verbindung lösen
+api.post(
+  '/me/disconnect',
+  wrap(async (req, res) => {
+    await users.disconnectSpotify(req.account.id);
+    res.json({ ok: true });
+  }),
+);
+
+// Eigenes Konto inkl. aller Hördaten löschen
+api.delete(
+  '/me',
+  wrap(async (req, res) => {
+    await users.deleteAccount(req.account.id);
+    setCookie(res, COOKIE, '', 0);
+    res.json({ ok: true });
+  }),
+);
+
+// ---------------------------------------------------------------- Admin
+const admin = express.Router();
+admin.use(requireAdmin);
+
+admin.get('/accounts', wrap(async (_req, res) => res.json(await users.adminOverview())));
+admin.get('/system', wrap(async (_req, res) => res.json(await users.adminSystem())));
+
+admin.get(
+  '/accounts.csv',
+  wrap(async (_req, res) => {
+    const date = new Date().toISOString().slice(0, 10);
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="spotlfy-konten-${date}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(await users.accountsCsv());
+  }),
+);
+
+const accountParam = (req) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw new users.UserError('Ungültige Konto-ID.');
+  return id;
+};
+
+admin.post(
+  '/accounts/:id/sync',
+  wrap(async (req, res) => {
+    const acc = await users.getAccount(accountParam(req));
+    if (!acc?.spotify_user_id) throw new users.UserError('Dieses Konto hat kein Spotify verbunden.');
+    res.json(await triggerSync(acc.spotify_user_id));
+  }),
+);
+
+admin.post(
+  '/accounts/:id/admin',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => {
+    await users.setAdmin(accountParam(req), Boolean(req.body?.admin));
+    res.json({ ok: true });
+  }),
+);
+
+admin.post(
+  '/accounts/:id/reset-password',
+  wrap(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await users.resetPassword(accountParam(req)));
+  }),
+);
+
+admin.delete(
+  '/accounts/:id',
+  wrap(async (req, res) => {
+    const id = accountParam(req);
+    if (id === req.account.id) throw new users.UserError('Dein eigenes Konto löschst du unten im Dashboard.');
+    await users.deleteAccount(id);
+    res.json({ ok: true });
+  }),
+);
+
+api.use('/admin', admin);
+
+// ---------------------------------------------------------------- Statistik (braucht Spotify)
+api.use(requireSpotify);
 
 api.get(
   '/dashboard',
   wrap(async (req, res) => {
-    const uid = req.user.id;
+    const uid = req.sid;
     const days = rangeDays(req);
     const [overview, timeline, topArtists, topTracks, heatmap, genres, recent] = await Promise.all([
       stats.overview(uid, days),
@@ -209,7 +395,7 @@ api.get(
 
 api.get(
   '/trends',
-  wrap(async (req, res) => res.json({ monthly: await stats.monthly(req.user.id) })),
+  wrap(async (req, res) => res.json({ monthly: await stats.monthly(req.sid) })),
 );
 
 api.get(
@@ -217,13 +403,13 @@ api.get(
   wrap(async (req, res) => {
     const kind = req.query.kind === 'tracks' ? 'tracks' : 'artists';
     const range = ['short_term', 'medium_term', 'long_term'].includes(req.query.range) ? req.query.range : 'short_term';
-    res.json(await stats.spotifyTop(req.user.id, kind, range));
+    res.json(await stats.spotifyTop(req.sid, kind, range));
   }),
 );
 
 api.post(
   '/sync',
-  wrap(async (req, res) => res.json(await triggerSync(req.user.id))),
+  wrap(async (req, res) => res.json(await triggerSync(req.sid))),
 );
 
 api.post(
@@ -233,79 +419,17 @@ api.post(
     if (!Array.isArray(req.body)) {
       return res.status(400).json({ error: 'Erwartet wird der Inhalt einer Streaming_History_Audio_*.json (JSON-Array).' });
     }
-    res.json(await importHistory(req.user.id, req.body));
+    res.json(await importHistory(req.sid, req.body));
   }),
 );
-
-// Eigenes Konto inkl. aller Hördaten löschen
-api.delete(
-  '/me',
-  wrap(async (req, res) => {
-    await users.deleteUser(req.user.id);
-    setCookie(res, COOKIE, '', 0);
-    res.json({ ok: true });
-  }),
-);
-
-// ---------------------------------------------------------------- Admin
-const admin = express.Router();
-admin.use(requireAdmin);
-
-admin.get('/users', wrap(async (_req, res) => res.json(await users.adminOverview())));
-admin.get('/system', wrap(async (_req, res) => res.json(await users.adminSystem())));
-
-admin.get(
-  '/users.csv',
-  wrap(async (_req, res) => {
-    const date = new Date().toISOString().slice(0, 10);
-    res.set({
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="spotlfy-nutzer-${date}.csv"`,
-      'Cache-Control': 'no-store',
-    });
-    res.send(await users.usersCsv());
-  }),
-);
-
-// Sync für einen Nutzer sofort starten
-admin.post(
-  '/users/:id/sync',
-  wrap(async (req, res) => res.json(await triggerSync(req.params.id, { forceSnapshot: req.query.snapshot === '1' }))),
-);
-
-// Admin-Rechte geben/entziehen
-admin.post(
-  '/users/:id/admin',
-  express.json({ limit: '1kb' }),
-  wrap(async (req, res) => {
-    try {
-      await users.setAdmin(req.params.id, Boolean(req.body?.admin));
-      res.json({ ok: true });
-    } catch (err) {
-      if (err.status) return res.status(err.status).json({ error: err.message });
-      throw err;
-    }
-  }),
-);
-
-// Nutzer samt Daten löschen (das eigene Konto geht über DELETE /api/me)
-admin.delete(
-  '/users/:id',
-  wrap(async (req, res) => {
-    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Dein eigenes Konto löschst du unten im Dashboard.' });
-    await users.deleteUser(req.params.id);
-    res.json({ ok: true });
-  }),
-);
-
-api.use('/admin', admin);
 
 app.use('/api', api);
 
 // ---------------------------------------------------------------- Start
 
 await migrate();
+await users.ensureAdminAccount();
 app.listen(config.port, () => {
-  console.log(`Spotify-Dashboard läuft auf Port ${config.port} (Redirect URI: ${config.spotify.redirectUri})`);
+  console.log(`Spotlfy läuft auf Port ${config.port} (Redirect URI: ${config.spotify.redirectUri})`);
   startScheduler();
 });

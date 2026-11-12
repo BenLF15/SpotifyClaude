@@ -123,3 +123,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS top_snapshots_uq ON top_snapshots (user_id, sn
 DROP INDEX IF EXISTS top_snapshots_item_idx;
 CREATE INDEX IF NOT EXISTS top_snapshots_item_idx ON top_snapshots (user_id, kind, time_range, item_id);
 CREATE INDEX IF NOT EXISTS sync_log_user_job_idx ON sync_log (user_id, job, id DESC);
+
+-- ---------------------------------------------------------------- Spotlfy-Konten (Benutzername + Passwort)
+-- Ein Konto meldet sich mit Benutzername/Passwort an und verbindet danach (optional) ein Spotify-Konto.
+-- Die Hördaten hängen weiterhin an der Spotify-User-ID (users.id).
+CREATE TABLE IF NOT EXISTS accounts (
+  id               bigserial PRIMARY KEY,
+  username         text NOT NULL,
+  password_hash    text NOT NULL,
+  is_admin         boolean NOT NULL DEFAULT false,
+  spotify_user_id  text UNIQUE REFERENCES users(id) ON DELETE SET NULL,
+  login_count      integer NOT NULL DEFAULT 0,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  last_login_at    timestamptz,
+  last_seen_at     timestamptz,
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS accounts_username_uq ON accounts (lower(username));
+
+ALTER TABLE login_events ADD COLUMN IF NOT EXISTS account_id bigint REFERENCES accounts(id) ON DELETE CASCADE;
+ALTER TABLE login_events ALTER COLUMN user_id DROP NOT NULL;

@@ -56,7 +56,23 @@
       </div>
     </nav>
 
-    <div class="view" id="view-stats">
+    <div class="view" id="view-connect" hidden>
+      <section class="card connect-card">
+        <div class="connect-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M7 9.5c3.5-1 7-.7 10 1M7.8 12.7c2.8-.8 5.7-.5 8.2.9M8.6 15.7c2.2-.6 4.4-.4 6.3.7" /></svg></div>
+        <h2 id="connect-title">Verbinde dein Spotify-Konto</h2>
+        <p>Spotlfy speichert danach alle 30 Minuten automatisch, was du hörst, und berechnet daraus deine Statistik.</p>
+        <a class="btn btn-primary" href="/auth/login">Mit Spotify verbinden</a>
+        <p class="hint">Im Testbetrieb erlaubt Spotify nur freigeschaltete Konten. Klappt es nicht, bitte den Betreiber, dein Spotify-Konto freizuschalten.</p>
+      </section>
+      <footer class="footer muted small">
+        <div class="footer-actions">
+          <button class="btn btn-ghost" data-action="password" type="button">Passwort ändern</button>
+          <button class="btn btn-ghost btn-danger" data-action="delete" type="button">Konto löschen</button>
+        </div>
+      </footer>
+    </div>
+
+    <div class="view" id="view-stats" hidden>
     <nav class="range-bar" aria-label="Zeitraum">
       <div class="segmented" id="range-control" role="tablist">
         <button role="tab" data-range="7d">7 Tage</button>
@@ -163,27 +179,29 @@
       <div id="footer"></div>
       <div id="my-id" class="my-id"></div>
       <div class="footer-actions">
-        <button class="btn btn-ghost btn-danger" id="delete-account" type="button">Konto &amp; Daten löschen</button>
+        <button class="btn btn-ghost" data-action="password" type="button">Passwort ändern</button>
+        <button class="btn btn-ghost" data-action="disconnect" type="button">Spotify trennen</button>
+        <button class="btn btn-ghost btn-danger" data-action="delete" type="button">Konto &amp; Daten löschen</button>
       </div>
     </footer>
     </div><!-- /view-stats -->
 
     <div class="view" id="view-admin" hidden>
       <section class="admin-stats" id="admin-stats">
-        <article class="card kpi"><span class="kpi-label">Nutzer</span><strong class="kpi-value" data-admin="users">–</strong><span class="kpi-sub">registriert</span></article>
+        <article class="card kpi"><span class="kpi-label">Konten</span><strong class="kpi-value" data-admin="users">–</strong><span class="kpi-sub" data-admin-sub="connected">registriert</span></article>
         <article class="card kpi"><span class="kpi-label">Aktiv</span><strong class="kpi-value" data-admin="active">–</strong><span class="kpi-sub">in den letzten 7 Tagen</span></article>
         <article class="card kpi"><span class="kpi-label">Logins</span><strong class="kpi-value" data-admin="logins">–</strong><span class="kpi-sub">insgesamt</span></article>
         <article class="card kpi"><span class="kpi-label">Plays</span><strong class="kpi-value" data-admin="plays">–</strong><span class="kpi-sub">aller Nutzer</span></article>
       </section>
       <section class="card">
         <header class="card-head">
-          <div><h2>Nutzer</h2><p class="muted small">Alle Konten, die sich mit Spotify angemeldet haben</p></div>
+          <div><h2>Konten</h2><p class="muted small">Alle registrierten Spotlfy-Konten und ihr verbundenes Spotify</p></div>
           <div class="head-controls">
-            <a class="btn btn-ghost" href="/api/admin/users.csv" download>CSV-Export</a>
+            <a class="btn btn-ghost" href="/api/admin/accounts.csv" download>CSV-Export</a>
             <button class="btn btn-ghost" id="admin-refresh" type="button">Aktualisieren</button>
           </div>
         </header>
-        <input class="admin-search" id="admin-search" type="search" placeholder="Nach Name, E-Mail oder Spotify-ID suchen …" autocomplete="off" />
+        <input class="admin-search" id="admin-search" type="search" placeholder="Nach Benutzername, Spotify-Name, E-Mail oder ID suchen …" autocomplete="off" />
         <ul class="user-list" id="admin-users"></ul>
       </section>
       <div class="grid-2">

@@ -24,7 +24,8 @@
     rankRange: store.get('rankRange', 'short_term'),
     dashboard: null,
     trends: null,
-    user: null,
+    account: null,
+    spotify: null,
   };
 
   async function api(path, opts = {}) {
@@ -181,17 +182,22 @@
   // ---------------------------------------------------------------- Status
   async function loadStatus() {
     const s = await api('/api/status');
-    state.user = s.user;
-    $('#auth-banner').hidden = !s.user?.auth_expired;
-    $('#user-line').textContent = s.user ? s.user.display_name || s.user.id : '';
-    if (s.user?.avatar_url) {
-      const img = $('#brand-img');
-      img.src = s.user.avatar_url;
+    state.account = s.account;
+    state.spotify = s.spotify;
+    const sp = s.spotify;
+    $('#auth-banner').hidden = !sp?.auth_expired;
+    $('#user-line').textContent = sp?.display_name ? `${s.account.username} · ${sp.display_name}` : s.account.username;
+    const img = $('#brand-img');
+    if (sp?.avatar_url) {
+      img.src = sp.avatar_url;
       img.referrerPolicy = 'no-referrer';
       img.classList.add('avatar-sm');
     }
-    $('#view-tabs').hidden = !s.user?.is_admin;
-    if (s.user) $('#my-id').innerHTML = `Deine Spotify-ID: <code>${esc(s.user.id)}</code>`;
+    $('#view-tabs').hidden = !s.account.is_admin;
+    $('#sync-btn').hidden = !sp;
+    $('#import-btn').hidden = !sp;
+    $('#my-id').innerHTML = sp ? `Angemeldet als <strong>${esc(s.account.username)}</strong> · Spotify-ID <code>${esc(sp.id)}</code>` : '';
+    if (!sp) return s;
     const job = s.jobs.recently_played;
     $('#last-sync').textContent = job
       ? `${job.ok ? 'Zuletzt synchronisiert' : 'Sync fehlgeschlagen'} ${relTime(job.finished_at)}`
@@ -610,15 +616,79 @@
   }
 
   // ---------------------------------------------------------------- Start
-  async function refreshAll() {
-    await Promise.all([loadStatus().catch(() => {}), loadDashboard(), loadTrends(), loadRanking()]);
+  let currentView = 'stats';
+
+  function applyView() {
+    const connected = Boolean(state.spotify);
+    $('#view-stats').hidden = currentView !== 'stats' || !connected;
+    $('#view-connect').hidden = currentView !== 'stats' || connected;
+    $('#view-admin').hidden = currentView !== 'admin';
   }
+
+  async function refreshAll() {
+    await loadStatus().catch((err) => {
+      if (err.message !== 'unauthorized') toast(`Status: ${err.message}`, true);
+    });
+    applyView();
+    if (!state.spotify) return;
+    await Promise.all([loadDashboard(), loadTrends(), loadRanking()]);
+  }
+
+  const SPOTIFY_ERRORS = {
+    access_denied: 'Du hast die Verbindung mit Spotify abgebrochen.',
+    user_not_registered: 'Dein Spotify-Konto ist für diese App noch nicht freigeschaltet. Bitte den Betreiber, dich in der Spotify-App unter „User Management“ hinzuzufügen.',
+    already_linked: 'Dieses Spotify-Konto ist bereits mit einem anderen Spotlfy-Konto verbunden.',
+    state_mismatch: 'Die Verbindung ist abgelaufen – bitte noch einmal versuchen.',
+  };
 
   function handleQueryFlags() {
     const q = new URLSearchParams(location.search);
-    if (q.has('welcome')) toast('Willkommen! Deine ersten Daten werden geladen …');
-    if (q.has('welcome')) history.replaceState(null, '', '/');
-    return q.has('welcome');
+    if (q.has('welcome')) toast('Willkommen bei Spotlfy! Verbinde jetzt dein Spotify-Konto.');
+    if (q.has('connected')) toast('Spotify verbunden – deine ersten Daten werden geladen …');
+    if (q.has('spotify_error')) {
+      const e = q.get('spotify_error');
+      toast(SPOTIFY_ERRORS[e] || `Spotify-Verbindung fehlgeschlagen (${e}).`, true);
+    }
+    if ([...q.keys()].length) history.replaceState(null, '', '/');
+    return q.has('connected');
+  }
+
+  async function changePassword() {
+    const current = prompt('Aktuelles Passwort:');
+    if (current === null) return;
+    const next = prompt('Neues Passwort (mindestens 8 Zeichen):');
+    if (next === null) return;
+    if (next.length < 8) return toast('Das neue Passwort muss mindestens 8 Zeichen lang sein.', true);
+    if (prompt('Neues Passwort wiederholen:') !== next) return toast('Die Passwörter stimmen nicht überein.', true);
+    try {
+      await api('/api/me/password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current, next }),
+      });
+      toast('Passwort geändert.');
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }
+
+  async function disconnectSpotify() {
+    if (!confirm('Spotify-Verbindung trennen? Deine bisherigen Daten bleiben gespeichert und sind beim erneuten Verbinden wieder da.')) return;
+    try {
+      await api('/api/me/disconnect', { method: 'POST' });
+      location.reload();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }
+
+  async function deleteAccount() {
+    const ok = confirm('Dein Spotlfy-Konto und alle gespeicherten Hördaten werden endgültig gelöscht. Fortfahren?');
+    if (!ok) return;
+    try {
+      await api('/api/me', { method: 'DELETE' });
+      location.href = '/login';
+    } catch (err) {
+      toast(`Löschen fehlgeschlagen: ${err.message}`, true);
+    }
   }
 
   // ---------------------------------------------------------------- Admin: Nutzer & Logins
@@ -638,30 +708,35 @@
       : `<div class="placeholder" aria-hidden="true">${initials(u.display_name || u.id)}</div>`;
   }
 
-  let adminUsers = [];
+  let adminAccounts = [];
 
   function renderAdminUsers() {
     const q = ($('#admin-search').value || '').trim().toLowerCase();
-    const me = state.user?.id;
+    const me = state.account?.id;
     const list = q
-      ? adminUsers.filter((u) => [u.display_name, u.email, u.id].some((v) => String(v || '').toLowerCase().includes(q)))
-      : adminUsers;
+      ? adminAccounts.filter((u) =>
+          [u.username, u.display_name, u.email, u.spotify_user_id].some((v) => String(v || '').toLowerCase().includes(q)))
+      : adminAccounts;
     $('#admin-users').innerHTML = list.length
       ? list.map((u) => `
-        <li class="user-row" data-id="${esc(u.id)}">
-          ${userAvatar(u)}
+        <li class="user-row" data-id="${u.id}">
+          ${userAvatar({ ...u, display_name: u.display_name || u.username })}
           <div class="t-main">
-            <div class="user-name">${esc(u.display_name || u.id)}
+            <div class="user-name">${esc(u.username)}
               ${u.id === me ? '<span class="tag tag-muted">Du</span>' : ''}
               ${u.is_admin ? '<span class="tag tag-admin">Admin</span>' : ''}
+              ${!u.spotify_user_id ? '<span class="tag tag-muted">Spotify nicht verbunden</span>' : ''}
               ${u.auth_expired ? '<span class="tag tag-warn">Verbindung abgelaufen</span>' : ''}
               ${u.product ? `<span class="tag tag-muted">${esc(u.product)}</span>` : ''}
             </div>
-            <div class="user-mail">${u.email ? `<a href="mailto:${esc(u.email)}">${esc(u.email)}</a>` : '<span class="muted">keine E-Mail freigegeben</span>'}</div>
-            <div class="user-meta">Spotify-ID ${esc(u.id)}${u.country ? ` · ${esc(u.country)}` : ''} · registriert ${fmtDT(u.created_at)}
-              · letzter Sync ${u.last_sync ? `${relTime(u.last_sync)}${u.last_sync_ok === false ? ' (Fehler)' : ''}` : '–'}</div>
+            ${u.spotify_user_id ? `
+              <div class="user-mail">${esc(u.display_name || '')}${u.display_name ? ' · ' : ''}${u.email ? `<a href="mailto:${esc(u.email)}">${esc(u.email)}</a>` : '<span class="muted">keine E-Mail</span>'}</div>
+              <div class="user-meta">Spotify-ID ${esc(u.spotify_user_id)}${u.country ? ` · ${esc(u.country)}` : ''} · letzter Sync ${u.last_sync ? `${relTime(u.last_sync)}${u.last_sync_ok === false ? ' (Fehler)' : ''}` : '–'}</div>`
+              : ''}
+            <div class="user-meta">registriert ${fmtDT(u.created_at)}</div>
             <div class="user-actions">
-              <button class="btn btn-ghost btn-xs" data-act="sync" ${u.auth_expired ? 'disabled title="Verbindung abgelaufen"' : ''}>Jetzt synchronisieren</button>
+              ${u.spotify_user_id ? `<button class="btn btn-ghost btn-xs" data-act="sync" ${u.auth_expired ? 'disabled title="Verbindung abgelaufen"' : ''}>Jetzt synchronisieren</button>` : ''}
+              ${u.id === me ? '' : `<button class="btn btn-ghost btn-xs" data-act="reset">Passwort zurücksetzen</button>`}
               ${u.id === me ? '' : `<button class="btn btn-ghost btn-xs" data-act="${u.is_admin ? 'unadmin' : 'admin'}">${u.is_admin ? 'Admin entziehen' : 'Zum Admin machen'}</button>`}
               ${u.id === me ? '' : '<button class="btn btn-ghost btn-xs btn-danger" data-act="delete">Löschen</button>'}
             </div>
@@ -671,33 +746,39 @@
             <small>Login ${relTime(u.last_login_at) || '–'} · ${fmt(u.login_count)}×</small>
           </div>
         </li>`).join('')
-      : `<li class="empty">${q ? 'Keine Treffer.' : 'Noch keine Nutzer.'}</li>`;
+      : `<li class="empty">${q ? 'Keine Treffer.' : 'Noch keine Konten.'}</li>`;
   }
 
   async function adminAction(e) {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
-    const id = btn.closest('.user-row').dataset.id;
-    const u = adminUsers.find((x) => x.id === id);
-    const name = u?.display_name || id;
+    const id = Number(btn.closest('.user-row').dataset.id);
+    const u = adminAccounts.find((x) => x.id === id);
+    const name = u?.username || String(id);
     const act = btn.dataset.act;
+    const base = `/api/admin/accounts/${id}`;
     try {
       if (act === 'delete') {
-        if (!confirm(`„${name}“ samt aller Hördaten endgültig löschen?`)) return;
+        if (!confirm(`Konto „${name}“ samt aller Hördaten endgültig löschen?`)) return;
         btn.disabled = true;
-        await api(`/api/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await api(base, { method: 'DELETE' });
         toast(`${name} wurde gelöscht`);
       } else if (act === 'admin' || act === 'unadmin') {
-        if (act === 'admin' && !confirm(`„${name}“ Admin-Rechte geben? Admins sehen Namen und E-Mails aller Nutzer.`)) return;
+        if (act === 'admin' && !confirm(`„${name}“ Admin-Rechte geben? Admins sehen alle Konten mit Namen und E-Mails.`)) return;
         btn.disabled = true;
-        await api(`/api/admin/users/${encodeURIComponent(id)}/admin`, {
+        await api(`${base}/admin`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: act === 'admin' }),
         });
         toast(act === 'admin' ? `${name} ist jetzt Admin` : `${name} ist kein Admin mehr`);
+      } else if (act === 'reset') {
+        if (!confirm(`Neues Passwort für „${name}“ erzeugen? Das alte Passwort funktioniert danach nicht mehr.`)) return;
+        btn.disabled = true;
+        const r = await api(`${base}/reset-password`, { method: 'POST' });
+        prompt(`Neues Passwort für „${r.username}“ – jetzt kopieren und weitergeben (wird nur einmal angezeigt):`, r.password);
       } else if (act === 'sync') {
         btn.disabled = true;
         btn.textContent = 'Synchronisiere …';
-        const r = await api(`/api/admin/users/${encodeURIComponent(id)}/sync`, { method: 'POST' });
+        const r = await api(`${base}/sync`, { method: 'POST' });
         toast(`${name}: ${fmt(r.recent?.inserted ?? 0)} neue Plays`);
       }
       await loadAdmin();
@@ -719,13 +800,15 @@
       ['Zeitplan', sys.config.internalScheduler ? `alle ${sys.config.syncIntervalMinutes} Min.` : 'aus'],
       ['Keep-Alive', sys.config.keepAlive ? 'an' : 'aus'],
       ['Zeitzone', sys.config.timezone],
+      ['Registrierung', sys.config.allowRegistration ? 'offen' : 'geschlossen'],
+      ['Admin-Konto', `${sys.config.adminUsername}${sys.config.adminPasswordSet ? '' : ' (ADMIN_PASSWORD fehlt!)'}`],
     ];
     $('#admin-system').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
     $('#admin-errors').innerHTML = sys.errors.length
       ? sys.errors.map((e) => `
         <li>
-          ${userAvatar({ display_name: e.display_name, id: e.user_id || '?' })}
-          <div class="who">${esc(e.display_name || e.user_id || 'System')} <span>· ${esc(e.job)}</span>
+          ${userAvatar({ display_name: e.username || e.display_name, id: e.user_id || '?' })}
+          <div class="who">${esc(e.username || e.display_name || e.user_id || 'System')} <span>· ${esc(e.job)}</span>
             <span class="err-msg" title="${esc(e.message)}">${esc(e.message)}</span></div>
           <time datetime="${esc(e.started_at)}">${fmtDT(e.started_at)}</time>
         </li>`).join('')
@@ -734,21 +817,22 @@
 
   async function loadAdmin() {
     try {
-      const [d, sys] = await Promise.all([api('/api/admin/users'), api('/api/admin/system')]);
+      const [d, sys] = await Promise.all([api('/api/admin/accounts'), api('/api/admin/system')]);
       const weekAgo = Date.now() - 7 * 864e5;
-      countUp($('[data-admin="users"]'), d.users.length);
-      countUp($('[data-admin="active"]'), d.users.filter((u) => u.last_seen_at && new Date(u.last_seen_at) > weekAgo).length);
-      countUp($('[data-admin="logins"]'), d.users.reduce((a, u) => a + (u.login_count || 0), 0));
-      countUp($('[data-admin="plays"]'), d.users.reduce((a, u) => a + (u.plays || 0), 0));
-      adminUsers = d.users;
+      countUp($('[data-admin="users"]'), d.accounts.length);
+      $('[data-admin-sub="connected"]').textContent = `${fmt(d.accounts.filter((u) => u.spotify_user_id).length)} mit Spotify`;
+      countUp($('[data-admin="active"]'), d.accounts.filter((u) => u.last_seen_at && new Date(u.last_seen_at) > weekAgo).length);
+      countUp($('[data-admin="logins"]'), d.accounts.reduce((a, u) => a + (u.login_count || 0), 0));
+      countUp($('[data-admin="plays"]'), d.accounts.reduce((a, u) => a + (u.plays || 0), 0));
+      adminAccounts = d.accounts;
       renderAdminUsers();
       renderSystem(sys);
 
       $('#admin-logins').innerHTML = d.logins.length
         ? d.logins.map((l) => `
           <li>
-            ${userAvatar({ ...l, id: l.user_id })}
-            <div class="who">${esc(l.display_name || l.user_id)} <span>${esc(l.email || '')}${l.user_agent ? ` · ${esc(shortAgent(l.user_agent))}` : ''}</span></div>
+            ${userAvatar({ ...l, display_name: l.username, id: String(l.account_id) })}
+            <div class="who">${esc(l.username)} <span>${esc([l.display_name, l.email, shortAgent(l.user_agent)].filter(Boolean).join(' · '))}</span></div>
             <time datetime="${esc(l.at)}">${fmtDT(l.at)}</time>
           </li>`).join('')
         : '<li class="empty">Noch keine Logins.</li>';
@@ -758,21 +842,11 @@
   }
 
   function showView(view) {
-    $('#view-stats').hidden = view !== 'stats';
-    $('#view-admin').hidden = view !== 'admin';
+    currentView = view;
+    applyView();
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     if (view === 'admin') loadAdmin();
-    else Object.values(charts).forEach((c) => c.resize());
-  }
-
-  async function deleteAccount() {
-    const ok = confirm('Dein Konto und alle gespeicherten Hördaten werden endgültig gelöscht. Fortfahren?');
-    if (!ok) return;
-    try {
-      await api('/api/me', { method: 'DELETE' });
-      location.href = '/login';
-    } catch (err) {
-      toast(`Löschen fehlgeschlagen: ${err.message}`, true);
-    }
+    else if (state.spotify) Object.values(charts).forEach((c) => c.resize());
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -785,17 +859,23 @@
     $('#sync-btn').addEventListener('click', runSync);
     bindHeatTooltip();
     bindImport();
-    $('#delete-account').addEventListener('click', deleteAccount);
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-action]');
+      if (!b) return;
+      ({ password: changePassword, disconnect: disconnectSpotify, delete: deleteAccount })[b.dataset.action]?.();
+    });
     $('#admin-refresh').addEventListener('click', loadAdmin);
     $('#admin-users').addEventListener('click', adminAction);
     $('#admin-search').addEventListener('input', renderAdminUsers);
     const justConnected = handleQueryFlags();
     refreshAll().then(() => {
-      if (state.user?.is_admin) segmented($('#view-control'), 'view', 'stats', showView);
+      if (state.account?.is_admin) segmented($('#view-control'), 'view', 'stats', showView);
+      // Segment-Pills im zuvor versteckten Statistik-Bereich neu ausrichten
+      window.dispatchEvent(new Event('resize'));
     });
     // Nach dem Verbinden läuft der erste Sync im Hintergrund – kurz danach neu laden.
     if (justConnected) setTimeout(refreshAll, 6000);
     // Alle 5 Minuten im Hintergrund auffrischen, wenn der Tab sichtbar ist.
-    setInterval(() => { if (document.visibilityState === 'visible') refreshAll(); }, 5 * 60_000);
+    setInterval(() => { if (document.visibilityState === 'visible' && currentView === 'stats') refreshAll(); }, 5 * 60_000);
   });
 })();
