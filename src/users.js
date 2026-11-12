@@ -10,9 +10,11 @@ import { bestImage } from './spotify.js';
 const scrypt = promisify(crypto.scrypt);
 
 export class UserError extends Error {
-  constructor(message, status = 400) {
+  // key = Übersetzungsschlüssel fürs Frontend (err.<key>)
+  constructor(message, status = 400, key = null) {
     super(message);
     this.status = status;
+    this.key = key;
   }
 }
 
@@ -45,10 +47,10 @@ const USERNAME_RE = /^[A-Za-z0-9_.-]{3,24}$/;
 function validateCredentials(username, password) {
   const u = String(username || '').trim();
   if (!USERNAME_RE.test(u)) {
-    throw new UserError('Der Benutzername muss 3–24 Zeichen lang sein (Buchstaben, Zahlen, _ . -).');
+    throw new UserError('Der Benutzername muss 3–24 Zeichen lang sein (Buchstaben, Zahlen, _ . -).', 400, 'usernameInvalid');
   }
-  if (String(password || '').length < 8) throw new UserError('Das Passwort muss mindestens 8 Zeichen lang sein.');
-  if (String(password).length > 200) throw new UserError('Das Passwort ist zu lang.');
+  if (String(password || '').length < 8) throw new UserError('Das Passwort muss mindestens 8 Zeichen lang sein.', 400, 'passwordShort');
+  if (String(password).length > 200) throw new UserError('Das Passwort ist zu lang.', 400, 'passwordLong');
   return u;
 }
 
@@ -59,7 +61,7 @@ function validateCredentials(username, password) {
  * Admin-Reset), wird das neue Konto automatisch Admin mit allen Funktionen.
  */
 export async function registerAccount(username, password) {
-  if (!config.allowRegistration) throw new UserError('Neue Registrierungen sind derzeit deaktiviert.', 403);
+  if (!config.allowRegistration) throw new UserError('Neue Registrierungen sind derzeit deaktiviert.', 403, 'registrationClosed');
   const u = validateCredentials(username, password);
   const passwordHash = await hashPassword(password);
   try {
@@ -75,7 +77,7 @@ export async function registerAccount(username, password) {
       return rows[0];
     });
   } catch (err) {
-    if (err.code === '23505') throw new UserError('Dieser Benutzername ist bereits vergeben.', 409);
+    if (err.code === '23505') throw new UserError('Dieser Benutzername ist bereits vergeben.', 409, 'usernameTaken');
     throw err;
   }
 }
@@ -105,7 +107,8 @@ export async function recordLogin(accountId, userAgent) {
 /** Konto inkl. verbundenem Spotify-Profil. */
 export async function getAccount(id) {
   const { rows } = await query(
-    `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at, a.theme,
+    `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at, a.theme, a.lang, a.festive,
+            to_char(a.birthday, 'YYYY-MM-DD') AS birthday,
             u.display_name, u.email, u.avatar_url, u.country, u.product, u.auth_error
        FROM accounts a LEFT JOIN users u ON u.id = a.spotify_user_id
       WHERE a.id = $1`,
@@ -123,17 +126,36 @@ export function touchAccount(id) {
 
 export async function changePassword(accountId, currentPassword, newPassword) {
   const { rows } = await query('SELECT username, password_hash FROM accounts WHERE id = $1', [accountId]);
-  if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
-  if (!(await verifyPassword(currentPassword, rows[0].password_hash))) throw new UserError('Das aktuelle Passwort stimmt nicht.');
+  if (!rows.length) throw new UserError('Konto nicht gefunden.', 404, 'accountNotFound');
+  if (!(await verifyPassword(currentPassword, rows[0].password_hash))) throw new UserError('Das aktuelle Passwort stimmt nicht.', 400, 'wrongPassword');
   validateCredentials(rows[0].username, newPassword);
   await query('UPDATE accounts SET password_hash = $2, updated_at = now() WHERE id = $1', [accountId, await hashPassword(newPassword)]);
 }
 
 export const THEMES = ['system', 'dark', 'light', 'season'];
 
-export async function setTheme(accountId, theme) {
-  if (!THEMES.includes(theme)) throw new UserError('Unbekannte Darstellung.');
-  await query('UPDATE accounts SET theme = $2, updated_at = now() WHERE id = $1', [accountId, theme]);
+export const LANGS = ['de', 'en', 'fr', 'es', 'it', 'sv', 'da'];
+
+/** Speichert Einstellungen des Kontos (nur übergebene Felder). */
+export async function updateSettings(accountId, { theme, lang, festive, birthday } = {}) {
+  const sets = [];
+  const vals = [accountId];
+  const add = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+  const bad = () => new UserError('Ungültige Einstellung.', 400, 'invalidSetting');
+  if (theme !== undefined) { if (!THEMES.includes(theme)) throw bad(); add('theme', theme); }
+  if (lang !== undefined) { if (!LANGS.includes(lang)) throw bad(); add('lang', lang); }
+  if (festive !== undefined) add('festive', Boolean(festive));
+  if (birthday !== undefined) {
+    if (birthday === null || birthday === '') add('birthday', null);
+    else {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(birthday));
+      const d = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+      if (!d || d.getUTCMonth() !== +m[2] - 1 || +m[1] < 1900 || d > new Date()) throw bad();
+      add('birthday', birthday);
+    }
+  }
+  if (!sets.length) return;
+  await query(`UPDATE accounts SET ${sets.join(', ')}, updated_at = now() WHERE id = $1`, vals);
 }
 
 // ---------------------------------------------------------------- Spotify verbinden
@@ -148,7 +170,7 @@ export async function connectSpotify(accountId, { profile, tokens }) {
       profile.id,
       accountId,
     ]);
-    if (taken.length) throw new UserError('Dieses Spotify-Konto ist bereits mit einem anderen Spotlfy-Konto verbunden.', 409);
+    if (taken.length) throw new UserError('Dieses Spotify-Konto ist bereits mit einem anderen Spotlfy-Konto verbunden.', 409, 'alreadyLinked');
 
     const { rows: countRows } = await db.query('SELECT count(*) AS n FROM users');
     await db.query(
@@ -235,10 +257,10 @@ export async function adminOverview() {
 export async function setAdmin(accountId, isAdmin) {
   return withTransaction(async (db) => {
     const { rows } = await db.query('SELECT username FROM accounts WHERE id = $1', [accountId]);
-    if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
+    if (!rows.length) throw new UserError('Konto nicht gefunden.', 404, 'accountNotFound');
     if (!isAdmin) {
       const { rows: others } = await db.query('SELECT count(*) AS n FROM accounts WHERE is_admin AND id <> $1', [accountId]);
-      if (others[0].n === 0) throw new UserError('Der letzte Admin kann nicht entfernt werden.');
+      if (others[0].n === 0) throw new UserError('Der letzte Admin kann nicht entfernt werden.', 400, 'lastAdmin');
     }
     await db.query('UPDATE accounts SET is_admin = $2, updated_at = now() WHERE id = $1', [accountId, isAdmin]);
   });
@@ -247,7 +269,7 @@ export async function setAdmin(accountId, isAdmin) {
 /** Admin: setzt ein zufälliges neues Passwort und gibt es einmalig zurück. */
 export async function resetPassword(accountId) {
   const { rows } = await query('SELECT username FROM accounts WHERE id = $1', [accountId]);
-  if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
+  if (!rows.length) throw new UserError('Konto nicht gefunden.', 404, 'accountNotFound');
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
   const password = Array.from(crypto.randomBytes(12), (b) => alphabet[b % alphabet.length]).join('');
   await query('UPDATE accounts SET password_hash = $2, updated_at = now() WHERE id = $1', [accountId, await hashPassword(password)]);
@@ -261,7 +283,7 @@ export async function deleteAccount(accountId) {
     if (!rows.length) return;
     if (rows[0].is_admin) {
       const { rows: others } = await db.query('SELECT count(*) AS n FROM accounts WHERE is_admin AND id <> $1', [accountId]);
-      if (others[0].n === 0) throw new UserError('Der letzte Admin kann nicht gelöscht werden. Ernenne vorher einen anderen Admin.');
+      if (others[0].n === 0) throw new UserError('Der letzte Admin kann nicht gelöscht werden. Ernenne vorher einen anderen Admin.', 400, 'lastAdminDelete');
     }
     const sid = rows[0].spotify_user_id;
     await db.query('DELETE FROM accounts WHERE id = $1', [accountId]);

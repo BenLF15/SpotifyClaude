@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0c0b" />
   <meta name="color-scheme" content="dark" />
   <meta name="robots" content="noindex, nofollow" />
@@ -15,25 +15,27 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
-  <script src="/assets/theme.js?v=20261112i"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20261112i" />
+  <title>Spotlfy</title>
+  <script src="/assets/theme.js?v=20261112k"></script>
+  <script src="/assets/i18n.js?v=20261112k"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261112k" />
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261112i" defer></script>
+  <script src="/app.js?v=20261112k" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
   <div class="aurora" aria-hidden="true"></div>
 
   <header class="topbar">
-    <a class="brand" href="/" data-goto="overview" aria-label="Zur Übersicht">
-      <img src="/assets/icon.svg" alt="" width="34" height="34" class="brand-logo" />
+    <a class="brand" href="/" data-goto="overview" data-i18n-attr="aria-label:aria.toOverview">
+      <span class="brand-logo-wrap"><img src="/assets/logo-animated.svg" alt="" width="38" height="38" class="brand-logo" /></span>
       <div>
         <strong>Spotlfy</strong>
         <span id="user-line" class="muted small"></span>
       </div>
     </a>
     <div class="topbar-actions">
-      <button id="profile-btn" class="profile-btn" type="button" title="Profil" aria-label="Profil öffnen">
+      <button id="profile-btn" class="profile-btn" type="button" data-i18n-attr="aria-label:aria.openProfile;title:aria.openProfile">
         <img id="avatar" alt="" hidden referrerpolicy="no-referrer" />
         <span id="avatar-initials" aria-hidden="true"></span>
       </button>
@@ -41,85 +43,86 @@
   </header>
 
   <!-- Ebene 1: Bereiche -->
-  <nav class="subnav" aria-label="Bereiche">
+  <nav class="subnav">
     <div class="tabs" id="panel-tabs" role="tablist">
-      <button role="tab" data-panel="overview">Übersicht</button>
-      <button role="tab" data-panel="top">Top-Listen</button>
-      <button role="tab" data-panel="times">Hörzeiten</button>
-      <button role="tab" data-panel="genres">Genres</button>
-      <button role="tab" data-panel="trends">Entwicklung</button>
-      <button role="tab" data-panel="history">Verlauf</button>
-      <button role="tab" data-panel="admin" id="admin-tab" hidden>Admin</button>
+      <button role="tab" data-panel="overview" data-i18n="nav.overview">Übersicht</button>
+      <button role="tab" data-panel="top" data-i18n="nav.top">Top-Listen</button>
+      <button role="tab" data-panel="times" data-i18n="nav.times">Hörzeiten</button>
+      <button role="tab" data-panel="genres" data-i18n="nav.genres">Genres</button>
+      <button role="tab" data-panel="trends" data-i18n="nav.trends">Entwicklung</button>
+      <button role="tab" data-panel="history" data-i18n="nav.history">Verlauf</button>
+      <button role="tab" data-panel="admin" id="admin-tab" hidden data-i18n="nav.admin">Admin</button>
     </div>
   </nav>
 
   <main class="container">
     <section id="auth-banner" class="banner" hidden>
       <div>
-        <h2>Spotify-Verbindung abgelaufen</h2>
-        <p class="muted">Verbinde Spotify neu, damit deine Plays wieder gespeichert werden.</p>
+        <h2 data-i18n="banner.expired.title"></h2>
+        <p class="muted" data-i18n="banner.expired.text"></p>
       </div>
-      <a class="btn btn-primary" href="/auth/login">Neu verbinden</a>
+      <a class="btn btn-primary" href="/auth/login" data-i18n="btn.reconnect"></a>
     </section>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
     <div class="view" id="view-connect" hidden>
       <section class="card connect-card">
-        <img src="/assets/icon.svg" alt="" width="72" height="72" class="connect-logo" />
-        <h2>Verbinde dein Spotify-Konto</h2>
-        <p>Spotlfy speichert danach alle 30 Minuten automatisch, was du hörst, und berechnet daraus deine Statistik.</p>
-        <a class="btn btn-primary" href="/auth/login">Mit Spotify verbinden</a>
-        <p class="hint">Im Testbetrieb erlaubt Spotify nur freigeschaltete Konten. Klappt es nicht, bitte den Betreiber, dein Spotify-Konto freizuschalten.</p>
+        <img src="/assets/logo-animated.svg" alt="" width="84" height="84" class="connect-logo" />
+        <h2 data-i18n="connect.title"></h2>
+        <p data-i18n="connect.text"></p>
+        <a class="btn btn-primary" href="/auth/login" data-i18n="btn.connectSpotify"></a>
+        <p class="hint" data-i18n="connect.hint"></p>
       </section>
     </div>
 
     <div class="view" id="view-stats" hidden>
       <!-- Ebene 2: Zeitraum (gilt für Übersicht, Top-Listen, Hörzeiten, Genres) -->
       <div class="range-bar" id="range-bar">
-        <div class="segmented small" id="range-control" role="tablist" aria-label="Zeitraum">
-          <button role="tab" data-range="7d">7 T</button>
-          <button role="tab" data-range="30d">30 T</button>
-          <button role="tab" data-range="90d">90 T</button>
-          <button role="tab" data-range="365d">1 J</button>
-          <button role="tab" data-range="all">Alles</button>
+        <div class="segmented small" id="range-control" role="tablist" data-i18n-attr="aria-label:aria.range">
+          <button role="tab" data-range="7d" data-i18n="range.7d"></button>
+          <button role="tab" data-range="30d" data-i18n="range.30d"></button>
+          <button role="tab" data-range="90d" data-i18n="range.90d"></button>
+          <button role="tab" data-range="365d" data-i18n="range.365d"></button>
+          <button role="tab" data-range="all" data-i18n="range.all"></button>
         </div>
       </div>
 
       <!-- ================================================= Übersicht -->
       <section class="panel" data-panel="overview">
+        <div class="fest-ribbon" id="fest-ribbon" hidden></div>
         <div class="kpis">
           <article class="card kpi kpi-hero">
-            <span class="kpi-label">Hörminuten</span>
+            <span class="kpi-label" data-i18n="kpi.minutes"></span>
             <strong class="kpi-value" data-kpi="minutes">–</strong>
             <span class="kpi-sub" data-kpi-sub="minutes"></span>
             <svg class="sparkline" id="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true"></svg>
           </article>
-          <article class="card kpi"><span class="kpi-label">Ø pro Tag</span><strong class="kpi-value" data-kpi="avgMinutesPerDay">–</strong><span class="kpi-sub">Minuten</span></article>
-          <article class="card kpi"><span class="kpi-label">Plays</span><strong class="kpi-value" data-kpi="plays">–</strong><span class="kpi-sub" data-kpi-sub="activeDays"></span></article>
-          <article class="card kpi"><span class="kpi-label">Künstler</span><strong class="kpi-value" data-kpi="artists">–</strong><span class="kpi-sub" data-kpi-sub="newArtists">verschiedene</span></article>
-          <article class="card kpi"><span class="kpi-label">Songs</span><strong class="kpi-value" data-kpi="tracks">–</strong><span class="kpi-sub">verschiedene</span></article>
+          <article class="card kpi"><span class="kpi-label" data-i18n="kpi.avg"></span><strong class="kpi-value" data-kpi="avgMinutesPerDay">–</strong><span class="kpi-sub" data-i18n="kpi.minutesUnit"></span></article>
+          <article class="card kpi"><span class="kpi-label" data-i18n="kpi.plays"></span><strong class="kpi-value" data-kpi="plays">–</strong><span class="kpi-sub" data-kpi-sub="activeDays"></span></article>
+          <article class="card kpi"><span class="kpi-label" data-i18n="kpi.artists"></span><strong class="kpi-value" data-kpi="artists">–</strong><span class="kpi-sub" data-kpi-sub="newArtists"></span></article>
+          <article class="card kpi"><span class="kpi-label" data-i18n="kpi.songs"></span><strong class="kpi-value" data-kpi="tracks">–</strong><span class="kpi-sub" data-i18n="kpi.different"></span></article>
         </div>
 
         <div class="insights" id="insights"></div>
 
         <section class="card">
           <header class="card-head">
-            <div><h2>Hörminuten</h2><p class="muted small" id="timeline-caption"></p></div>
+            <div><h2 data-i18n="kpi.minutes" data-fest-title></h2><p class="muted small" id="timeline-caption"></p></div>
             <div class="segmented small" id="timeline-mode">
-              <button data-mode="daily">Tag</button>
-              <button data-mode="weekly">Woche</button>
+              <button data-mode="daily" data-i18n="timeline.day"></button>
+              <button data-mode="weekly" data-i18n="timeline.week"></button>
             </div>
           </header>
-          <div class="chart-wrap"><canvas id="timeline-chart" aria-label="Hörminuten im Zeitverlauf" role="img"></canvas></div>
+          <div class="chart-wrap"><canvas id="timeline-chart" role="img" data-i18n-attr="aria-label:kpi.minutes"></canvas></div>
         </section>
 
         <div class="grid-2">
           <section class="card">
-            <header class="card-head"><h2>Top-Künstler</h2><button class="link-btn" data-goto="top">Alle anzeigen →</button></header>
+            <header class="card-head"><h2 data-i18n="overview.topArtists"></h2><button class="link-btn" data-goto="top" data-i18n="link.showAll"></button></header>
             <ol class="rank-bars" id="overview-artists"></ol>
           </section>
           <section class="card">
-            <header class="card-head"><h2>Top-Songs</h2><button class="link-btn" data-goto="top">Alle anzeigen →</button></header>
+            <header class="card-head"><h2 data-i18n="overview.topSongs"></h2><button class="link-btn" data-goto="top" data-i18n="link.showAll"></button></header>
             <ol class="rank-bars" id="overview-tracks"></ol>
           </section>
         </div>
@@ -128,12 +131,12 @@
       <!-- ================================================= Top-Listen -->
       <section class="panel" data-panel="top" hidden>
         <section class="card">
-          <header class="card-head"><div><h2>Deine Top-Künstler</h2><p class="muted small">nach Hörzeit im gewählten Zeitraum</p></div></header>
+          <header class="card-head"><div><h2 data-i18n="top.artistsTitle"></h2><p class="muted small" data-i18n="top.artistsSub"></p></div></header>
           <div class="podium" id="podium"></div>
           <ol class="rank-bars" id="top-artists" start="4"></ol>
         </section>
         <section class="card">
-          <header class="card-head"><div><h2>Deine Top-Songs</h2><p class="muted small">nach Anzahl der Plays</p></div></header>
+          <header class="card-head"><div><h2 data-i18n="top.songsTitle"></h2><p class="muted small" data-i18n="top.songsSub"></p></div></header>
           <ol class="rank-bars cols-2" id="top-tracks"></ol>
         </section>
       </section>
@@ -142,19 +145,19 @@
       <section class="panel" data-panel="times" hidden>
         <div class="insights" id="time-insights"></div>
         <section class="card">
-          <header class="card-head"><div><h2>Wann du hörst</h2><p class="muted small">Hörminuten nach Wochentag und Uhrzeit</p></div></header>
-          <div class="heatmap" id="heatmap" role="grid" aria-label="Heatmap Uhrzeit × Wochentag"></div>
-          <div class="heat-legend"><span class="muted small">weniger</span><span class="heat-scale"></span><span class="muted small">mehr</span></div>
+          <header class="card-head"><div><h2 data-i18n="times.title" data-fest-title></h2><p class="muted small" data-i18n="times.sub"></p></div></header>
+          <div class="heatmap" id="heatmap" role="grid" data-i18n-attr="aria-label:times.sub"></div>
+          <div class="heat-legend"><span class="muted small" data-i18n="times.less"></span><span class="heat-scale"></span><span class="muted small" data-i18n="times.more"></span></div>
           <div class="heat-tip" id="heat-tip" hidden></div>
         </section>
         <div class="grid-2">
           <section class="card">
-            <header class="card-head"><div><h2>Nach Uhrzeit</h2><p class="muted small">Hörminuten je Stunde</p></div></header>
-            <div class="chart-wrap short"><canvas id="hours-chart" aria-label="Hörminuten nach Uhrzeit" role="img"></canvas></div>
+            <header class="card-head"><div><h2 data-i18n="times.byHour"></h2><p class="muted small" data-i18n="times.byHourSub"></p></div></header>
+            <div class="chart-wrap short"><canvas id="hours-chart" role="img" data-i18n-attr="aria-label:times.byHourSub"></canvas></div>
           </section>
           <section class="card">
-            <header class="card-head"><div><h2>Nach Wochentag</h2><p class="muted small">Hörminuten je Wochentag</p></div></header>
-            <div class="chart-wrap short"><canvas id="weekday-chart" aria-label="Hörminuten nach Wochentag" role="img"></canvas></div>
+            <header class="card-head"><div><h2 data-i18n="times.byDay"></h2><p class="muted small" data-i18n="times.byDaySub"></p></div></header>
+            <div class="chart-wrap short"><canvas id="weekday-chart" role="img" data-i18n-attr="aria-label:times.byDaySub"></canvas></div>
           </section>
         </div>
       </section>
@@ -163,10 +166,10 @@
       <section class="panel" data-panel="genres" hidden>
         <section class="card">
           <header class="card-head">
-            <div><h2>Deine Genres</h2><p class="muted small" id="genre-caption">Von Spotlfy eingeordnet</p></div>
+            <div><h2 data-i18n="genres.title" data-fest-title></h2><p class="muted small" id="genre-caption"></p></div>
           </header>
           <div class="genre-layout">
-            <div class="donut-wrap"><canvas id="genre-donut" aria-label="Genre-Verteilung" role="img"></canvas>
+            <div class="donut-wrap"><canvas id="genre-donut" role="img" data-i18n-attr="aria-label:genres.title"></canvas>
               <div class="donut-center" id="donut-center"></div></div>
             <ul class="genre-cards" id="genres"></ul>
           </div>
@@ -178,35 +181,35 @@
       <section class="panel" data-panel="trends" hidden>
         <section class="card">
           <header class="card-head">
-            <div><h2>Pro Monat</h2><p class="muted small" id="trend-caption">über deine gesamte Historie</p></div>
+            <div><h2 data-i18n="trends.perMonth" data-fest-title></h2><p class="muted small" id="trend-caption"></p></div>
             <div class="segmented small" id="trend-mode">
-              <button data-mode="minutes">Minuten</button>
-              <button data-mode="artists">Künstler</button>
-              <button data-mode="new_artists">Neu entdeckt</button>
+              <button data-mode="minutes" data-i18n="trends.minutes"></button>
+              <button data-mode="artists" data-i18n="trends.artists"></button>
+              <button data-mode="new_artists" data-i18n="trends.new"></button>
             </div>
           </header>
-          <div class="chart-wrap"><canvas id="trend-chart" aria-label="Entwicklung pro Monat" role="img"></canvas></div>
+          <div class="chart-wrap"><canvas id="trend-chart" role="img" data-i18n-attr="aria-label:trends.perMonth"></canvas></div>
         </section>
         <section class="card">
           <header class="card-head wrap">
-            <div><h2>Spotify-Ranking</h2><p class="muted small" id="ranking-caption">Tägliche Snapshots deiner Spotify-Top-Listen</p></div>
+            <div><h2 data-i18n="rank.title"></h2><p class="muted small" id="ranking-caption"></p></div>
             <div class="head-controls">
               <div class="segmented small" id="rank-kind">
-                <button data-kind="artists">Künstler</button>
-                <button data-kind="tracks">Songs</button>
+                <button data-kind="artists" data-i18n="kpi.artists"></button>
+                <button data-kind="tracks" data-i18n="kpi.songs"></button>
               </div>
               <div class="segmented small" id="rank-range">
-                <button data-range="short_term">4 Wo.</button>
-                <button data-range="medium_term">6 Mon.</button>
-                <button data-range="long_term">1 J+</button>
+                <button data-range="short_term" data-i18n="rank.4w"></button>
+                <button data-range="medium_term" data-i18n="rank.6m"></button>
+                <button data-range="long_term" data-i18n="rank.1y"></button>
               </div>
             </div>
           </header>
           <div class="ranking">
             <ol class="rank-list" id="rank-list"></ol>
             <div class="rank-chart">
-              <h3 class="muted small">Rangverlauf der aktuellen Top 5</h3>
-              <div class="chart-wrap"><canvas id="rank-chart" aria-label="Rangverlauf" role="img"></canvas></div>
+              <h3 class="muted small" data-i18n="rank.history"></h3>
+              <div class="chart-wrap"><canvas id="rank-chart" role="img" data-i18n-attr="aria-label:rank.history"></canvas></div>
             </div>
           </div>
         </section>
@@ -215,7 +218,7 @@
       <!-- ================================================= Verlauf -->
       <section class="panel" data-panel="history" hidden>
         <div class="history" id="history"></div>
-        <button class="btn btn-ghost history-more" id="history-more" type="button" hidden>Ältere Tage laden</button>
+        <button class="btn btn-ghost history-more" id="history-more" type="button" hidden data-i18n="history.more"></button>
       </section>
     </div><!-- /view-stats -->
 
@@ -231,100 +234,128 @@
 
       <div class="grid-2">
         <section class="card">
-          <header class="card-head"><div><h2>Spotify</h2><p class="muted small">Verbundenes Spotify-Konto</p></div></header>
+          <header class="card-head"><div><h2>Spotify</h2><p class="muted small" data-i18n="profile.spotifySub"></p></div></header>
           <dl class="sys-list" id="profile-spotify"></dl>
           <div class="profile-actions" id="profile-spotify-actions"></div>
         </section>
         <section class="card">
-          <header class="card-head"><div><h2>Daten &amp; Synchronisierung</h2><p class="muted small">Deine gespeicherte Hörhistorie</p></div></header>
+          <header class="card-head"><div><h2 data-i18n="profile.data"></h2><p class="muted small" data-i18n="profile.dataSub"></p></div></header>
           <dl class="sys-list" id="profile-data"></dl>
           <div class="profile-actions" id="profile-data-actions">
             <button id="sync-btn" class="btn btn-ghost" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9M18 3v4.5h-4.5M6 21v-4.5h4.5" /></svg>
-              Jetzt synchronisieren
+              <span data-i18n="btn.syncNow"></span>
             </button>
             <button id="import-btn" class="btn btn-ghost" type="button">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
-              Streaming-History importieren
+              <span data-i18n="btn.import"></span>
             </button>
           </div>
         </section>
       </div>
 
       <section class="card">
-        <header class="card-head"><div><h2>Einstellungen</h2><p class="muted small">Darstellung der App – gilt auf allen deinen Geräten</p></div></header>
-        <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Darstellung">
-          <button type="button" role="radio" data-theme-mode="system"><span class="tp-swatch tp-system"></span>System</button>
-          <button type="button" role="radio" data-theme-mode="light"><span class="tp-swatch tp-light"></span>Hell</button>
-          <button type="button" role="radio" data-theme-mode="dark"><span class="tp-swatch tp-dark"></span>Dunkel</button>
-          <button type="button" role="radio" data-theme-mode="season"><span class="tp-swatch tp-season"></span>Jahreszeit</button>
+        <header class="card-head"><div><h2 data-i18n="settings.title"></h2><p class="muted small" data-i18n="settings.sub"></p></div></header>
+        <h3 class="settings-label" data-i18n="settings.appearance"></h3>
+        <div class="theme-picker" id="theme-picker" role="radiogroup" data-i18n-attr="aria-label:settings.appearance">
+          <button type="button" role="radio" data-theme-mode="system"><span class="tp-swatch tp-system"></span><span data-i18n="theme.system"></span></button>
+          <button type="button" role="radio" data-theme-mode="light"><span class="tp-swatch tp-light"></span><span data-i18n="theme.light"></span></button>
+          <button type="button" role="radio" data-theme-mode="dark"><span class="tp-swatch tp-dark"></span><span data-i18n="theme.dark"></span></button>
+          <button type="button" role="radio" data-theme-mode="season"><span class="tp-swatch tp-season"></span><span data-i18n="theme.season"></span></button>
         </div>
         <p class="muted small theme-hint" id="theme-hint"></p>
+
+        <div class="settings-row">
+          <div>
+            <h3 class="settings-label" data-i18n="settings.festive"></h3>
+            <p class="muted small" data-i18n="settings.festiveHint"></p>
+            <p class="muted small" id="festive-hint"></p>
+          </div>
+          <button type="button" class="switch" id="festive-switch" role="switch" aria-checked="true" data-i18n-attr="aria-label:settings.festive">
+            <span class="switch-knob"></span>
+          </button>
+        </div>
+
+        <div class="settings-row">
+          <div><h3 class="settings-label" data-i18n="settings.language"></h3></div>
+          <div class="lang-picker" id="lang-picker" role="radiogroup" data-i18n-attr="aria-label:settings.language"></div>
+        </div>
       </section>
 
       <section class="card">
-        <header class="card-head"><div><h2>Konto</h2><p class="muted small">Dein Spotlfy-Konto</p></div></header>
+        <header class="card-head"><div><h2 data-i18n="account.title"></h2><p class="muted small" data-i18n="account.sub"></p></div></header>
         <dl class="sys-list" id="profile-account"></dl>
+        <div class="birthday-row">
+          <label class="season-date">
+            <span class="muted small" data-i18n="account.birthday"></span>
+            <input type="date" id="birthday-input" max="2100-12-31" />
+          </label>
+          <button type="button" class="btn btn-ghost btn-xs" id="birthday-save" data-i18n="btn.save"></button>
+          <button type="button" class="btn btn-ghost btn-xs" id="birthday-clear" data-i18n="btn.remove"></button>
+          <p class="muted small" data-i18n="account.birthdayHint"></p>
+        </div>
         <div class="profile-actions">
-          <button class="btn btn-ghost" data-action="password" type="button">Passwort ändern</button>
+          <button class="btn btn-ghost" data-action="password" type="button" data-i18n="btn.password"></button>
           <form method="post" action="/logout">
             <button class="btn btn-ghost" type="submit">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10" /></svg>
-              Abmelden
+              <span data-i18n="btn.logout"></span>
             </button>
           </form>
-          <button class="btn btn-ghost btn-danger" data-action="delete" type="button">Konto &amp; Daten löschen</button>
+          <button class="btn btn-ghost btn-danger" data-action="delete" type="button" data-i18n="btn.deleteAccount"></button>
         </div>
       </section>
     </div>
 
+    <!-- ================================================= Admin -->
     <div class="view" id="view-admin" hidden>
       <section class="admin-stats" id="admin-stats">
-        <article class="card kpi"><span class="kpi-label">Konten</span><strong class="kpi-value" data-admin="users">–</strong><span class="kpi-sub" data-admin-sub="connected">registriert</span></article>
-        <article class="card kpi"><span class="kpi-label">Aktiv</span><strong class="kpi-value" data-admin="active">–</strong><span class="kpi-sub">in den letzten 7 Tagen</span></article>
-        <article class="card kpi"><span class="kpi-label">Logins</span><strong class="kpi-value" data-admin="logins">–</strong><span class="kpi-sub">insgesamt</span></article>
-        <article class="card kpi"><span class="kpi-label">Plays</span><strong class="kpi-value" data-admin="plays">–</strong><span class="kpi-sub">aller Nutzer</span></article>
+        <article class="card kpi"><span class="kpi-label" data-i18n="admin.accounts"></span><strong class="kpi-value" data-admin="users">–</strong><span class="kpi-sub" data-admin-sub="connected" data-i18n="admin.registered"></span></article>
+        <article class="card kpi"><span class="kpi-label" data-i18n="admin.active"></span><strong class="kpi-value" data-admin="active">–</strong><span class="kpi-sub" data-i18n="admin.last7"></span></article>
+        <article class="card kpi"><span class="kpi-label" data-i18n="admin.logins"></span><strong class="kpi-value" data-admin="logins">–</strong><span class="kpi-sub" data-i18n="admin.total"></span></article>
+        <article class="card kpi"><span class="kpi-label" data-i18n="kpi.plays"></span><strong class="kpi-value" data-admin="plays">–</strong><span class="kpi-sub" data-i18n="admin.allUsers"></span></article>
       </section>
       <section class="card">
         <header class="card-head">
-          <div><h2>Farbschemas testen</h2><p class="muted small">Datum vorgeben, um den Jahreszeiten-Modus zu prüfen (nur in diesem Browser)</p></div>
+          <div><h2 data-i18n="admin.tester"></h2><p class="muted small" data-i18n="admin.testerSub"></p></div>
         </header>
         <div class="season-tester">
-          <label class="season-date"><span class="muted small">Datum</span><input type="date" id="season-date" /></label>
-          <div class="season-quick" id="season-quick">
-            <button type="button" class="btn btn-ghost btn-xs" data-season-date="04-20">🌸 Frühling</button>
-            <button type="button" class="btn btn-ghost btn-xs" data-season-date="07-20">☀️ Sommer</button>
-            <button type="button" class="btn btn-ghost btn-xs" data-season-date="10-20">🍂 Herbst</button>
-            <button type="button" class="btn btn-ghost btn-xs" data-season-date="01-15">❄️ Winter</button>
+          <label class="season-date"><span class="muted small" data-i18n="admin.date"></span><input type="date" id="season-date" /></label>
+          <div class="season-quick">
+            <button type="button" class="btn btn-ghost btn-xs" data-season-date="04-20">🌸 <span data-i18n="season.spring"></span></button>
+            <button type="button" class="btn btn-ghost btn-xs" data-season-date="07-20">☀️ <span data-i18n="season.summer"></span></button>
+            <button type="button" class="btn btn-ghost btn-xs" data-season-date="10-20">🍂 <span data-i18n="season.autumn"></span></button>
+            <button type="button" class="btn btn-ghost btn-xs" data-season-date="01-15">❄️ <span data-i18n="season.winter"></span></button>
           </div>
-          <button type="button" class="btn btn-ghost btn-xs" id="season-reset">Heutiges Datum verwenden</button>
+          <div class="season-quick" id="event-quick"></div>
+          <button type="button" class="btn btn-ghost btn-xs" id="season-reset" data-i18n="admin.today"></button>
         </div>
         <p class="muted small theme-hint" id="season-status"></p>
       </section>
 
       <section class="card">
         <header class="card-head">
-          <div><h2>Konten</h2><p class="muted small">Alle registrierten Spotlfy-Konten und ihr verbundenes Spotify</p></div>
+          <div><h2 data-i18n="admin.accounts"></h2><p class="muted small" data-i18n="admin.accountsSub"></p></div>
           <div class="head-controls">
-            <a class="btn btn-ghost" href="/api/admin/accounts.csv" download>CSV-Export</a>
-            <button class="btn btn-ghost" id="admin-refresh" type="button">Aktualisieren</button>
+            <a class="btn btn-ghost" href="/api/admin/accounts.csv" download data-i18n="admin.csv"></a>
+            <button class="btn btn-ghost" id="admin-refresh" type="button" data-i18n="admin.refresh"></button>
           </div>
         </header>
-        <input class="admin-search" id="admin-search" type="search" placeholder="Nach Benutzername, Spotify-Name, E-Mail oder ID suchen …" autocomplete="off" />
+        <input class="admin-search" id="admin-search" type="search" autocomplete="off" data-i18n-attr="placeholder:admin.search" />
         <ul class="user-list" id="admin-users"></ul>
       </section>
       <div class="grid-2">
         <section class="card">
-          <header class="card-head"><div><h2>Letzte Logins</h2><p class="muted small">Die 50 neuesten Anmeldungen</p></div></header>
+          <header class="card-head"><div><h2 data-i18n="admin.lastLogins"></h2><p class="muted small" data-i18n="admin.lastLoginsSub"></p></div></header>
           <ul class="login-log" id="admin-logins"></ul>
         </section>
         <div class="stack">
           <section class="card">
-            <header class="card-head"><div><h2>System</h2><p class="muted small">Datenbank, Katalog &amp; Zeitplan</p></div></header>
+            <header class="card-head"><div><h2 data-i18n="admin.system"></h2><p class="muted small" data-i18n="admin.systemSub"></p></div></header>
             <dl class="sys-list" id="admin-system"></dl>
           </section>
           <section class="card">
-            <header class="card-head"><div><h2>Sync-Fehler</h2><p class="muted small">Die letzten fehlgeschlagenen Läufe</p></div></header>
+            <header class="card-head"><div><h2 data-i18n="admin.syncErrors"></h2><p class="muted small" data-i18n="admin.syncErrorsSub"></p></div></header>
             <ul class="login-log" id="admin-errors"></ul>
           </section>
         </div>
@@ -332,20 +363,20 @@
     </div>
   </main>
 
+  <!-- Festliche Effekte: Partikel-Ebene (rein dekorativ) -->
+  <div class="fx-layer" id="fx-layer" aria-hidden="true"></div>
+
   <dialog id="import-dialog" class="dialog">
     <form method="dialog" class="dialog-inner">
       <header class="card-head">
-        <h2>Streaming-History importieren</h2>
-        <button class="btn btn-ghost icon" value="close" aria-label="Schließen">✕</button>
+        <h2 data-i18n="btn.import"></h2>
+        <button class="btn btn-ghost icon" value="close" data-i18n-attr="aria-label:import.close">✕</button>
       </header>
-      <p class="muted small">
-        Fordere unter <em>spotify.com → Konto → Datenschutz</em> die <strong>„Extended streaming history“</strong> an.
-        Wähle anschließend die Dateien <code>Streaming_History_Audio_*.json</code> aus. Duplikate werden automatisch übersprungen.
-      </p>
+      <p class="muted small" data-i18n-html="import.text"></p>
       <label class="dropzone" id="dropzone">
         <input type="file" id="import-files" accept=".json,application/json" multiple />
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
-        <span>JSON-Dateien hierher ziehen oder <u>auswählen</u></span>
+        <span data-i18n-html="import.drop"></span>
       </label>
       <ul class="import-log" id="import-log"></ul>
     </form>

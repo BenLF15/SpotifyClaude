@@ -7,11 +7,19 @@
     window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
   }
 
-  // ================================================================ Helpers
+  // ================================================================ Helpers & Sprache
+  const I = window.SpotlfyI18n;
+  const t = I.t;
+  const tn = I.tn;
+  const LOCALE = I.locale;
+  const T = window.SpotlfyTheme;
+
   const $ = (sel, el = document) => el.querySelector(sel);
   const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
-  const nf = new Intl.NumberFormat('de-DE');
+  const nf = new Intl.NumberFormat(LOCALE);
   const fmt = (n) => nf.format(Math.round(n || 0));
+  const decSep = nf.format(1.5).replace(/\d/g, '') || ',';
+  const pctFmt = (x) => `${x < 0.1 && x > 0 ? (x * 100).toFixed(1).replace('.', decSep) : Math.round(x * 100)} %`;
   const esc = (s) =>
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -46,9 +54,12 @@
       throw new Error('unauthorized');
     }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { status: res.status, code: data.code });
+    if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { status: res.status, code: data.code, key: data.key });
     return data;
   }
+  // Fehlermeldung in der gewählten Sprache (Server liefert einen Schlüssel)
+  const errMsg = (err) => (err?.key && I.D[`err.${err.key}`] ? t(`err.${err.key}`) : err?.message || String(err));
+  const postJSON = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
   let toastTimer;
   function toast(msg, isError = false) {
@@ -63,28 +74,34 @@
     toastTimer = setTimeout(() => { el.hidden = true; }, 4500);
   }
 
+  const rtf = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' });
   function relTime(date) {
     if (!date) return '';
     const diff = (Date.now() - new Date(date)) / 1000;
-    if (diff < 60) return 'gerade eben';
-    if (diff < 3600) return `vor ${Math.floor(diff / 60)} Min.`;
-    if (diff < 86400) return `vor ${Math.floor(diff / 3600)} Std.`;
-    const d = Math.floor(diff / 86400);
-    return d === 1 ? 'gestern' : `vor ${d} Tagen`;
+    if (diff < 60) return t('rel.now');
+    if (diff < 3600) return rtf.format(-Math.floor(diff / 60), 'minute');
+    if (diff < 86400) return rtf.format(-Math.floor(diff / 3600), 'hour');
+    return rtf.format(-Math.floor(diff / 86400), 'day');
   }
 
-  const dateFmt = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
-  const dateFmtYear = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
-  const dayMonthFmt = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'short' });
-  const monthFmt = new Intl.DateTimeFormat('de-DE', { month: 'short', year: '2-digit' });
-  const monthFmtLong = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' });
-  const timeFmt = new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' });
-  const longDayFmt = new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dateFmt = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' });
+  const dateFmtYear = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' });
+  const dayMonthFmt = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' });
+  const monthFmt = new Intl.DateTimeFormat(LOCALE, { month: 'short', year: '2-digit' });
+  const monthFmtLong = new Intl.DateTimeFormat(LOCALE, { month: 'long', year: 'numeric' });
+  const timeFmt = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit' });
+  const longDayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
+  const longDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long' });
+  const shortDate = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const dateTimeFmt = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
   const parseDay = (s) => new Date(`${s}T12:00:00`);
-  const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-  const DAYS_LONG = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+  // Wochentage ab Montag in der gewählten Sprache (1.1.2024 war ein Montag)
+  const DAYS = Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(LOCALE, { weekday: 'short' }).format(new Date(2024, 0, 1 + i)));
+  const DAYS_LONG = Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(LOCALE, { weekday: 'long' }).format(new Date(2024, 0, 1 + i)));
   const hh = (h) => String(h).padStart(2, '0');
+  const hourRange = (h) => t('time.range', { a: hh(h), b: hh((h + 1) % 24) });
   const RANGE_DAYS = { '7d': 7, '30d': 30, '90d': 90, '365d': 365 };
+  const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   function initials(name) {
     return esc((name || '?').replace(/[^\p{L}\p{N} ]/gu, '').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '♪');
@@ -103,10 +120,10 @@
     const start = performance.now();
     const dur = 900;
     const step = (now) => {
-      const t = Math.min(1, (now - start) / dur);
-      const e = 1 - Math.pow(1 - t, 4);
+      const p = Math.min(1, (now - start) / dur);
+      const e = 1 - Math.pow(1 - p, 4);
       el.textContent = fmt(from + (to - from) * e);
-      if (t < 1) requestAnimationFrame(step);
+      if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   }
@@ -210,7 +227,7 @@
     const C = window.Chart;
     C.defaults.font.family = "'Inter', system-ui, sans-serif";
     C.defaults.font.size = 11;
-    C.defaults.locale = 'de-DE';
+    C.defaults.locale = LOCALE;
     C.defaults.color = COLORS.tick;
     C.defaults.animation.duration = reduceMotion ? 0 : 800;
     C.defaults.animation.easing = 'easeOutQuart';
@@ -223,7 +240,7 @@
     });
   }
 
-  // Farbwelt gewechselt → Farben neu lesen und alle Diagramme frisch zeichnen
+  // Farbwelt gewechselt (oder Test-Datum geändert) → Farben neu lesen, Diagramme frisch zeichnen, Events prüfen
   window.addEventListener('spotlfy:theme', () => {
     if (!window.Chart) return;
     readThemeColors();
@@ -231,6 +248,7 @@
     Object.keys(charts).forEach((k) => { charts[k].destroy(); delete charts[k]; });
     if (state.panel) renderPanel(state.panel);
     renderThemeSettings();
+    updateFestive();
   });
 
   const baseScales = (extra = {}) => ({
@@ -263,7 +281,14 @@
     state.account = s.account;
     state.spotify = s.spotify;
     state.status = s;
+    // Einstellungen des Kontos gelten auf allen Geräten
     if (T && s.account.theme && s.account.theme !== T.mode()) T.setMode(s.account.theme);
+    if (s.account.lang && s.account.lang !== I.lang) {
+      I.setLang(s.account.lang);
+      location.reload();
+      return s;
+    }
+    if (!s.account.lang) postJSON('/api/me/settings', { lang: I.lang }).catch(() => {});
     const sp = s.spotify;
     $('#auth-banner').hidden = !sp?.auth_expired;
     $('#user-line').textContent = sp?.display_name && sp.display_name !== s.account.username
@@ -281,14 +306,11 @@
     }
     $('#admin-tab').hidden = !s.account.is_admin;
     renderProfile(s);
+    updateFestive();
     return s;
   }
 
   // ================================================================ Darstellung (Hell/Dunkel/System/Jahreszeit)
-  const T = window.SpotlfyTheme;
-  const longDate = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long' });
-  const shortDate = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
   function seasonText() {
     const date = T.effectiveDate();
     const key = T.seasonOf(date);
@@ -296,7 +318,9 @@
     const next = T.SEASONS[info.next];
     const end = T.seasonEnd(key, date);
     end.setDate(end.getDate() + 1);
-    return `<b>${info.name} ${info.icon}</b> – ab ${longDate.format(end)} wechselt die Farbwelt zu ${next.name} ${next.icon}`;
+    return t('season.text', {
+      name: t(`season.${key}`), icon: info.icon, next: t(`season.${info.next}`), nicon: next.icon, date: longDate.format(end),
+    });
   }
 
   function renderThemeSettings() {
@@ -304,93 +328,125 @@
     const mode = T.mode();
     $$('#theme-picker [data-theme-mode]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeMode === mode)));
     const override = T.seasonDate();
-    const testNote = override ? ` · <span class="tag tag-warn">Test-Datum ${esc(shortDate.format(new Date(`${override}T12:00:00`)))}</span>` : '';
+    const testNote = override ? ` · <span class="tag tag-warn">${esc(t('season.testDate', { d: shortDate.format(parseDay(override)) }))}</span>` : '';
     const hints = {
-      system: `Folgt der Einstellung deines Geräts – gerade <b>${T.resolve('system') === 'light' ? 'hell' : 'dunkel'}</b>.`,
-      light: 'Helle Farbwelt.',
-      dark: 'Dunkle Farbwelt.',
-      season: `Passend zur Jahreszeit: ${seasonText()}${testNote}`,
+      system: esc(t('theme.hint.system', { x: t(T.resolve('system') === 'light' ? 'theme.word.light' : 'theme.word.dark') })),
+      light: esc(t('theme.hint.light')),
+      dark: esc(t('theme.hint.dark')),
+      season: t('theme.hint.season', { s: seasonText() }) + testNote,
     };
     $('#theme-hint').innerHTML = hints[mode] || '';
+    // Admin-Tester
     const input = $('#season-date');
     if (input) {
       if (document.activeElement !== input) input.value = override || '';
-      $('#season-status').innerHTML = `${override ? 'Test-Datum aktiv' : 'Es gilt das heutige Datum'} · Jahreszeiten-Modus zeigt: ${seasonText()}`
-        + (mode !== 'season' ? ' · <b>Hinweis:</b> Dein Modus ist gerade nicht „Jahreszeit“.' : '');
+      const ev = activeEvent(T.effectiveDate());
+      $('#season-status').innerHTML = [
+        esc(t(override ? 'admin.testActive' : 'admin.todayApplies')),
+        t('admin.seasonShows', { s: seasonText() }),
+        esc(t('admin.festiveShows', { e: ev ? `${FEST[ev].deco} ${t(`fest.${ev}`)}` : t('admin.noEvent') })),
+        mode !== 'season' ? `<b>${esc(t('admin.modeNote'))}</b>` : '',
+        state.account && state.account.festive === false ? `<b>${esc(t('admin.festiveOffNote'))}</b>` : '',
+      ].filter(Boolean).join(' · ');
     }
   }
 
-  async function chooseTheme(mode, { save = true } = {}) {
+  async function saveSettings(body) {
+    try {
+      await postJSON('/api/me/settings', body);
+      return true;
+    } catch (err) {
+      toast(t('toast.settingsFailed', { e: errMsg(err) }), true);
+      return false;
+    }
+  }
+
+  async function chooseTheme(mode) {
     T.setMode(mode);
-    if (save) {
-      try {
-        await api('/api/me/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: mode }) });
-      } catch (err) {
-        toast(`Darstellung nicht gespeichert: ${err.message}`, true);
-      }
-    }
+    await saveSettings({ theme: mode });
   }
 
-  async function previewSeason(iso) {
+  async function previewDate(iso, { forceSeason = false } = {}) {
     T.setSeasonDate(iso);
-    if (T.mode() !== 'season') await chooseTheme('season');
+    if (forceSeason && T.mode() !== 'season') await chooseTheme('season');
     renderThemeSettings();
+    updateFestive({ burst: true });
+  }
+
+  function renderLangPicker() {
+    $('#lang-picker').innerHTML = I.LANGS.map((l) =>
+      `<button type="button" role="radio" aria-checked="${l === I.lang}" data-lang="${l}"><b>${l.toUpperCase()}</b> ${esc(I.NAMES[l])}</button>`).join('');
+  }
+
+  async function chooseLang(l) {
+    if (l === I.lang) return;
+    I.setLang(l);
+    await saveSettings({ lang: l });
+    location.reload(); // Formate (Datum, Zahlen) und alle Texte neu aufbauen
   }
 
   // ================================================================ Profil
   function renderProfile(s) {
     renderThemeSettings();
+    renderLangPicker();
     const sp = s.spotify;
     const acc = s.account;
     const av = $('#profile-avatar');
     av.innerHTML = sp?.avatar_url
       ? `<img src="${esc(sp.avatar_url)}" alt="" referrerpolicy="no-referrer" />`
       : esc((acc.username[0] || '?').toUpperCase());
-    $('#profile-name').innerHTML = `${esc(acc.username)}${acc.is_admin ? ' <span class="tag tag-admin">Admin</span>' : ''}`;
-    $('#profile-sub').textContent = [sp?.display_name, sp?.email].filter(Boolean).join(' · ') || 'Spotify noch nicht verbunden';
+    $('#profile-name').innerHTML = `${esc(acc.username)}${acc.is_admin ? ` <span class="tag tag-admin">${esc(t('role.admin'))}</span>` : ''}`;
+    $('#profile-sub').textContent = [sp?.display_name, sp?.email].filter(Boolean).join(' · ') || t('profile.notConnectedSub');
 
-    const row = (k, v) => `<dt>${esc(k)}</dt><dd>${v}</dd>`;
+    const row = (k, v) => `<dt>${esc(t(k))}</dt><dd>${v}</dd>`;
     const spRows = sp
       ? [
-          row('Status', sp.auth_expired
-            ? '<span class="status-dot bad"></span>Verbindung abgelaufen'
-            : '<span class="status-dot ok"></span>Verbunden'),
-          row('Spotify-Name', esc(sp.display_name || '–')),
-          row('E-Mail', esc(sp.email || '–')),
-          row('Spotify-ID', `<code>${esc(sp.id)}</code>`),
-          sp.product ? row('Abo', esc(sp.product)) : '',
-          sp.country ? row('Land', esc(sp.country)) : '',
+          row('status.label', sp.auth_expired
+            ? `<span class="status-dot bad"></span>${esc(t('status.expired'))}`
+            : `<span class="status-dot ok"></span>${esc(t('status.connected'))}`),
+          row('profile.spotifyName', esc(sp.display_name || '–')),
+          row('profile.email', esc(sp.email || '–')),
+          row('profile.spotifyId', `<code>${esc(sp.id)}</code>`),
+          sp.product ? row('profile.plan', esc(sp.product)) : '',
+          sp.country ? row('profile.country', esc(sp.country)) : '',
         ]
-      : [row('Status', '<span class="status-dot bad"></span>Nicht verbunden')];
+      : [row('status.label', `<span class="status-dot bad"></span>${esc(t('status.notConnected'))}`)];
     $('#profile-spotify').innerHTML = spRows.join('');
     $('#profile-spotify-actions').innerHTML = sp
-      ? `${sp.auth_expired ? '<a class="btn btn-primary" href="/auth/login">Neu verbinden</a>' : ''}
-         <button class="btn btn-ghost" data-action="disconnect" type="button">Spotify trennen</button>`
-      : '<a class="btn btn-primary" href="/auth/login">Mit Spotify verbinden</a>';
+      ? `${sp.auth_expired ? `<a class="btn btn-primary" href="/auth/login">${esc(t('btn.reconnect'))}</a>` : ''}
+         <button class="btn btn-ghost" data-action="disconnect" type="button">${esc(t('btn.disconnect'))}</button>`
+      : `<a class="btn btn-primary" href="/auth/login">${esc(t('btn.connectSpotify'))}</a>`;
 
     if (sp && s.counts) {
       const job = s.jobs?.recently_played;
       const pending = s.counts.tracks_pending || 0;
       $('#profile-data').innerHTML = [
-        row('Gespeicherte Plays', fmt(s.counts.plays)),
-        row('Davon importiert', fmt(s.counts.imported)),
-        row('Ranking-Snapshots', fmt(s.snapshots?.days)),
-        row('Letzter Sync', job
-          ? `<span class="status-dot ${job.ok ? 'ok' : 'bad'}"></span>${job.ok ? '' : 'fehlgeschlagen · '}${esc(relTime(job.finished_at))}`
+        row('profile.savedPlays', fmt(s.counts.plays)),
+        row('profile.imported', fmt(s.counts.imported)),
+        row('profile.snapshots', fmt(s.snapshots?.days)),
+        row('profile.lastSync', job
+          ? `<span class="status-dot ${job.ok ? 'ok' : 'bad'}"></span>${job.ok ? '' : `${esc(t('profile.failed'))} · `}${esc(relTime(job.finished_at))}`
           : '–'),
-        row('Automatischer Sync', 'alle 30 Minuten'),
-        pending ? row('Warten auf Cover', `${fmt(pending)} ${pending === 1 ? 'Song' : 'Songs'}`) : '',
+        row('profile.autoSync', esc(t('profile.every30'))),
+        pending ? row('profile.waitingCovers', esc(tn('day.songs', pending, { n: fmt(pending) }))) : '',
       ].join('');
     } else {
-      $('#profile-data').innerHTML = row('Daten', 'Verbinde Spotify, um deine Hörhistorie zu speichern.');
+      $('#profile-data').innerHTML = row('profile.dataLabel', esc(t('profile.noData')));
     }
     $('#profile-data-actions').hidden = !sp;
 
     $('#profile-account').innerHTML = [
-      row('Benutzername', esc(acc.username)),
-      row('Rolle', acc.is_admin ? 'Admin' : 'Nutzer'),
-      acc.created_at ? row('Mitglied seit', esc(dateFmtYear.format(new Date(acc.created_at)))) : '',
+      row('account.username', esc(acc.username)),
+      row('account.role', esc(t(acc.is_admin ? 'role.admin' : 'role.user'))),
+      acc.created_at ? row('account.since', esc(dateFmtYear.format(new Date(acc.created_at)))) : '',
     ].join('');
+    const bInput = $('#birthday-input');
+    if (document.activeElement !== bInput) bInput.value = acc.birthday || '';
+    bInput.max = isoDay(new Date());
+    $('#birthday-clear').hidden = !acc.birthday;
+
+    $('#festive-switch').setAttribute('aria-checked', String(acc.festive !== false));
+    renderFestiveHint();
   }
 
   // ================================================================ Daten laden
@@ -398,8 +454,9 @@
     try {
       state.dashboard = await api(`/api/dashboard?range=${state.range}`);
       renderPanel(state.panel);
+      renderRibbon();
     } catch (err) {
-      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(`Laden fehlgeschlagen: ${err.message}`, true);
+      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(t('toast.loadFailed', { e: errMsg(err) }), true);
     }
   }
   async function loadTrends() {
@@ -407,7 +464,7 @@
       state.trends = await api('/api/trends');
       if (state.panel === 'trends') renderTrends();
     } catch (err) {
-      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(`Entwicklung: ${err.message}`, true);
+      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(t('toast.loadFailed', { e: errMsg(err) }), true);
     }
   }
   async function loadRanking() {
@@ -415,7 +472,7 @@
       state.ranking = await api(`/api/spotify-top?kind=${state.rankKind}&range=${state.rankRange}`);
       if (state.panel === 'trends') renderRanking();
     } catch (err) {
-      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(`Ranking: ${err.message}`, true);
+      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(t('toast.loadFailed', { e: errMsg(err) }), true);
     }
   }
 
@@ -424,10 +481,11 @@
     if (panel === 'trends') {
       if (state.trends) renderTrends(); else loadTrends();
       if (state.ranking) renderRanking(); else loadRanking();
+      decoratePanel(panel);
       return;
     }
-    if (panel === 'admin') { renderThemeSettings(); return loadAdmin(); }
-    if (panel === 'profile') { if (state.status) renderProfile(state.status); return; }
+    if (panel === 'admin') { renderThemeSettings(); renderEventButtons(); return loadAdmin(); }
+    if (panel === 'profile') { if (state.status) renderProfile(state.status); decoratePanel(panel); return; }
     if (panel === 'history') { if (history.days.length) renderHistory(); else loadHistory(true); return; }
     if (!d) return;
     if (panel === 'overview') {
@@ -446,9 +504,8 @@
       renderHourCharts(d.heatmap);
     } else if (panel === 'genres') {
       renderGenres(d.genres);
-    } else if (panel === 'history') {
-      if (history.days.length) renderHistory(); else loadHistory(true);
     }
+    decoratePanel(panel);
   }
 
   // ================================================================ Übersicht
@@ -460,12 +517,12 @@
     if (o.previousMinutes) {
       const pct = ((o.minutes - o.previousMinutes) / o.previousMinutes) * 100;
       const cls = pct >= 0 ? 'up' : 'down';
-      sub.innerHTML = `<span class="delta ${cls}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)} %</span> zum Vorzeitraum`;
+      sub.innerHTML = `<span class="delta ${cls}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)} %</span> ${esc(t('kpi.vsPrev'))}`;
     } else {
-      sub.textContent = `≈ ${fmt(o.minutes / 60)} Stunden`;
+      sub.textContent = t('kpi.hours', { n: fmt(o.minutes / 60) });
     }
-    $('[data-kpi-sub="activeDays"]').textContent = `an ${fmt(o.activeDays)} Tagen`;
-    $('[data-kpi-sub="newArtists"]').textContent = o.newArtists != null ? `davon ${fmt(o.newArtists)} neu` : 'verschiedene';
+    $('[data-kpi-sub="activeDays"]').textContent = t('kpi.onDays', { n: fmt(o.activeDays) });
+    $('[data-kpi-sub="newArtists"]').textContent = o.newArtists != null ? t('kpi.newOf', { n: fmt(o.newArtists) }) : t('kpi.different');
     renderSparkline(daily);
   }
 
@@ -497,9 +554,9 @@
     calendar: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg>',
   };
-  const insight = (icon, label, value, sub = '') =>
+  const insight = (icon, labelKey, value, sub = '') =>
     `<div class="insight"><div class="insight-icon">${ICONS[icon]}</div>
-      <div class="insight-label">${esc(label)}</div>
+      <div class="insight-label">${esc(t(labelKey))}</div>
       <div class="insight-value" title="${esc(value)}">${esc(value)}${sub ? ` <small>${esc(sub)}</small>` : ''}</div></div>`;
 
   function peakOf(grid) {
@@ -515,6 +572,8 @@
     return best;
   }
 
+  const genreName = (g) => (I.D[`genre.${g}`] ? t(`genre.${g}`) : g);
+
   function renderInsights(d) {
     const days = RANGE_DAYS[state.range] || 365;
     const daily = d.timeline.daily.slice(-days);
@@ -523,12 +582,14 @@
     const streak = longestStreak(daily);
     const topGenre = d.genres.items[0];
     $('#insights').innerHTML = [
-      peak.v > 0 ? insight('clock', 'Lieblingszeit', `${DAYS[peak.d]} · ${hh(peak.h)}–${hh((peak.h + 1) % 24)} Uhr`) : insight('clock', 'Lieblingszeit', '–'),
-      bestDay?.minutes ? insight('star', 'Bester Tag', dateFmt.format(parseDay(bestDay.day)), `${fmt(bestDay.minutes)} Min.`) : insight('star', 'Bester Tag', '–'),
-      insight('flame', 'Längste Serie', `${fmt(streak)} ${streak === 1 ? 'Tag' : 'Tage'}`, 'am Stück'),
+      peak.v > 0 ? insight('clock', 'insight.favTime', `${DAYS[peak.d]} · ${hourRange(peak.h)}`) : insight('clock', 'insight.favTime', '–'),
+      bestDay?.minutes
+        ? insight('star', 'insight.bestDay', dateFmt.format(parseDay(bestDay.day)), `${fmt(bestDay.minutes)} ${t('unit.min')}`)
+        : insight('star', 'insight.bestDay', '–'),
+      insight('flame', 'insight.streak', tn('unit.day', streak, { n: fmt(streak) }), t('insight.inARow')),
       d.overview.newArtists != null
-        ? insight('spark', 'Neu entdeckt', `${fmt(d.overview.newArtists)} Künstler`)
-        : insight('tag', 'Top-Genre', topGenre ? topGenre.genre : '–', topGenre ? `${Math.round(topGenre.share * 100)} %` : ''),
+        ? insight('spark', 'insight.discovered', t('unit.artists', { n: fmt(d.overview.newArtists) }))
+        : insight('tag', 'insight.topGenre', topGenre ? genreName(topGenre.genre) : '–', topGenre ? `${Math.round(topGenre.share * 100)} %` : ''),
     ].join('');
   }
 
@@ -544,7 +605,8 @@
     const avg = rows.length ? total / rows.length : 0;
     const max = Math.max(0, ...values);
     $('#timeline-caption').textContent = rows.length
-      ? `Ø ${fmt(avg)} Min. pro ${weekly ? 'Woche' : 'Tag'} · Rekord ${fmt(max)} Min.${!weekly && state.range === 'all' ? ' · letzte 365 Tage' : ''}`
+      ? t(weekly ? 'timeline.capWeek' : 'timeline.capDay', { avg: fmt(avg), max: fmt(max) })
+        + (!weekly && state.range === 'all' ? ` · ${t('timeline.last365')}` : '')
       : '';
     upsertChart('timeline', $('#timeline-chart'), {
       type: 'bar',
@@ -577,16 +639,16 @@
           },
         }),
         plugins: {
-          avgLine: { value: avg, label: `Ø ${fmt(avg)}` },
+          avgLine: { value: avg, label: t('avg.label', { n: fmt(avg) }) },
           tooltip: {
             callbacks: {
               title: (items) => {
                 const l = items[0].label;
-                return weekly ? `Woche ab ${dateFmtYear.format(parseDay(l))}` : dateFmt.format(parseDay(l));
+                return weekly ? t('timeline.weekOf', { d: dateFmtYear.format(parseDay(l)) }) : dateFmt.format(parseDay(l));
               },
               label: (item) => {
                 const diff = avg ? Math.round(((item.raw - avg) / avg) * 100) : 0;
-                return `${fmt(item.raw)} Minuten (${diff >= 0 ? '+' : ''}${diff} % zum Ø)`;
+                return t('timeline.tooltip', { n: fmt(item.raw), diff: `${diff >= 0 ? '+' : ''}${diff}` });
               },
             },
           },
@@ -597,7 +659,7 @@
 
   // Ranglisten mit Balken (Künstler: Minuten, Songs: Plays)
   function renderRankBars(el, list, kind, offset = 0, maxOverride) {
-    if (!list.length) { el.innerHTML = offset ? '' : '<li class="empty">Noch keine Daten in diesem Zeitraum.</li>'; return; }
+    if (!list.length) { el.innerHTML = offset ? '' : `<li class="empty">${esc(t('empty.range'))}</li>`; return; }
     const val = (x) => (kind === 'artist' ? x.minutes : x.plays);
     const max = maxOverride || val(list[0]) || 1;
     el.innerHTML = list.map((x, i) => `
@@ -606,23 +668,23 @@
         <div class="cover${kind === 'artist' ? ' round' : ''}">${imgOrPlaceholder(x.image, x.name)}</div>
         <div class="rb-main">
           <div class="rb-title">${esc(x.name)}</div>
-          <div class="rb-sub">${kind === 'artist' ? `${fmt(x.plays)} Plays · ${fmt(x.tracks)} Songs` : esc(x.artists)}</div>
+          <div class="rb-sub">${kind === 'artist' ? esc(t('rb.artistSub', { plays: fmt(x.plays), tracks: fmt(x.tracks) })) : esc(x.artists)}</div>
           <div class="rb-bar"><span data-w="${Math.max(2, (val(x) / max) * 100)}"></span></div>
         </div>
-        <div class="rb-val">${kind === 'artist' ? `${fmt(x.minutes)}<small>Min.</small>` : `${fmt(x.plays)}×<small>${fmt(x.minutes)} Min.</small>`}</div>
+        <div class="rb-val">${kind === 'artist' ? `${fmt(x.minutes)}<small>${esc(t('unit.min'))}</small>` : `${fmt(x.plays)}×<small>${fmt(x.minutes)} ${esc(t('unit.min'))}</small>`}</div>
       </li>`).join('');
     growBars(el, '.rb-bar span');
   }
 
   function renderPodium(top3) {
     const el = $('#podium');
-    if (!top3.length) { el.innerHTML = '<p class="empty">Noch keine Daten in diesem Zeitraum.</p>'; return; }
+    if (!top3.length) { el.innerHTML = `<p class="empty">${esc(t('empty.range'))}</p>`; return; }
     const order = [top3[1], top3[0], top3[2]].map((a, i) => (a ? { a, place: [2, 1, 3][i] } : null)).filter(Boolean);
     el.innerHTML = order.map(({ a, place }) => `
       <div class="podium-item p${place}">
-        <div class="pimg">${imgOrPlaceholder(a.image, a.name)}</div>
+        <div class="pimg-wrap"><div class="pimg">${imgOrPlaceholder(a.image, a.name)}</div></div>
         <div class="podium-name" title="${esc(a.name)}">${esc(a.name)}</div>
-        <div class="podium-meta">${fmt(a.minutes)} Min. · ${fmt(a.plays)} Plays</div>
+        <div class="podium-meta">${esc(t('podium.meta', { min: fmt(a.minutes), plays: fmt(a.plays) }))}</div>
         <div class="podium-step">${place}</div>
       </div>`).join('');
   }
@@ -644,12 +706,12 @@
     const morning = [5, 6, 7, 8, 9, 10].reduce((a, h) => a + hours[h], 0) / total;
     const weekend = (days[5] + days[6]) / total;
     $('#time-insights').innerHTML = [
-      insight('clock', 'Hauptzeit', `${hh(peakH)}–${hh((peakH + 1) % 24)} Uhr`),
-      insight('calendar', 'Lieblingstag', DAYS_LONG[peakD]),
+      insight('clock', 'insight.peakTime', hourRange(peakH)),
+      insight('calendar', 'insight.favDay', DAYS_LONG[peakD]),
       night >= morning
-        ? insight('moon', 'Nachteule', `${Math.round(night * 100)} %`, '22–5 Uhr')
-        : insight('sun', 'Frühaufsteher', `${Math.round(morning * 100)} %`, '5–11 Uhr'),
-      insight('star', 'Wochenende', `${Math.round(weekend * 100)} %`, 'deiner Hörzeit'),
+        ? insight('moon', 'insight.nightOwl', `${Math.round(night * 100)} %`, t('time.range', { a: '22', b: '5' }))
+        : insight('sun', 'insight.earlyBird', `${Math.round(morning * 100)} %`, t('time.range', { a: '5', b: '11' })),
+      insight('star', 'insight.weekend', `${Math.round(weekend * 100)} %`, t('insight.ofTime')),
     ].join('');
   }
 
@@ -662,11 +724,11 @@
     let html = '<span></span>';
     for (let h = 0; h < 24; h++) html += `<span class="heat-col-label">${h % (wide ? 3 : 6) === 0 ? h : ''}</span>`;
     grid.forEach((row, d) => {
-      html += `<span class="heat-row-label">${DAYS[d]}</span>`;
+      html += `<span class="heat-row-label">${esc(DAYS[d])}</span>`;
       row.forEach((v, h) => {
         const alpha = v === 0 ? 0.04 : 0.1 + 0.9 * Math.pow(v / max, 0.75);
         const isPeak = d === peak.d && h === peak.h && v > 0;
-        html += `<span class="heat-cell${isPeak ? ' peak' : ''}" role="gridcell" data-d="${d}" data-h="${h}" data-v="${v}" data-a="${alpha.toFixed(3)}" aria-label="${DAYS_LONG[d]} ${h} Uhr: ${v} Minuten"></span>`;
+        html += `<span class="heat-cell${isPeak ? ' peak' : ''}" role="gridcell" data-d="${d}" data-h="${h}" data-v="${v}" data-a="${alpha.toFixed(3)}" aria-label="${esc(`${DAYS_LONG[d]} ${t('time.hour', { h })}: ${t('n.minutes', { n: v })}`)}"></span>`;
       });
     });
     el.innerHTML = html;
@@ -683,7 +745,7 @@
     const show = (cell) => {
       const d = Number(cell.dataset.d);
       const h = Number(cell.dataset.h);
-      tip.innerHTML = `${DAYS_LONG[d]}, ${hh(h)}–${hh((h + 1) % 24)} Uhr<br><strong>${fmt(cell.dataset.v)} Minuten</strong>`;
+      tip.innerHTML = `${esc(DAYS_LONG[d])}, ${esc(hourRange(h))}<br><strong>${esc(t('n.minutes', { n: fmt(cell.dataset.v) }))}</strong>`;
       const r = cell.getBoundingClientRect();
       tip.style.left = `${Math.min(Math.max(r.left + r.width / 2, 90), window.innerWidth - 90)}px`;
       tip.style.top = `${r.top}px`;
@@ -715,7 +777,7 @@
       options: {
         scales: baseScales({ y: { display: false, beginAtZero: true } }),
         plugins: {
-          tooltip: { callbacks: { title: (items) => tooltipTitle(items[0].dataIndex), label: (item) => `${fmt(item.raw)} Minuten` } },
+          tooltip: { callbacks: { title: (items) => tooltipTitle(items[0].dataIndex), label: (item) => t('n.minutes', { n: fmt(item.raw) }) } },
         },
       },
     });
@@ -723,8 +785,7 @@
 
   function renderHourCharts(grid) {
     const { hours, days } = sumsOf(grid);
-    intensityBars('hours', $('#hours-chart'), hours.map((_, h) => (h % 3 === 0 ? `${h}` : '')), hours,
-      (i) => `${hh(i)}–${hh((i + 1) % 24)} Uhr`);
+    intensityBars('hours', $('#hours-chart'), hours.map((_, h) => (h % 3 === 0 ? `${h}` : '')), hours, (i) => hourRange(i));
     intensityBars('weekdays', $('#weekday-chart'), DAYS, days, (i) => DAYS_LONG[i]);
   }
 
@@ -752,16 +813,15 @@
   function renderGenres(g) {
     const list = $('#genres');
     const note = $('#genre-note');
-    const pct = (x) => `${Math.round(x * 100)} %`;
     $('#genre-caption').textContent = g.items.length
-      ? `Von Spotlfy eingeordnet · ${pct(g.coverage)} deiner Hörzeit zugeordnet`
-      : 'Von Spotlfy eingeordnet';
+      ? `${t('genres.by')} · ${t('genres.coverage', { p: `${Math.round(g.coverage * 100)} %` })}`
+      : t('genres.by');
     note.textContent = [
-      g.pending > 0.01 ? `${pct(g.pending)} deiner Hörzeit werden gerade noch eingeordnet – das passiert automatisch im Hintergrund.` : '',
-      g.unclassifiedArtists ? `${fmt(g.unclassifiedArtists)} ${g.unclassifiedArtists === 1 ? 'Künstler ließ' : 'Künstler ließen'} sich keinem Genre zuordnen.` : '',
+      g.pending > 0.01 ? t('genres.pending', { p: `${Math.round(g.pending * 100)} %` }) : '',
+      g.unclassifiedArtists ? t('genres.unclassified', { n: fmt(g.unclassifiedArtists) }) : '',
     ].filter(Boolean).join(' ');
     if (!g.items.length) {
-      list.innerHTML = `<li class="empty">${g.pending > 0 ? 'Deine Künstler werden gerade eingeordnet – schau in ein paar Minuten wieder vorbei.' : 'Noch keine Genre-Daten in diesem Zeitraum.'}</li>`;
+      list.innerHTML = `<li class="empty">${esc(t(g.pending > 0 ? 'genres.emptyPending' : 'genres.empty'))}</li>`;
       $('#donut-center').innerHTML = '';
       charts.donut?.destroy();
       delete charts.donut;
@@ -770,7 +830,7 @@
     const shown = g.items.slice(0, 8);
     const rest = g.items.slice(8);
     const restShare = rest.reduce((a, i) => a + i.share, 0);
-    const labels = [...shown.map((i) => i.genre), ...(restShare > 0.002 ? ['Weitere'] : [])];
+    const labels = [...shown.map((i) => genreName(i.genre)), ...(restShare > 0.002 ? [t('genres.other')] : [])];
     const data = [...shown.map((i) => i.share), ...(restShare > 0.002 ? [restShare] : [])];
     const colors = [...shown.map((i) => genreColor(i.genre)), COLORS.other];
     upsertChart('donut', $('#genre-donut'), {
@@ -786,8 +846,8 @@
       },
     });
     const top = g.items[0];
-    $('#donut-center').innerHTML = `<span>Dein Genre Nr. 1</span><b>${pct(top.share)}</b><strong>${esc(top.genre)}</strong>
-      <small>${fmt(g.items.length)} ${g.items.length === 1 ? 'Genre' : 'Genres'}</small>`;
+    $('#donut-center').innerHTML = `<span>${esc(t('genres.no1'))}</span><b>${Math.round(top.share * 100)} %</b><strong>${esc(genreName(top.genre))}</strong>
+      <small>${esc(tn('genres.count', g.items.length, { n: fmt(g.items.length) }))}</small>`;
     const max = top.share || 1;
     list.innerHTML = g.items.slice(0, 10).map((x) => {
       const color = genreColor(x.genre);
@@ -795,12 +855,12 @@
       const chips = x.styles.slice(0, 3).map((st) => `<span class="chip">${esc(st)}</span>`).join('');
       return `<li class="gcard">
         <span class="gcard-stripe" style="background:${color}"></span>
-        <span class="gcard-name">${esc(x.genre)}</span>
-        <span class="gcard-pct">${x.share < 0.1 ? (x.share * 100).toFixed(1).replace('.', ',') : Math.round(x.share * 100)} %</span>
+        <span class="gcard-name">${esc(genreName(x.genre))}</span>
+        <span class="gcard-pct">${pctFmt(x.share)}</span>
         <span class="gcard-bar"><span data-w="${(x.share / max) * 100}" style="background:${color}"></span></span>
         <span class="gcard-meta">
           <span class="gcard-avatars">${avatars}</span>
-          <span class="gcard-sub" title="${esc(x.artists.map((a) => a.name).join(', '))}">${fmt(x.minutes)} Min. · ${fmt(x.artistCount)} ${x.artistCount === 1 ? 'Künstler' : 'Künstler'} ${chips}</span>
+          <span class="gcard-sub" title="${esc(x.artists.map((a) => a.name).join(', '))}">${esc(t('gcard.sub', { min: fmt(x.minutes), n: fmt(x.artistCount) }))} ${chips}</span>
         </span>
       </li>`;
     }).join('');
@@ -821,7 +881,7 @@
       history.hasMore = r.hasMore;
       if (state.panel === 'history') renderHistory();
     } catch (err) {
-      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(`Verlauf: ${err.message}`, true);
+      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(t('toast.loadFailed', { e: errMsg(err) }), true);
     } finally {
       history.loading = false;
     }
@@ -829,21 +889,20 @@
 
   function dayTitle(dayStr) {
     const today = new Date();
-    const fmtLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const yest = new Date(today);
     yest.setDate(today.getDate() - 1);
-    if (dayStr === fmtLocal(today)) return 'Heute';
-    if (dayStr === fmtLocal(yest)) return 'Gestern';
+    if (dayStr === isoDay(today)) return t('history.today');
+    if (dayStr === isoDay(yest)) return t('history.yesterday');
     return longDayFmt.format(parseDay(dayStr));
   }
 
   // Direkt hintereinander gehörte gleiche Songs zu einem Eintrag „×n“ zusammenfassen
   function mergeRepeats(items) {
     const out = [];
-    for (const t of items) {
+    for (const it of items) {
       const last = out.at(-1);
-      if (last && last.id === t.id) last.count++;
-      else out.push({ ...t, count: 1 });
+      if (last && last.id === it.id) last.count++;
+      else out.push({ ...it, count: 1 });
     }
     return out;
   }
@@ -853,15 +912,15 @@
   function renderDayList(items, expanded) {
     let html = '';
     let lastHour = null;
-    for (const t of items) {
-      const d = new Date(t.played_at);
+    for (const it of items) {
+      const d = new Date(it.played_at);
       if (expanded && d.getHours() !== lastHour) {
         lastHour = d.getHours();
-        html += `<li class="hour-sep">${hh(lastHour)} Uhr</li>`;
+        html += `<li class="hour-sep">${esc(t('time.hour', { h: hh(lastHour) }))}</li>`;
       }
       html += `<li class="track">
-        <div class="cover">${imgOrPlaceholder(t.image, t.name)}</div>
-        <div class="t-main"><div class="t-title">${esc(t.name)}${t.count > 1 ? `<span class="repeat">${t.count}×</span>` : ''}</div><div class="t-sub">${esc(t.artists)}</div></div>
+        <div class="cover">${imgOrPlaceholder(it.image, it.name)}</div>
+        <div class="t-main"><div class="t-title">${esc(it.name)}${it.count > 1 ? `<span class="repeat">${it.count}×</span>` : ''}</div><div class="t-sub">${esc(it.artists)}</div></div>
         <div class="t-stat">${timeFmt.format(d)}</div>
       </li>`;
     }
@@ -871,7 +930,7 @@
   function renderHistory() {
     const el = $('#history');
     if (!history.days.length) {
-      el.innerHTML = history.loading ? '' : '<section class="card"><p class="empty">Noch nichts gehört – oder noch nicht synchronisiert.</p></section>';
+      el.innerHTML = history.loading ? '' : `<section class="card"><p class="empty">${esc(t('history.empty'))}</p></section>`;
       $('#history-more').hidden = true;
       return;
     }
@@ -880,23 +939,24 @@
       const open = history.open.has(d.day);
       const items = open ? merged : merged.slice(0, DAY_PREVIEW);
       const maxH = Math.max(1, ...d.hours);
-      const strip = d.hours.map((m, h) => `<span class="${m ? 'on' : ''}" style="height:${m ? Math.max(18, (m / maxH) * 100) : 12}%;opacity:${m ? 0.35 + 0.65 * (m / maxH) : 1}" title="${hh(h)} Uhr: ${m} Min."></span>`).join('');
+      const strip = d.hours.map((m, h) => `<span class="${m ? 'on' : ''}" style="height:${m ? Math.max(18, (m / maxH) * 100) : 12}%;opacity:${m ? 0.35 + 0.65 * (m / maxH) : 1}" title="${esc(`${t('time.hour', { h: hh(h) })}: ${t('n.minutes', { n: m })}`)}"></span>`).join('');
       return `<section class="card day-card${open ? ' open' : ''}" data-day="${d.day}">
         <div class="day-head">
           <div>
             <div class="day-title">${esc(dayTitle(d.day))}</div>
-            <div class="day-stats"><b>${fmt(d.plays)}</b> ${d.plays === 1 ? 'Song' : 'Songs'} · <b>${fmt(d.minutes)}</b> Min.${d.topArtist ? ` · meist gehört: <b>${esc(d.topArtist)}</b>` : ''}</div>
+            <div class="day-stats"><b>${esc(tn('day.songs', d.plays, { n: fmt(d.plays) }))}</b> · <b>${fmt(d.minutes)}</b> ${esc(t('unit.min'))}${d.topArtist ? ` · ${esc(t('history.topArtist'))}: <b>${esc(d.topArtist)}</b>` : ''}</div>
           </div>
-          <div aria-label="Hörzeit nach Uhrzeit">
+          <div aria-label="${esc(t('history.activity'))}">
             <div class="day-strip">${strip}</div>
-            <div class="day-strip-labels"><span>0</span><span>12</span><span>24 Uhr</span></div>
+            <div class="day-strip-labels"><span>0</span><span>12</span><span>24</span></div>
           </div>
         </div>
         <ul class="day-list">${renderDayList(items, open)}</ul>
-        ${merged.length > DAY_PREVIEW ? `<button class="day-more" type="button" data-toggle-day="${d.day}">${open ? 'Weniger anzeigen' : `Alle ${fmt(d.plays)} Songs anzeigen`} ${CHEVRON}</button>` : ''}
+        ${merged.length > DAY_PREVIEW ? `<button class="day-more" type="button" data-toggle-day="${d.day}">${esc(open ? t('history.showLess') : t('history.showAll', { n: fmt(d.plays) }))} ${CHEVRON}</button>` : ''}
       </section>`;
     }).join('');
     $('#history-more').hidden = !history.hasMore;
+    decoratePanel('history');
   }
 
   // ================================================================ Entwicklung
@@ -908,14 +968,14 @@
   function renderTrends() {
     const rows = state.trends?.monthly || [];
     const key = state.trendMode;
-    const label = { minutes: 'Minuten', artists: 'verschiedene Künstler', new_artists: 'neue Künstler' }[key];
+    const label = t(`trends.label.${key}`);
     const values = rows.map((r) => r[key]);
     const complete = rows.filter((r) => !isCurrentMonth(r.month));
     const avg = complete.length ? complete.reduce((a, r) => a + r[key], 0) / complete.length : 0;
     const best = rows.reduce((a, r) => (r[key] > (a?.[key] ?? -1) ? r : a), null);
     $('#trend-caption').textContent = best
-      ? `${rows.length} Monate · Bester Monat: ${monthFmtLong.format(new Date(`${best.month}-15`))} (${fmt(best[key])} ${label})`
-      : 'über deine gesamte Historie';
+      ? t('trends.caption', { n: fmt(rows.length), m: monthFmtLong.format(new Date(`${best.month}-15`)), v: fmt(best[key]), label })
+      : t('trends.sub');
     upsertChart('trend', $('#trend-chart'), {
       type: 'line',
       data: {
@@ -945,11 +1005,11 @@
           },
         }),
         plugins: {
-          avgLine: { value: avg, label: `Ø ${fmt(avg)}` },
+          avgLine: { value: avg, label: t('avg.label', { n: fmt(avg) }) },
           tooltip: {
             callbacks: {
               title: (items) => monthFmtLong.format(new Date(`${items[0].label}-15`)),
-              label: (item) => `${fmt(item.raw)} ${label}${item.dataIndex === rows.length - 1 && isCurrentMonth(item.label) ? ' (bisher)' : ''}`,
+              label: (item) => `${fmt(item.raw)} ${label}${item.dataIndex === rows.length - 1 && isCurrentMonth(item.label) ? ` ${t('trends.soFar')}` : ''}`,
             },
           },
         },
@@ -961,15 +1021,13 @@
     const r = state.ranking;
     if (!r) return;
     const list = $('#rank-list');
-    $('#ranking-caption').textContent = r.date
-      ? `Stand ${dateFmtYear.format(parseDay(r.date))} · Pfeile: Veränderung zur Vorwoche`
-      : 'Tägliche Snapshots deiner Spotify-Top-Listen';
+    $('#ranking-caption').textContent = r.date ? t('rank.stand', { d: dateFmtYear.format(parseDay(r.date)) }) : t('rank.sub');
     if (!r.items.length) {
-      list.innerHTML = '<li class="empty">Noch kein Snapshot – der erste entsteht beim nächsten Sync.</li>';
+      list.innerHTML = `<li class="empty">${esc(t('rank.empty'))}</li>`;
     } else {
       const round = state.rankKind === 'artists' ? ' round' : '';
       list.innerHTML = r.items.slice(0, 10).map((it) => {
-        let ch = '<span class="rank-change new">neu</span>';
+        let ch = `<span class="rank-change new">${esc(t('rank.new'))}</span>`;
         if (it.prev_rank != null) {
           const diff = it.prev_rank - it.rank;
           ch = diff > 0 ? `<span class="rank-change up">▲ ${diff}</span>`
@@ -1027,12 +1085,213 @@
             usePointStyle: true,
             callbacks: {
               title: (items) => dateFmtYear.format(parseDay(items[0].label)),
-              label: (item) => ` ${item.dataset.label}: Platz ${item.raw}`,
+              label: (item) => ` ${t('rank.place', { name: item.dataset.label, n: item.raw })}`,
             },
           },
         },
       },
     });
+  }
+
+  // ================================================================ Festliche Effekte
+  // Fasching, Ostern, Midsommar, Weihnachten, Neujahr und Geburtstag – mit kleinen Animationen je Tab.
+  const FEST = {
+    carnival: { deco: '🎭', hat: '🎭', emojis: ['🎭', '🎉', '🎊', '🥳', '🎈'], motion: 'burst', confetti: true },
+    easter: { deco: '🐣', hat: '🐰', emojis: ['🥚', '🐣', '🐰', '🌷', '🥚'], motion: 'fall' },
+    midsummer: { deco: '🌼', hat: '🌸', emojis: ['🌼', '🌸', '🍓', '🌿', '🌼'], motion: 'sway' },
+    christmas: { deco: '🎄', hat: '⭐', emojis: ['❄️', '🎄', '⭐', '🎁', '❄️'], motion: 'snow' },
+    newyear: { deco: '🎆', hat: '🎩', emojis: ['🎆', '✨', '🥂', '🎇', '✨'], motion: 'burst', confetti: true },
+    birthday: { deco: '🎂', hat: '🥳', emojis: ['🎈', '🎂', '🎉', '🎁', '🎈'], motion: 'rise', confetti: true },
+  };
+
+  // Ostersonntag (gregorianisch, anonymer Algorithmus)
+  function easterSunday(y) {
+    const a = y % 19; const b = Math.floor(y / 100); const c = y % 100;
+    const d = Math.floor(b / 4); const e = b % 4; const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3); const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4); const k = c % 4; const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, month - 1, day);
+  }
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const dayNum = (d) => Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
+
+  function eventsForYear(y) {
+    const E = easterSunday(y);
+    let fri = new Date(y, 5, 19);
+    while (fri.getDay() !== 5) fri = addDays(fri, 1); // Midsommarafton: Freitag zwischen 19. und 25. Juni
+    const list = [
+      { key: 'carnival', start: addDays(E, -52), end: addDays(E, -47) }, // Weiberfastnacht bis Faschingsdienstag
+      { key: 'carnival', start: new Date(y, 10, 11), end: new Date(y, 10, 11) }, // 11.11. Sessionsbeginn
+      { key: 'easter', start: addDays(E, -2), end: addDays(E, 1) }, // Karfreitag bis Ostermontag
+      { key: 'midsummer', start: fri, end: addDays(fri, 2) },
+      { key: 'christmas', start: new Date(y, 11, 24), end: new Date(y, 11, 26) },
+      { key: 'newyear', start: new Date(y, 11, 31), end: new Date(y + 1, 0, 1) },
+    ];
+    const b = state.account?.birthday;
+    if (b) {
+      const [, mm, dd] = b.split('-').map(Number);
+      let day = dd;
+      if (mm === 2 && dd === 29 && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) day = 28;
+      const bd = new Date(y, mm - 1, day);
+      list.unshift({ key: 'birthday', start: bd, end: bd });
+    }
+    return list;
+  }
+
+  function activeEvent(date) {
+    const n = dayNum(date);
+    const all = [...eventsForYear(date.getFullYear() - 1), ...eventsForYear(date.getFullYear())];
+    const hits = all.filter((e) => n >= dayNum(e.start) && n <= dayNum(e.end));
+    return (hits.find((e) => e.key === 'birthday') || hits[0])?.key || null;
+  }
+
+  function nextEvent(date) {
+    const n = dayNum(date);
+    return [...eventsForYear(date.getFullYear()), ...eventsForYear(date.getFullYear() + 1)]
+      .filter((e) => dayNum(e.start) > n)
+      .sort((a, b) => a.start - b.start)[0] || null;
+  }
+
+  const festive = { key: null };
+  const festOn = () => Boolean(state.account) && state.account.festive !== false;
+
+  function renderFestiveHint() {
+    const el = $('#festive-hint');
+    if (!el) return;
+    if (!festOn()) { el.textContent = ''; return; }
+    const date = T.effectiveDate();
+    const ev = activeEvent(date);
+    const nx = nextEvent(date);
+    el.textContent = ev
+      ? t('settings.festiveActive', { e: `${FEST[ev].deco} ${t(`fest.${ev}`)}` })
+      : nx ? t('settings.festiveNext', { e: `${FEST[nx.key].deco} ${t(`fest.${nx.key}`)}`, d: longDate.format(nx.start) }) : '';
+  }
+
+  function clearFestive() {
+    $$('.fest-deco').forEach((n) => n.remove());
+    $('#fest-ribbon').hidden = true;
+    document.documentElement.dataset.fest = '';
+  }
+
+  // Dauerhafte, kleine Deko (bleibt stehen): Logo, Überschriften, Profil
+  function decorateStatic() {
+    const ev = festive.key;
+    if (!ev) return;
+    const f = FEST[ev];
+    const wrap = $('.brand-logo-wrap');
+    if (wrap && !$('.fest-deco', wrap)) wrap.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-badge" aria-hidden="true">${f.deco}</span>`);
+    $$('[data-fest-title]').forEach((h, i) => {
+      if (!$('.fest-deco', h)) h.insertAdjacentHTML('beforeend', ` <span class="fest-deco fest-title" aria-hidden="true">${f.emojis[(i + 1) % f.emojis.length]}</span>`);
+    });
+    const av = $('#profile-avatar');
+    if (av && !$('.fest-deco', av.parentElement)) av.insertAdjacentHTML('afterend', `<span class="fest-deco fest-hat" aria-hidden="true">${f.hat}</span>`);
+    renderRibbon();
+  }
+
+  function renderRibbon() {
+    const el = $('#fest-ribbon');
+    const ev = festive.key;
+    if (!el) return;
+    const dismissKey = `fest-dismiss-${ev}-${T.effectiveDate().getFullYear()}`;
+    if (!ev || store.get(dismissKey)) { el.hidden = true; return; }
+    const today = state.dashboard?.timeline?.daily?.at(-1)?.minutes || 0;
+    el.className = `fest-ribbon fest-${ev}`;
+    el.innerHTML = `<span class="fest-ribbon-icon" aria-hidden="true">${FEST[ev].deco}</span>
+      <div><strong>${esc(t(`greet.${ev}`, { name: state.account?.username || '' }))}</strong>
+      ${today ? `<span>${esc(t('greet.sub', { n: t('n.minutes', { n: fmt(today) }) }))}</span>` : ''}</div>
+      <button type="button" class="fest-close" data-fest-dismiss="${dismissKey}" aria-label="${esc(t('fest.dismiss'))}">✕</button>`;
+    el.hidden = false;
+  }
+
+  // Deko je Tab, die nach dem Rendern ergänzt wird (bleibt stehen)
+  function decoratePanel(panel) {
+    const ev = festive.key;
+    if (!ev) return;
+    const f = FEST[ev];
+    if (panel === 'top') {
+      const p1 = $('#podium .p1 .pimg-wrap');
+      if (p1 && !$('.fest-deco', p1)) p1.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-crown" aria-hidden="true">${f.hat}</span>`);
+    } else if (panel === 'genres') {
+      const c = $('#donut-center');
+      if (c && c.innerHTML && !$('.fest-deco', c)) c.insertAdjacentHTML('afterbegin', `<span class="fest-deco fest-center" aria-hidden="true">${f.deco}</span>`);
+    } else if (panel === 'times') {
+      const cell = $('#heatmap .heat-cell.peak');
+      if (cell && !$('.fest-deco', cell)) cell.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-cell" aria-hidden="true">${f.emojis[1]}</span>`);
+    } else if (panel === 'history') {
+      $$('.day-card').forEach((card) => {
+        const evDay = activeEvent(parseDay(card.dataset.day));
+        const title = $('.day-title', card);
+        if (evDay && title && !$('.fest-deco', title)) title.insertAdjacentHTML('beforeend', ` <span class="fest-deco fest-title" aria-hidden="true">${FEST[evDay].deco}</span>`);
+      });
+    }
+  }
+
+  let lastBurst = 0;
+  // Kurze Partikel-Animation beim ersten Besuch eines Tabs (verschwindet wieder)
+  function burst(panel, force = false) {
+    const ev = festive.key;
+    if (!ev || reduceMotion) return;
+    if (Date.now() - lastBurst < 1200) return; // nicht doppelt auslösen
+    const key = `fest-burst-${ev}-${panel}`;
+    try { if (!force && sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* egal */ }
+    lastBurst = Date.now();
+    const f = FEST[ev];
+    const layer = $('#fx-layer');
+    const count = window.innerWidth < 600 ? 14 : 22;
+    const confettiColors = ['#ff5d8f', '#ffd23f', '#3ec5ff', '#7ae582', '#b892ff', '#ff8c42'];
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('span');
+      const isConf = f.confetti && i % 3 === 0;
+      p.className = `fx-p fx-${f.motion}${isConf ? ' fx-conf' : ''}`;
+      if (isConf) p.style.background = confettiColors[i % confettiColors.length];
+      else p.textContent = f.emojis[i % f.emojis.length];
+      p.style.setProperty('--x', `${rnd(4, 96)}vw`);
+      p.style.setProperty('--dx', `${rnd(-18, 18)}vw`);
+      p.style.setProperty('--dy', `${rnd(-45, -15)}vh`);
+      p.style.setProperty('--rot', `${rnd(-260, 260)}deg`);
+      p.style.setProperty('--dur', `${rnd(2.2, 3.6)}s`);
+      p.style.setProperty('--delay', `${rnd(0, 0.7)}s`);
+      p.style.setProperty('--size', `${rnd(18, 32)}px`);
+      p.addEventListener('animationend', () => p.remove());
+      setTimeout(() => p.remove(), 5500); // Sicherheitsnetz
+      layer.appendChild(p);
+    }
+  }
+
+  function updateFestive({ burst: doBurst = false } = {}) {
+    const ev = festOn() ? activeEvent(T.effectiveDate()) : null;
+    if (ev !== festive.key) {
+      clearFestive();
+      festive.key = ev;
+      document.documentElement.dataset.fest = ev || '';
+      if (ev) {
+        decorateStatic();
+        decoratePanel(state.panel);
+        burst(state.panel, doBurst);
+      }
+    } else if (ev) {
+      decorateStatic();
+      if (doBurst) burst(state.panel, true);
+    }
+    renderFestiveHint();
+  }
+
+  function renderEventButtons() {
+    const el = $('#event-quick');
+    if (!el) return;
+    el.innerHTML = Object.entries(FEST).map(([key, f]) =>
+      `<button type="button" class="btn btn-ghost btn-xs" data-event-test="${key}">${f.deco} ${esc(t(`fest.${key}`))}</button>`).join('');
+  }
+
+  function testEvent(key) {
+    const y = new Date().getFullYear();
+    if (key === 'birthday' && !state.account?.birthday) { toast(t('admin.noBirthday'), true); return; }
+    const ev = eventsForYear(y).find((e) => e.key === key && !(key === 'carnival' && e.start.getMonth() === 10));
+    if (ev) previewDate(isoDay(ev.start));
   }
 
   // ================================================================ Sync & Import
@@ -1043,10 +1302,10 @@
     try {
       const r = await api('/api/sync', { method: 'POST' });
       const n = r.recent?.inserted ?? 0;
-      toast(n ? `${n} neue Plays gespeichert` : 'Alles aktuell – keine neuen Plays');
+      toast(n ? t('toast.newPlays', { n: fmt(n) }) : t('toast.upToDate'));
       await refreshAll();
     } catch (err) {
-      toast(err.status === 409 ? 'Spotify-Verbindung abgelaufen – bitte neu verbinden.' : `Sync fehlgeschlagen: ${err.message}`, true);
+      toast(err.status === 409 ? t('toast.expired') : t('toast.syncFailed', { e: errMsg(err) }), true);
     } finally {
       btn.classList.remove('is-busy');
     }
@@ -1066,7 +1325,7 @@
       let any = false;
       for (const file of list) {
         const li = document.createElement('li');
-        li.innerHTML = `<span>${esc(file.name)}</span><span class="muted">wird importiert …</span>`;
+        li.innerHTML = `<span>${esc(file.name)}</span><span class="muted">${esc(t('import.running'))}</span>`;
         log.append(li);
         try {
           const text = await file.text();
@@ -1074,19 +1333,19 @@
           const r = await api('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: text });
           li.lastElementChild.className = 'ok';
           li.lastElementChild.textContent = r.unsupported && !r.candidates
-            ? 'Kurzformat ohne Track-IDs – bitte „Extended“ History nutzen'
-            : `+${fmt(r.inserted)} Plays (${fmt(r.duplicates)} doppelt)`;
+            ? t('import.short')
+            : t('import.result', { n: fmt(r.inserted), d: fmt(r.duplicates) });
           any = any || r.inserted > 0;
         } catch (err) {
           li.lastElementChild.className = 'err';
-          li.lastElementChild.textContent = err instanceof SyntaxError ? 'Kein gültiges JSON' : err.message;
+          li.lastElementChild.textContent = err instanceof SyntaxError ? t('import.invalid') : errMsg(err);
         }
       }
-      if (any) { toast('Import abgeschlossen – Cover & Genres werden im Hintergrund nachgeladen'); state.trends = null; refreshAll(); }
+      if (any) { toast(t('import.done')); state.trends = null; refreshAll(); }
     }
     input.addEventListener('change', () => { handle(input.files); input.value = ''; });
-    ['dragenter', 'dragover'].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.add('is-over'); }));
-    ['dragleave', 'drop'].forEach((t) => zone.addEventListener(t, (e) => { e.preventDefault(); zone.classList.remove('is-over'); }));
+    ['dragenter', 'dragover'].forEach((ty) => zone.addEventListener(ty, (e) => { e.preventDefault(); zone.classList.add('is-over'); }));
+    ['dragleave', 'drop'].forEach((ty) => zone.addEventListener(ty, (e) => { e.preventDefault(); zone.classList.remove('is-over'); }));
     zone.addEventListener('drop', (e) => handle(e.dataTransfer.files));
   }
 
@@ -1138,16 +1397,18 @@
     state.panel = panel;
     store.set('panel', panel);
     applyView();
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     if (changed) window.scrollTo({ top: 0, behavior: 'auto' });
     if (state.spotify || panel === 'admin' || panel === 'profile') renderPanel(state.panel);
+    burst(panel);
   }
 
   async function refreshAll() {
     await loadStatus().catch((err) => {
-      if (err.message !== 'unauthorized') toast(`Status: ${err.message}`, true);
+      if (err.message !== 'unauthorized') toast(t('toast.loadFailed', { e: errMsg(err) }), true);
     });
     applyView();
-    if (state.panel === 'admin') loadAdmin();
+    if (state.panel === 'admin') { renderEventButtons(); loadAdmin(); }
     if (!state.spotify) return;
     state.trends = null;
     state.ranking = null;
@@ -1158,75 +1419,83 @@
     await Promise.all(jobs);
   }
 
-  const SPOTIFY_ERRORS = {
-    access_denied: 'Du hast die Verbindung mit Spotify abgebrochen.',
-    user_not_registered: 'Dein Spotify-Konto ist für diese App noch nicht freigeschaltet. Bitte den Betreiber, dich in der Spotify-App unter „User Management“ hinzuzufügen.',
-    already_linked: 'Dieses Spotify-Konto ist bereits mit einem anderen Spotlfy-Konto verbunden.',
-    state_mismatch: 'Die Verbindung ist abgelaufen – bitte noch einmal versuchen.',
-  };
-
   function handleQueryFlags() {
     const q = new URLSearchParams(location.search);
-    if (q.has('welcome')) {
-      toast(q.has('admin')
-        ? 'Willkommen! Du bist als erster Nutzer Admin – den Admin-Tab findest du oben.'
-        : 'Willkommen bei Spotlfy! Verbinde jetzt dein Spotify-Konto.');
-    }
-    if (q.has('connected')) toast('Spotify verbunden – deine ersten Daten werden geladen …');
+    if (q.has('welcome')) toast(t(q.has('admin') ? 'welcome.admin' : 'welcome.user'));
+    if (q.has('connected')) toast(t('toast.connected'));
     if (q.has('spotify_error')) {
       const e = q.get('spotify_error');
-      toast(SPOTIFY_ERRORS[e] || `Spotify-Verbindung fehlgeschlagen (${e}).`, true);
+      toast(I.D[`sperr.${e}`] ? t(`sperr.${e}`) : t('sperr.generic', { e }), true);
     }
-    if ([...q.keys()].length) history.replaceState(null, '', '/');
+    // window.history ausdrücklich, weil „history“ hier der Verlaufs-Zustand ist
+    if ([...q.keys()].length) window.history.replaceState(null, '', '/');
     return q.has('connected');
   }
 
   // ================================================================ Konto
   async function changePassword() {
-    const current = prompt('Aktuelles Passwort:');
+    const current = prompt(t('pw.current'));
     if (current === null) return;
-    const next = prompt('Neues Passwort (mindestens 8 Zeichen):');
+    const next = prompt(t('pw.new'));
     if (next === null) return;
-    if (next.length < 8) return toast('Das neue Passwort muss mindestens 8 Zeichen lang sein.', true);
-    if (prompt('Neues Passwort wiederholen:') !== next) return toast('Die Passwörter stimmen nicht überein.', true);
+    if (next.length < 8) return toast(t('err.passwordShort'), true);
+    if (prompt(t('pw.repeat')) !== next) return toast(t('pw.mismatch'), true);
     try {
-      await api('/api/me/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current, next }) });
-      toast('Passwort geändert.');
+      await postJSON('/api/me/password', { current, next });
+      toast(t('pw.changed'));
     } catch (err) {
-      toast(err.message, true);
+      toast(errMsg(err), true);
     }
   }
 
   async function disconnectSpotify() {
-    if (!confirm('Spotify-Verbindung trennen? Deine bisherigen Daten bleiben gespeichert und sind beim erneuten Verbinden wieder da.')) return;
+    if (!confirm(t('confirm.disconnect'))) return;
     try {
       await api('/api/me/disconnect', { method: 'POST' });
       location.reload();
     } catch (err) {
-      toast(err.message, true);
+      toast(errMsg(err), true);
     }
   }
 
   async function deleteAccount() {
-    if (!confirm('Dein Spotlfy-Konto und alle gespeicherten Hördaten werden endgültig gelöscht. Fortfahren?')) return;
+    if (!confirm(t('confirm.delete'))) return;
     try {
       await api('/api/me', { method: 'DELETE' });
       location.href = '/login';
     } catch (err) {
-      toast(`Löschen fehlgeschlagen: ${err.message}`, true);
+      toast(t('toast.deleteFailed', { e: errMsg(err) }), true);
+    }
+  }
+
+  async function saveBirthday(value) {
+    if (await saveSettings({ birthday: value || null })) {
+      state.account.birthday = value || null;
+      toast(t('toast.saved'));
+      renderProfile(state.status);
+      festive.key = undefined; // neu bewerten
+      updateFestive({ burst: true });
+    }
+  }
+
+  async function toggleFestive() {
+    const on = !festOn();
+    if (await saveSettings({ festive: on })) {
+      state.account.festive = on;
+      $('#festive-switch').setAttribute('aria-checked', String(on));
+      updateFestive({ burst: on });
+      renderThemeSettings();
     }
   }
 
   // ================================================================ Admin
-  const dateTimeFmt = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
-  const fmtDT = (d) => (d ? dateTimeFmt.format(new Date(d)) : '–');
-
   function shortAgent(ua) {
     if (!ua) return '';
     const os = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Mac OS/.test(ua) ? 'macOS' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '';
     const br = /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
     return [br, os].filter(Boolean).join(' · ');
   }
+  const fmtDT = (d) => (d ? dateTimeFmt.format(new Date(d)) : '–');
 
   function userAvatar(u) {
     return u.avatar_url
@@ -1248,30 +1517,30 @@
           ${userAvatar({ ...u, display_name: u.display_name || u.username })}
           <div class="t-main">
             <div class="user-name">${esc(u.username)}
-              ${u.id === me ? '<span class="tag tag-muted">Du</span>' : ''}
-              ${u.is_admin ? '<span class="tag tag-admin">Admin</span>' : ''}
-              ${!u.spotify_user_id ? '<span class="tag tag-muted">Spotify nicht verbunden</span>' : ''}
-              ${u.auth_expired ? '<span class="tag tag-warn">Verbindung abgelaufen</span>' : ''}
+              ${u.id === me ? `<span class="tag tag-muted">${esc(t('admin.you'))}</span>` : ''}
+              ${u.is_admin ? `<span class="tag tag-admin">${esc(t('role.admin'))}</span>` : ''}
+              ${!u.spotify_user_id ? `<span class="tag tag-muted">${esc(t('admin.notConnected'))}</span>` : ''}
+              ${u.auth_expired ? `<span class="tag tag-warn">${esc(t('status.expired'))}</span>` : ''}
               ${u.product ? `<span class="tag tag-muted">${esc(u.product)}</span>` : ''}
             </div>
             ${u.spotify_user_id ? `
-              <div class="user-mail">${esc(u.display_name || '')}${u.display_name ? ' · ' : ''}${u.email ? `<a href="mailto:${esc(u.email)}">${esc(u.email)}</a>` : '<span class="muted">keine E-Mail</span>'}</div>
-              <div class="user-meta">Spotify-ID ${esc(u.spotify_user_id)}${u.country ? ` · ${esc(u.country)}` : ''} · letzter Sync ${u.last_sync ? `${relTime(u.last_sync)}${u.last_sync_ok === false ? ' (Fehler)' : ''}` : '–'}</div>`
+              <div class="user-mail">${esc(u.display_name || '')}${u.display_name ? ' · ' : ''}${u.email ? `<a href="mailto:${esc(u.email)}">${esc(u.email)}</a>` : `<span class="muted">${esc(t('admin.noEmail'))}</span>`}</div>
+              <div class="user-meta">${esc(t('profile.spotifyId'))} ${esc(u.spotify_user_id)}${u.country ? ` · ${esc(u.country)}` : ''} · ${esc(t('admin.lastSync'))} ${u.last_sync ? `${esc(relTime(u.last_sync))}${u.last_sync_ok === false ? ` (${esc(t('admin.error'))})` : ''}` : '–'}</div>`
               : ''}
-            <div class="user-meta">registriert ${fmtDT(u.created_at)}</div>
+            <div class="user-meta">${esc(t('admin.registeredAt'))} ${fmtDT(u.created_at)}</div>
             <div class="user-actions">
-              ${u.spotify_user_id ? `<button class="btn btn-ghost btn-xs" data-act="sync" ${u.auth_expired ? 'disabled title="Verbindung abgelaufen"' : ''}>Jetzt synchronisieren</button>` : ''}
-              ${u.id === me ? '' : '<button class="btn btn-ghost btn-xs" data-act="reset">Passwort zurücksetzen</button>'}
-              ${u.id === me ? '' : `<button class="btn btn-ghost btn-xs" data-act="${u.is_admin ? 'unadmin' : 'admin'}">${u.is_admin ? 'Admin entziehen' : 'Zum Admin machen'}</button>`}
-              ${u.id === me ? '' : '<button class="btn btn-ghost btn-xs btn-danger" data-act="delete">Löschen</button>'}
+              ${u.spotify_user_id ? `<button class="btn btn-ghost btn-xs" data-act="sync" ${u.auth_expired ? `disabled title="${esc(t('status.expired'))}"` : ''}>${esc(t('btn.syncNow'))}</button>` : ''}
+              ${u.id === me ? '' : `<button class="btn btn-ghost btn-xs" data-act="reset">${esc(t('admin.resetPw'))}</button>`}
+              ${u.id === me ? '' : `<button class="btn btn-ghost btn-xs" data-act="${u.is_admin ? 'unadmin' : 'admin'}">${esc(t(u.is_admin ? 'admin.revokeAdmin' : 'admin.makeAdmin'))}</button>`}
+              ${u.id === me ? '' : `<button class="btn btn-ghost btn-xs btn-danger" data-act="delete">${esc(t('admin.delete'))}</button>`}
             </div>
           </div>
           <div class="user-side">
-            ${fmt(u.plays)} Plays<small>${fmt(u.minutes)} Min.</small>
-            <small>Login ${relTime(u.last_login_at) || '–'} · ${fmt(u.login_count)}×</small>
+            ${fmt(u.plays)} ${esc(t('kpi.plays'))}<small>${fmt(u.minutes)} ${esc(t('unit.min'))}</small>
+            <small>Login ${esc(relTime(u.last_login_at) || '–')} · ${fmt(u.login_count)}×</small>
           </div>
         </li>`).join('')
-      : `<li class="empty">${q ? 'Keine Treffer.' : 'Noch keine Konten.'}</li>`;
+      : `<li class="empty">${esc(t(q ? 'admin.noHits' : 'admin.noAccounts'))}</li>`;
   }
 
   async function adminAction(e) {
@@ -1284,48 +1553,49 @@
     const base = `/api/admin/accounts/${id}`;
     try {
       if (act === 'delete') {
-        if (!confirm(`Konto „${name}“ samt aller Hördaten endgültig löschen?`)) return;
+        if (!confirm(t('admin.confirmDelete', { n: name }))) return;
         btn.disabled = true;
         await api(base, { method: 'DELETE' });
-        toast(`${name} wurde gelöscht`);
+        toast(t('admin.deleted', { n: name }));
       } else if (act === 'admin' || act === 'unadmin') {
-        if (act === 'admin' && !confirm(`„${name}“ Admin-Rechte geben? Admins sehen alle Konten mit Namen und E-Mails.`)) return;
+        if (act === 'admin' && !confirm(t('admin.confirmAdmin', { n: name }))) return;
         btn.disabled = true;
-        await api(`${base}/admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: act === 'admin' }) });
-        toast(act === 'admin' ? `${name} ist jetzt Admin` : `${name} ist kein Admin mehr`);
+        await postJSON(`${base}/admin`, { admin: act === 'admin' });
+        toast(t(act === 'admin' ? 'admin.nowAdmin' : 'admin.noLongerAdmin', { n: name }));
       } else if (act === 'reset') {
-        if (!confirm(`Neues Passwort für „${name}“ erzeugen? Das alte Passwort funktioniert danach nicht mehr.`)) return;
+        if (!confirm(t('admin.confirmReset', { n: name }))) return;
         btn.disabled = true;
         const r = await api(`${base}/reset-password`, { method: 'POST' });
-        prompt(`Neues Passwort für „${r.username}“ – jetzt kopieren und weitergeben (wird nur einmal angezeigt):`, r.password);
+        prompt(t('admin.newPw', { n: r.username }), r.password);
       } else if (act === 'sync') {
         btn.disabled = true;
-        btn.textContent = 'Synchronisiere …';
+        btn.textContent = t('admin.syncing');
         const r = await api(`${base}/sync`, { method: 'POST' });
-        toast(`${name}: ${fmt(r.recent?.inserted ?? 0)} neue Plays`);
+        toast(`${name}: ${t('toast.newPlays', { n: fmt(r.recent?.inserted ?? 0) })}`);
       }
       await loadAdmin();
     } catch (err) {
-      toast(`Aktion fehlgeschlagen: ${err.message}`, true);
+      toast(t('admin.actionFailed', { e: errMsg(err) }), true);
       btn.disabled = false;
     }
   }
 
   function renderSystem(sys) {
+    const c = sys.catalog;
     const rows = [
-      ['Datenbank', `${sys.database.size} · ${sys.database.version}`],
-      ['Plays gesamt', fmt(sys.catalog.plays)],
-      ['Songs im Katalog', `${fmt(sys.catalog.tracks)}${sys.catalog.tracks_pending ? ` (${fmt(sys.catalog.tracks_pending)} ohne Cover)` : ''}`],
-      ['Künstler im Katalog', `${fmt(sys.catalog.artists)}${sys.catalog.artists_pending ? ` (${fmt(sys.catalog.artists_pending)} ohne Genres)` : ''}`],
-      ['Ranking-Snapshots', fmt(sys.catalog.snapshots)],
-      ['Sync-Läufe (24 h)', `${fmt(sys.jobs.runs_24h)}${sys.jobs.errors_24h ? ` · ${fmt(sys.jobs.errors_24h)} Fehler` : ' · keine Fehler'}`],
-      ['Letzter Sync', sys.jobs.last_run ? relTime(sys.jobs.last_run) : '–'],
-      ['Zeitplan', sys.config.internalScheduler ? `alle ${sys.config.syncIntervalMinutes} Min.` : 'aus'],
-      ['Keep-Alive', sys.config.keepAlive ? 'an' : 'aus'],
-      ['Zeitzone', sys.config.timezone],
-      ['Registrierung', sys.config.allowRegistration ? 'offen' : 'geschlossen'],
+      ['sys.db', `${sys.database.size} · ${sys.database.version}`],
+      ['sys.plays', fmt(c.plays)],
+      ['sys.songs', `${fmt(c.tracks)}${c.tracks_pending ? ` (${t('sys.noCover', { n: fmt(c.tracks_pending) })})` : ''}`],
+      ['sys.artists', `${fmt(c.artists)}${c.artists_pending ? ` (${t('sys.noGenres', { n: fmt(c.artists_pending) })})` : ''}`],
+      ['profile.snapshots', fmt(c.snapshots)],
+      ['sys.runs', `${fmt(sys.jobs.runs_24h)} · ${sys.jobs.errors_24h ? t('sys.errors', { n: fmt(sys.jobs.errors_24h) }) : t('sys.noErrors')}`],
+      ['profile.lastSync', sys.jobs.last_run ? relTime(sys.jobs.last_run) : '–'],
+      ['sys.schedule', sys.config.internalScheduler ? t('sys.every', { n: sys.config.syncIntervalMinutes }) : t('switch.off')],
+      ['Keep-Alive', t(sys.config.keepAlive ? 'switch.on' : 'switch.off')],
+      ['sys.tz', sys.config.timezone],
+      ['sys.reg', t(sys.config.allowRegistration ? 'sys.open' : 'sys.closed')],
     ];
-    $('#admin-system').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+    $('#admin-system').innerHTML = rows.map(([k, v]) => `<dt>${esc(I.D[k] ? t(k) : k)}</dt><dd>${esc(v)}</dd>`).join('');
     $('#admin-errors').innerHTML = sys.errors.length
       ? sys.errors.map((e) => `
         <li>
@@ -1334,7 +1604,7 @@
             <span class="err-msg" title="${esc(e.message)}">${esc(e.message)}</span></div>
           <time datetime="${esc(e.started_at)}">${fmtDT(e.started_at)}</time>
         </li>`).join('')
-      : '<li class="empty">Keine Fehler – alles läuft.</li>';
+      : `<li class="empty">${esc(t('admin.noErrors'))}</li>`;
   }
 
   async function loadAdmin() {
@@ -1342,7 +1612,7 @@
       const [d, sys] = await Promise.all([api('/api/admin/accounts'), api('/api/admin/system')]);
       const weekAgo = Date.now() - 7 * 864e5;
       countUp($('[data-admin="users"]'), d.accounts.length);
-      $('[data-admin-sub="connected"]').textContent = `${fmt(d.accounts.filter((u) => u.spotify_user_id).length)} mit Spotify`;
+      $('[data-admin-sub="connected"]').textContent = t('admin.withSpotify', { n: fmt(d.accounts.filter((u) => u.spotify_user_id).length) });
       countUp($('[data-admin="active"]'), d.accounts.filter((u) => u.last_seen_at && new Date(u.last_seen_at) > weekAgo).length);
       countUp($('[data-admin="logins"]'), d.accounts.reduce((a, u) => a + (u.login_count || 0), 0));
       countUp($('[data-admin="plays"]'), d.accounts.reduce((a, u) => a + (u.plays || 0), 0));
@@ -1356,14 +1626,15 @@
             <div class="who">${esc(l.username)} <span>${esc([l.display_name, l.email, shortAgent(l.user_agent)].filter(Boolean).join(' · '))}</span></div>
             <time datetime="${esc(l.at)}">${fmtDT(l.at)}</time>
           </li>`).join('')
-        : '<li class="empty">Noch keine Logins.</li>';
+        : `<li class="empty">${esc(t('admin.noLogins'))}</li>`;
     } catch (err) {
-      if (err.message !== 'unauthorized') toast(`Admin: ${err.message}`, true);
+      if (err.message !== 'unauthorized') toast(t('admin.actionFailed', { e: errMsg(err) }), true);
     }
   }
 
   // ================================================================ Start
   document.addEventListener('DOMContentLoaded', () => {
+    I.apply();
     setupChartDefaults();
     setupTabs();
     segmented($('#range-control'), 'range', state.range, (v) => { state.range = v; store.set('range', v); loadDashboard(); });
@@ -1393,23 +1664,33 @@
       }
       const th = e.target.closest('[data-theme-mode]');
       if (th) { chooseTheme(th.dataset.themeMode); return; }
+      const lb = e.target.closest('[data-lang]');
+      if (lb) { chooseLang(lb.dataset.lang); return; }
       const sq = e.target.closest('[data-season-date]');
-      if (sq) { previewSeason(`${new Date().getFullYear()}-${sq.dataset.seasonDate}`); return; }
+      if (sq) { previewDate(`${new Date().getFullYear()}-${sq.dataset.seasonDate}`, { forceSeason: true }); return; }
+      const et = e.target.closest('[data-event-test]');
+      if (et) { testEvent(et.dataset.eventTest); return; }
+      const fd = e.target.closest('[data-fest-dismiss]');
+      if (fd) { store.set(fd.dataset.festDismiss, '1'); $('#fest-ribbon').hidden = true; return; }
       const b = e.target.closest('[data-action]');
       if (b) ({ password: changePassword, disconnect: disconnectSpotify, delete: deleteAccount })[b.dataset.action]?.();
     });
+    $('#festive-switch').addEventListener('click', toggleFestive);
+    $('#birthday-save').addEventListener('click', () => saveBirthday($('#birthday-input').value));
+    $('#birthday-clear').addEventListener('click', () => saveBirthday(''));
     $('#admin-refresh').addEventListener('click', loadAdmin);
-    $('#history-more').addEventListener('click', () => loadHistory(false));
-    $('#season-date').addEventListener('change', (e) => { if (e.target.value) previewSeason(e.target.value); });
-    $('#season-reset').addEventListener('click', () => { T.setSeasonDate(null); renderThemeSettings(); });
-    renderThemeSettings();
     $('#admin-users').addEventListener('click', adminAction);
     $('#admin-search').addEventListener('input', renderAdminUsers);
+    $('#history-more').addEventListener('click', () => loadHistory(false));
+    $('#season-date').addEventListener('change', (e) => { if (e.target.value) previewDate(e.target.value); });
+    $('#season-reset').addEventListener('click', () => { T.setSeasonDate(null); renderThemeSettings(); updateFestive(); });
+    renderThemeSettings();
+    renderLangPicker();
     const justConnected = handleQueryFlags();
     refreshAll();
     // Nach dem Verbinden läuft der erste Sync im Hintergrund – kurz danach neu laden.
     if (justConnected) setTimeout(refreshAll, 6000);
     // Alle 5 Minuten im Hintergrund auffrischen, wenn der Tab sichtbar ist.
-    setInterval(() => { if (document.visibilityState === 'visible' && state.panel !== 'admin') refreshAll(); }, 5 * 60_000);
+    setInterval(() => { if (document.visibilityState === 'visible' && !['admin', 'profile'].includes(state.panel)) refreshAll(); }, 5 * 60_000);
   });
 })();

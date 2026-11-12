@@ -98,7 +98,7 @@ async function requireAuth(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (req.account?.is_admin) return next();
-  return res.status(403).json({ error: 'Nur für Admins.' });
+  return res.status(403).json({ error: 'Nur für Admins.', key: 'adminOnly' });
 }
 
 // Daten-Endpunkte brauchen ein verbundenes Spotify-Konto.
@@ -107,7 +107,7 @@ function requireSpotify(req, res, next) {
     req.sid = req.account.spotify_user_id;
     return next();
   }
-  return res.status(409).json({ error: 'Bitte verbinde zuerst dein Spotify-Konto.', code: 'NOT_CONNECTED' });
+  return res.status(409).json({ error: 'Bitte verbinde zuerst dein Spotify-Konto.', code: 'NOT_CONNECTED', key: 'notConnected' });
 }
 
 // Brute-Force-Bremse: max. 10 Fehlversuche pro IP bzw. Benutzername in 15 Minuten.
@@ -179,12 +179,12 @@ app.post(
       const username = String(req.body?.username || '').trim();
       const keys = [`ip:${req.ip}`, `u:${username.toLowerCase()}`];
       if (blocked(...keys)) {
-        return res.status(429).json({ error: 'Zu viele Fehlversuche – bitte in 15 Minuten erneut versuchen.' });
+        return res.status(429).json({ error: 'Zu viele Fehlversuche – bitte in 15 Minuten erneut versuchen.', key: 'tooMany' });
       }
       const account = await users.authenticate(username, req.body?.password);
       if (!account) {
         fail(...keys);
-        return res.status(401).json({ error: 'Benutzername oder Passwort ist falsch.' });
+        return res.status(401).json({ error: 'Benutzername oder Passwort ist falsch.', key: 'badCredentials' });
       }
       await users.recordLogin(account.id, req.get('user-agent'));
       startSession(res, account.id);
@@ -201,15 +201,16 @@ app.post(
   async (req, res, next) => {
     try {
       if (blocked(`reg:${req.ip}`)) {
-        return res.status(429).json({ error: 'Zu viele Registrierungen – bitte später erneut versuchen.' });
+        return res.status(429).json({ error: 'Zu viele Registrierungen – bitte später erneut versuchen.', key: 'tooManyRegs' });
       }
       const account = await users.registerAccount(req.body?.username, req.body?.password);
+      if (users.LANGS.includes(req.body?.lang)) await users.updateSettings(account.id, { lang: req.body.lang });
       fail(`reg:${req.ip}`); // zählt Registrierungen pro IP (max. 10 / 15 Min.)
       await users.recordLogin(account.id, req.get('user-agent'));
       startSession(res, account.id);
       res.status(201).json({ ok: true, isAdmin: account.is_admin });
     } catch (err) {
-      if (err instanceof users.UserError) return res.status(err.status).json({ error: err.message });
+      if (err instanceof users.UserError) return res.status(err.status).json({ error: err.message, key: err.key });
       next(err);
     }
   },
@@ -259,7 +260,7 @@ app.get('/auth/callback', async (req, res) => {
 const api = express.Router();
 const wrap = (fn) => (req, res) =>
   fn(req, res).catch((err) => {
-    if (err instanceof users.UserError) return res.status(err.status).json({ error: err.message });
+    if (err instanceof users.UserError) return res.status(err.status).json({ error: err.message, key: err.key });
     console.error('[api]', req.path, err);
     res.status(err.code === 'AUTH_EXPIRED' ? 409 : 500).json({ error: err.message, code: err.code });
   });
@@ -270,7 +271,10 @@ api.get(
   wrap(async (req, res) => {
     const a = req.account;
     const base = {
-      account: { id: a.id, username: a.username, is_admin: a.is_admin, created_at: a.created_at, theme: a.theme },
+      account: {
+        id: a.id, username: a.username, is_admin: a.is_admin, created_at: a.created_at,
+        theme: a.theme, lang: a.lang, festive: a.festive, birthday: a.birthday,
+      },
       spotify: a.spotify_user_id
         ? {
             id: a.spotify_user_id,
@@ -304,7 +308,8 @@ api.post(
   '/me/settings',
   express.json({ limit: '2kb' }),
   wrap(async (req, res) => {
-    await users.setTheme(req.account.id, String(req.body?.theme || ''));
+    const { theme, lang, festive, birthday } = req.body || {};
+    await users.updateSettings(req.account.id, { theme, lang, festive, birthday });
     res.json({ ok: true });
   }),
 );
@@ -358,7 +363,7 @@ admin.post(
   '/accounts/:id/sync',
   wrap(async (req, res) => {
     const acc = await users.getAccount(accountParam(req));
-    if (!acc?.spotify_user_id) throw new users.UserError('Dieses Konto hat kein Spotify verbunden.');
+    if (!acc?.spotify_user_id) throw new users.UserError('Dieses Konto hat kein Spotify verbunden.', 400, 'noSpotify');
     res.json(await triggerSync(acc.spotify_user_id));
   }),
 );
@@ -384,7 +389,7 @@ admin.delete(
   '/accounts/:id',
   wrap(async (req, res) => {
     const id = accountParam(req);
-    if (id === req.account.id) throw new users.UserError('Dein eigenes Konto löschst du unten im Dashboard.');
+    if (id === req.account.id) throw new users.UserError('Dein eigenes Konto löschst du im Profil.', 400, 'ownAccount');
     await users.deleteAccount(id);
     res.json({ ok: true });
   }),

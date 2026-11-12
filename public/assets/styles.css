@@ -112,7 +112,9 @@ body, .card, .subnav, .btn, .segmented, .insight, .gcard, .tabs button {
   transition-duration: 0.35s;
 }
 /* Doppeltipp-Zoom aus, schnelle Taps bleiben */
-html, body, button, a, input { touch-action: manipulation; }
+/* Kein Zoom (auch Chrome/Android): nur Scrollen erlaubt, Pinch & Doppeltipp gesperrt */
+html, body { touch-action: pan-x pan-y; }
+button, a, input, label { touch-action: manipulation; }
 /* Eingabefelder ≥ 16px, sonst zoomt iOS beim Antippen hinein */
 input, select, textarea { font-size: 16px !important; }
 
@@ -714,3 +716,98 @@ a.brand:active .brand-logo { transform: scale(0.94); }
   background: var(--bg); color: var(--text); font: inherit;
 }
 .season-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ------------------------------------------------------------------ 3D-Logo */
+.brand-logo-wrap { position: relative; display: inline-flex; flex: none; perspective: 200px; }
+.brand-logo-wrap { filter: drop-shadow(0 5px 8px rgba(var(--accent-rgb), 0.45)); }
+.brand-logo { display: block; width: 38px; height: 38px; background: none; border-radius: 0; box-shadow: none; animation: logo-tilt 7s ease-in-out infinite; }
+a.brand:hover .brand-logo { animation-duration: 2.4s; }
+@keyframes logo-tilt {
+  0%, 100% { transform: rotateY(0deg) rotateX(0deg); }
+  25% { transform: rotateY(14deg) rotateX(-6deg); }
+  75% { transform: rotateY(-14deg) rotateX(6deg); }
+}
+
+/* ------------------------------------------------------------------ Einstellungen: Zeilen, Schalter, Sprache */
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.settings-label { font-size: 0.95rem; margin: 0 0 2px; }
+.switch {
+  position: relative; flex: none; width: 52px; height: 30px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--surface-3); transition: background 0.2s var(--ease);
+}
+.switch-knob {
+  position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--text-2); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); transition: transform 0.25s var(--ease), background 0.2s;
+}
+.switch[aria-checked='true'] { background: var(--accent); border-color: var(--accent); }
+.switch[aria-checked='true'] .switch-knob { transform: translateX(22px); background: #fff; }
+.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.lang-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+.lang-picker button, .login-lang button {
+  display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; border-radius: 12px;
+  border: 2px solid var(--border); background: var(--surface); color: var(--text-2); font: inherit; font-size: 0.85rem; font-weight: 600;
+}
+.lang-picker button b, .login-lang button b { font-size: 0.72rem; color: var(--text-3); letter-spacing: 0.04em; }
+.lang-picker button:hover, .login-lang button:hover { border-color: var(--border-strong); color: var(--text); }
+.lang-picker button[aria-checked='true'], .login-lang button[aria-checked='true'] { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 4px var(--accent-soft); }
+.login-lang { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 18px; }
+.login-lang button { padding: 5px 10px; border-width: 1px; font-size: 0.75rem; }
+.birthday-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 14px; }
+.birthday-row label { display: flex; flex-direction: column; gap: 4px; }
+.birthday-row input {
+  height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--border-strong);
+  background: var(--bg); color: var(--text); font: inherit;
+}
+.birthday-row p { flex-basis: 100%; margin: 0; }
+
+/* ------------------------------------------------------------------ Festliche Effekte */
+.fest-ribbon {
+  position: relative; display: flex; align-items: center; gap: 14px; padding: 14px 44px 14px 16px; margin-bottom: 14px;
+  border-radius: var(--radius); color: #fff; overflow: hidden; animation: fest-pop 0.6s var(--ease) both;
+  box-shadow: 0 14px 36px -18px rgba(0, 0, 0, 0.6);
+}
+.fest-ribbon strong { display: block; font-size: 1rem; }
+.fest-ribbon span { font-size: 0.85rem; opacity: 0.9; }
+.fest-ribbon-icon { font-size: 2rem !important; opacity: 1 !important; animation: fest-float 3s ease-in-out infinite; }
+.fest-carnival { background: linear-gradient(120deg, #7b2ff7, #f107a3, #ff9f1c); }
+.fest-easter { background: linear-gradient(120deg, #7fc8a9, #f6c6ea, #ffe29a); color: #2a2440; }
+.fest-midsummer { background: linear-gradient(120deg, #2b7bd6, #4fb06b, #f7d046); }
+.fest-christmas { background: linear-gradient(120deg, #a4161a, #1b4d3e); }
+.fest-newyear { background: linear-gradient(120deg, #0f1033, #3a2a8a, #c9a227); }
+.fest-birthday { background: linear-gradient(120deg, #ff6b9a, #ffb347, #6bd3ff); }
+.fest-close {
+  position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.22); color: inherit; font-size: 0.85rem;
+}
+.fest-close:hover { background: rgba(255, 255, 255, 0.35); }
+.fest-deco { display: inline-block; pointer-events: none; line-height: 1; animation: fest-pop 0.7s var(--ease) both, fest-float 3.4s ease-in-out 0.7s infinite; }
+.fest-badge { position: absolute; right: -9px; top: -6px; z-index: 2; font-size: 20px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35)); }
+.fest-title { font-size: 0.95em; margin-left: 4px; }
+.profile-head { position: relative; }
+.fest-hat { position: absolute; left: 62px; top: 4px; font-size: 30px; transform-origin: bottom center; }
+.pimg-wrap { position: relative; }
+.fest-crown { position: absolute; left: 50%; top: -18px; margin-left: -16px; font-size: 32px; z-index: 2; }
+.fest-center { display: block; font-size: 1.4rem; margin-bottom: 2px; }
+.heat-cell { position: relative; }
+.fest-cell { position: absolute; left: 50%; top: 50%; font-size: 14px; translate: -50% -60%; }
+@keyframes fest-pop { 0% { transform: scale(0) rotate(-25deg); opacity: 0; } 60% { transform: scale(1.25) rotate(8deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+@keyframes fest-float { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-3px) rotate(-6deg); } }
+
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.fx-p {
+  position: absolute; left: var(--x); font-size: var(--size); line-height: 1; opacity: 0; will-change: transform, opacity;
+  animation-duration: var(--dur); animation-delay: var(--delay); animation-timing-function: ease-in-out; animation-fill-mode: both;
+}
+.fx-conf { width: 8px; height: 13px; border-radius: 2px; }
+.fx-fall, .fx-snow, .fx-sway { top: -40px; }
+.fx-rise, .fx-burst { top: 100%; }
+.fx-fall { animation-name: fx-fall; animation-timing-function: cubic-bezier(0.4, 0, 0.8, 0.6); }
+.fx-snow { animation-name: fx-snow; animation-timing-function: linear; }
+.fx-sway { animation-name: fx-sway; }
+.fx-rise { animation-name: fx-rise; animation-timing-function: ease-out; }
+.fx-burst { animation-name: fx-burst; animation-timing-function: cubic-bezier(0.1, 0.7, 0.3, 1); }
+@keyframes fx-fall { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 10% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), 70vh) rotate(var(--rot)); } }
+@keyframes fx-snow { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: 0.95; } 50% { transform: translate(calc(var(--dx) * 0.5), 35vh) rotate(calc(var(--rot) * 0.3)); } 100% { opacity: 0; transform: translate(var(--dx), 75vh) rotate(calc(var(--rot) * 0.6)); } }
+@keyframes fx-sway { 0% { opacity: 0; transform: translate(0, 0) rotate(0); } 15% { opacity: 1; } 35% { transform: translate(4vw, 22vh) rotate(25deg); } 65% { transform: translate(-4vw, 45vh) rotate(-25deg); } 100% { opacity: 0; transform: translate(var(--dx), 70vh) rotate(var(--rot)); } }
+@keyframes fx-rise { 0% { opacity: 0; transform: translate(0, 0) scale(0.8); } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), -95vh) scale(1.05); } }
+@keyframes fx-burst { 0% { opacity: 0; transform: translate(0, 0) scale(0.4) rotate(0); } 12% { opacity: 1; } 60% { opacity: 1; transform: translate(var(--dx), calc(var(--dy) - 30vh)) scale(1.1) rotate(calc(var(--rot) * 0.7)); } 100% { opacity: 0; transform: translate(calc(var(--dx) * 1.2), calc(var(--dy) - 10vh)) scale(0.9) rotate(var(--rot)); } }

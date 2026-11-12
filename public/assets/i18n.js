@@ -1,0 +1,436 @@
+/* Spotlfy – Übersetzungen (de, en, fr, es, it, sv, da).
+   Jeder Eintrag: [de, en, fr, es, it, sv, da]. Platzhalter: {name}. */
+(() => {
+  'use strict';
+  const LANGS = ['de', 'en', 'fr', 'es', 'it', 'sv', 'da'];
+  const NAMES = { de: 'Deutsch', en: 'English', fr: 'Français', es: 'Español', it: 'Italiano', sv: 'Svenska', da: 'Dansk' };
+  const LOCALES = { de: 'de-DE', en: 'en-GB', fr: 'fr-FR', es: 'es-ES', it: 'it-IT', sv: 'sv-SE', da: 'da-DK' };
+
+  const D = {
+    // ------------------------------------------------------------ Navigation & Allgemein
+    'nav.overview': ['Übersicht', 'Overview', 'Aperçu', 'Resumen', 'Panoramica', 'Översikt', 'Oversigt'],
+    'nav.top': ['Top-Listen', 'Top lists', 'Classements', 'Listas top', 'Classifiche', 'Topplistor', 'Toplister'],
+    'nav.times': ['Hörzeiten', 'Listening times', 'Horaires', 'Horarios', 'Orari', 'Lyssningstider', 'Lyttetider'],
+    'nav.genres': ['Genres', 'Genres', 'Genres', 'Géneros', 'Generi', 'Genrer', 'Genrer'],
+    'nav.trends': ['Entwicklung', 'Trends', 'Évolution', 'Evolución', 'Andamento', 'Utveckling', 'Udvikling'],
+    'nav.history': ['Verlauf', 'History', 'Historique', 'Historial', 'Cronologia', 'Historik', 'Historik'],
+    'nav.admin': ['Admin', 'Admin', 'Admin', 'Admin', 'Admin', 'Admin', 'Admin'],
+    'aria.toOverview': ['Zur Übersicht', 'Go to overview', 'Vers l’aperçu', 'Ir al resumen', 'Vai alla panoramica', 'Till översikten', 'Til oversigten'],
+    'aria.openProfile': ['Profil öffnen', 'Open profile', 'Ouvrir le profil', 'Abrir perfil', 'Apri profilo', 'Öppna profil', 'Åbn profil'],
+    'aria.range': ['Zeitraum', 'Time range', 'Période', 'Periodo', 'Periodo', 'Period', 'Periode'],
+    'rel.now': ['gerade eben', 'just now', 'à l’instant', 'ahora mismo', 'proprio ora', 'just nu', 'lige nu'],
+    'n.minutes': ['{n} Minuten', '{n} minutes', '{n} minutes', '{n} minutos', '{n} minuti', '{n} minuter', '{n} minutter'],
+    'unit.min': ['Min.', 'min', 'min', 'min', 'min', 'min', 'min'],
+    'time.hour': ['{h} Uhr', '{h}:00', '{h} h', '{h}:00', 'ore {h}', 'kl. {h}', 'kl. {h}'],
+    'time.range': ['{a}–{b} Uhr', '{a}:00–{b}:00', '{a} h–{b} h', '{a}:00–{b}:00', '{a}–{b}', 'kl. {a}–{b}', 'kl. {a}–{b}'],
+    'avg.label': ['Ø {n}', 'avg {n}', 'moy. {n}', 'media {n}', 'media {n}', 'snitt {n}', 'gns. {n}'],
+    'empty.range': ['Noch keine Daten in diesem Zeitraum.', 'No data in this period yet.', 'Pas encore de données sur cette période.', 'Aún no hay datos en este periodo.', 'Ancora nessun dato in questo periodo.', 'Inga data för perioden ännu.', 'Ingen data i perioden endnu.'],
+
+    // ------------------------------------------------------------ Banner & Verbinden
+    'banner.expired.title': ['Spotify-Verbindung abgelaufen', 'Spotify connection expired', 'Connexion Spotify expirée', 'Conexión con Spotify caducada', 'Connessione a Spotify scaduta', 'Spotify-anslutningen har gått ut', 'Spotify-forbindelsen er udløbet'],
+    'banner.expired.text': ['Verbinde Spotify neu, damit deine Plays wieder gespeichert werden.', 'Reconnect Spotify so your plays are saved again.', 'Reconnecte Spotify pour que tes écoutes soient de nouveau enregistrées.', 'Vuelve a conectar Spotify para que se guarden tus reproducciones.', 'Ricollega Spotify per salvare di nuovo i tuoi ascolti.', 'Anslut Spotify igen så att dina lyssningar sparas.', 'Forbind Spotify igen, så dine afspilninger gemmes.'],
+    'btn.reconnect': ['Neu verbinden', 'Reconnect', 'Reconnecter', 'Reconectar', 'Ricollega', 'Anslut igen', 'Forbind igen'],
+    'connect.title': ['Verbinde dein Spotify-Konto', 'Connect your Spotify account', 'Connecte ton compte Spotify', 'Conecta tu cuenta de Spotify', 'Collega il tuo account Spotify', 'Anslut ditt Spotify-konto', 'Forbind din Spotify-konto'],
+    'connect.text': ['Spotlfy speichert danach alle 30 Minuten automatisch, was du hörst, und berechnet daraus deine Statistik.', 'Spotlfy then saves what you listen to every 30 minutes and builds your stats from it.', 'Spotlfy enregistre ensuite toutes les 30 minutes ce que tu écoutes et en calcule tes statistiques.', 'Después, Spotlfy guarda cada 30 minutos lo que escuchas y calcula tus estadísticas.', 'Poi Spotlfy salva ogni 30 minuti ciò che ascolti e ne calcola le statistiche.', 'Spotlfy sparar sedan var 30:e minut vad du lyssnar på och räknar ut din statistik.', 'Spotlfy gemmer derefter hvert 30. minut, hvad du lytter til, og beregner din statistik.'],
+    'btn.connectSpotify': ['Mit Spotify verbinden', 'Connect with Spotify', 'Se connecter avec Spotify', 'Conectar con Spotify', 'Collega con Spotify', 'Anslut med Spotify', 'Forbind med Spotify'],
+    'connect.hint': ['Im Testbetrieb erlaubt Spotify nur freigeschaltete Konten. Klappt es nicht, bitte den Betreiber, dein Spotify-Konto freizuschalten.', 'In development mode Spotify only allows approved accounts. If it doesn’t work, ask the operator to approve your Spotify account.', 'En mode développement, Spotify n’autorise que les comptes approuvés. Sinon, demande à l’administrateur d’autoriser ton compte.', 'En modo de desarrollo, Spotify solo permite cuentas autorizadas. Si no funciona, pide al administrador que autorice tu cuenta.', 'In modalità sviluppo Spotify consente solo account approvati. Se non funziona, chiedi al gestore di abilitare il tuo account.', 'I utvecklingsläge tillåter Spotify bara godkända konton. Fungerar det inte, be operatören att godkänna ditt konto.', 'I udviklingstilstand tillader Spotify kun godkendte konti. Virker det ikke, så bed operatøren om at godkende din konto.'],
+
+    // ------------------------------------------------------------ Zeitraum
+    'range.7d': ['7 T', '7 d', '7 j', '7 d', '7 g', '7 d', '7 d'],
+    'range.30d': ['30 T', '30 d', '30 j', '30 d', '30 g', '30 d', '30 d'],
+    'range.90d': ['90 T', '90 d', '90 j', '90 d', '90 g', '90 d', '90 d'],
+    'range.365d': ['1 J', '1 y', '1 an', '1 a', '1 a', '1 år', '1 år'],
+    'range.all': ['Alles', 'All', 'Tout', 'Todo', 'Tutto', 'Allt', 'Alt'],
+
+    // ------------------------------------------------------------ Übersicht
+    'kpi.minutes': ['Hörminuten', 'Minutes listened', 'Minutes d’écoute', 'Minutos escuchados', 'Minuti di ascolto', 'Lyssnade minuter', 'Lyttede minutter'],
+    'kpi.avg': ['Ø pro Tag', 'Avg. per day', 'Moy. par jour', 'Media al día', 'Media al giorno', 'Snitt per dag', 'Gns. pr. dag'],
+    'kpi.minutesUnit': ['Minuten', 'minutes', 'minutes', 'minutos', 'minuti', 'minuter', 'minutter'],
+    'kpi.plays': ['Plays', 'Plays', 'Écoutes', 'Reproducciones', 'Ascolti', 'Lyssningar', 'Afspilninger'],
+    'kpi.artists': ['Künstler', 'Artists', 'Artistes', 'Artistas', 'Artisti', 'Artister', 'Kunstnere'],
+    'kpi.songs': ['Songs', 'Songs', 'Titres', 'Canciones', 'Brani', 'Låtar', 'Sange'],
+    'kpi.different': ['verschiedene', 'different', 'différents', 'distintos', 'diversi', 'olika', 'forskellige'],
+    'kpi.vsPrev': ['zum Vorzeitraum', 'vs. previous period', 'vs période précédente', 'vs. periodo anterior', 'vs periodo precedente', 'mot föregående period', 'ift. forrige periode'],
+    'kpi.hours': ['≈ {n} Stunden', '≈ {n} hours', '≈ {n} heures', '≈ {n} horas', '≈ {n} ore', '≈ {n} timmar', '≈ {n} timer'],
+    'kpi.onDays': ['an {n} Tagen', 'on {n} days', 'sur {n} jours', 'en {n} días', 'in {n} giorni', 'på {n} dagar', 'på {n} dage'],
+    'kpi.newOf': ['davon {n} neu', '{n} new', 'dont {n} nouveaux', '{n} nuevos', 'di cui {n} nuovi', 'varav {n} nya', 'heraf {n} nye'],
+    'insight.favTime': ['Lieblingszeit', 'Favourite time', 'Moment préféré', 'Hora favorita', 'Momento preferito', 'Favorittid', 'Yndlingstid'],
+    'insight.bestDay': ['Bester Tag', 'Best day', 'Meilleur jour', 'Mejor día', 'Giorno migliore', 'Bästa dag', 'Bedste dag'],
+    'insight.streak': ['Längste Serie', 'Longest streak', 'Plus longue série', 'Racha más larga', 'Serie più lunga', 'Längsta svit', 'Længste stribe'],
+    'insight.inARow': ['am Stück', 'in a row', 'd’affilée', 'seguidos', 'di fila', 'i rad', 'i træk'],
+    'insight.discovered': ['Neu entdeckt', 'Newly discovered', 'Découvertes', 'Descubiertos', 'Nuove scoperte', 'Nyupptäckta', 'Nyopdaget'],
+    'insight.topGenre': ['Top-Genre', 'Top genre', 'Genre n° 1', 'Género top', 'Genere top', 'Toppgenre', 'Topgenre'],
+    'unit.day.one': ['{n} Tag', '{n} day', '{n} jour', '{n} día', '{n} giorno', '{n} dag', '{n} dag'],
+    'unit.day.other': ['{n} Tage', '{n} days', '{n} jours', '{n} días', '{n} giorni', '{n} dagar', '{n} dage'],
+    'unit.artists': ['{n} Künstler', '{n} artists', '{n} artistes', '{n} artistas', '{n} artisti', '{n} artister', '{n} kunstnere'],
+    'timeline.day': ['Tag', 'Day', 'Jour', 'Día', 'Giorno', 'Dag', 'Dag'],
+    'timeline.week': ['Woche', 'Week', 'Semaine', 'Semana', 'Settimana', 'Vecka', 'Uge'],
+    'timeline.capDay': ['Ø {avg} Min. pro Tag · Rekord {max} Min.', 'Avg. {avg} min per day · Record {max} min', 'Moy. {avg} min par jour · Record {max} min', 'Media {avg} min al día · Récord {max} min', 'Media {avg} min al giorno · Record {max} min', 'Snitt {avg} min per dag · Rekord {max} min', 'Gns. {avg} min pr. dag · Rekord {max} min'],
+    'timeline.capWeek': ['Ø {avg} Min. pro Woche · Rekord {max} Min.', 'Avg. {avg} min per week · Record {max} min', 'Moy. {avg} min par semaine · Record {max} min', 'Media {avg} min por semana · Récord {max} min', 'Media {avg} min a settimana · Record {max} min', 'Snitt {avg} min per vecka · Rekord {max} min', 'Gns. {avg} min pr. uge · Rekord {max} min'],
+    'timeline.last365': ['letzte 365 Tage', 'last 365 days', '365 derniers jours', 'últimos 365 días', 'ultimi 365 giorni', 'senaste 365 dagarna', 'seneste 365 dage'],
+    'timeline.weekOf': ['Woche ab {d}', 'Week of {d}', 'Semaine du {d}', 'Semana del {d}', 'Settimana dal {d}', 'Vecka från {d}', 'Uge fra {d}'],
+    'timeline.tooltip': ['{n} Minuten ({diff} % zum Ø)', '{n} minutes ({diff}% vs avg.)', '{n} minutes ({diff} % vs moy.)', '{n} minutos ({diff} % vs media)', '{n} minuti ({diff}% vs media)', '{n} minuter ({diff} % mot snitt)', '{n} minutter ({diff} % ift. gns.)'],
+    'overview.topArtists': ['Top-Künstler', 'Top artists', 'Top artistes', 'Artistas top', 'Artisti top', 'Toppartister', 'Topkunstnere'],
+    'overview.topSongs': ['Top-Songs', 'Top songs', 'Top titres', 'Canciones top', 'Brani top', 'Topplåtar', 'Topsange'],
+    'link.showAll': ['Alle anzeigen →', 'See all →', 'Tout voir →', 'Ver todo →', 'Vedi tutti →', 'Visa alla →', 'Vis alle →'],
+
+    // ------------------------------------------------------------ Top-Listen
+    'top.artistsTitle': ['Deine Top-Künstler', 'Your top artists', 'Tes artistes préférés', 'Tus artistas top', 'I tuoi artisti top', 'Dina toppartister', 'Dine topkunstnere'],
+    'top.artistsSub': ['nach Hörzeit im gewählten Zeitraum', 'by listening time in the selected period', 'par temps d’écoute sur la période', 'por tiempo de escucha en el periodo', 'per tempo di ascolto nel periodo', 'efter lyssningstid under perioden', 'efter lyttetid i perioden'],
+    'top.songsTitle': ['Deine Top-Songs', 'Your top songs', 'Tes titres préférés', 'Tus canciones top', 'I tuoi brani top', 'Dina topplåtar', 'Dine topsange'],
+    'top.songsSub': ['nach Anzahl der Plays', 'by number of plays', 'par nombre d’écoutes', 'por número de reproducciones', 'per numero di ascolti', 'efter antal lyssningar', 'efter antal afspilninger'],
+    'rb.artistSub': ['{plays} Plays · {tracks} Songs', '{plays} plays · {tracks} songs', '{plays} écoutes · {tracks} titres', '{plays} reproducciones · {tracks} canciones', '{plays} ascolti · {tracks} brani', '{plays} lyssningar · {tracks} låtar', '{plays} afspilninger · {tracks} sange'],
+    'podium.meta': ['{min} Min. · {plays} Plays', '{min} min · {plays} plays', '{min} min · {plays} écoutes', '{min} min · {plays} repr.', '{min} min · {plays} ascolti', '{min} min · {plays} lyssn.', '{min} min · {plays} afsp.'],
+
+    // ------------------------------------------------------------ Hörzeiten
+    'times.title': ['Wann du hörst', 'When you listen', 'Quand tu écoutes', 'Cuándo escuchas', 'Quando ascolti', 'När du lyssnar', 'Hvornår du lytter'],
+    'times.sub': ['Hörminuten nach Wochentag und Uhrzeit', 'Minutes by weekday and time', 'Minutes par jour et heure', 'Minutos por día y hora', 'Minuti per giorno e ora', 'Minuter per veckodag och tid', 'Minutter efter ugedag og tid'],
+    'times.less': ['weniger', 'less', 'moins', 'menos', 'meno', 'mindre', 'mindre'],
+    'times.more': ['mehr', 'more', 'plus', 'más', 'più', 'mer', 'mere'],
+    'times.byHour': ['Nach Uhrzeit', 'By hour', 'Par heure', 'Por hora', 'Per ora', 'Per timme', 'Pr. time'],
+    'times.byHourSub': ['Hörminuten je Stunde', 'Minutes per hour', 'Minutes par heure', 'Minutos por hora', 'Minuti per ora', 'Minuter per timme', 'Minutter pr. time'],
+    'times.byDay': ['Nach Wochentag', 'By weekday', 'Par jour', 'Por día', 'Per giorno', 'Per veckodag', 'Pr. ugedag'],
+    'times.byDaySub': ['Hörminuten je Wochentag', 'Minutes per weekday', 'Minutes par jour', 'Minutos por día', 'Minuti per giorno', 'Minuter per veckodag', 'Minutter pr. ugedag'],
+    'insight.peakTime': ['Hauptzeit', 'Peak time', 'Heure de pointe', 'Hora punta', 'Ora di punta', 'Toppstund', 'Spidstid'],
+    'insight.favDay': ['Lieblingstag', 'Favourite day', 'Jour préféré', 'Día favorito', 'Giorno preferito', 'Favoritdag', 'Yndlingsdag'],
+    'insight.nightOwl': ['Nachteule', 'Night owl', 'Oiseau de nuit', 'Noctámbulo', 'Nottambulo', 'Nattuggla', 'Natteravn'],
+    'insight.earlyBird': ['Frühaufsteher', 'Early bird', 'Lève-tôt', 'Madrugador', 'Mattiniero', 'Morgonpigg', 'Morgenfrisk'],
+    'insight.weekend': ['Wochenende', 'Weekend', 'Week-end', 'Fin de semana', 'Weekend', 'Helg', 'Weekend'],
+    'insight.ofTime': ['deiner Hörzeit', 'of your listening', 'de ton écoute', 'de tu escucha', 'del tuo ascolto', 'av din lyssning', 'af din lyttetid'],
+
+    // ------------------------------------------------------------ Genres
+    'genres.title': ['Deine Genres', 'Your genres', 'Tes genres', 'Tus géneros', 'I tuoi generi', 'Dina genrer', 'Dine genrer'],
+    'genres.by': ['Von Spotlfy eingeordnet', 'Classified by Spotlfy', 'Classés par Spotlfy', 'Clasificados por Spotlfy', 'Classificati da Spotlfy', 'Klassade av Spotlfy', 'Klassificeret af Spotlfy'],
+    'genres.coverage': ['{p} deiner Hörzeit zugeordnet', '{p} of your listening classified', '{p} de ton écoute classée', '{p} de tu escucha clasificada', '{p} del tuo ascolto classificato', '{p} av din lyssning klassad', '{p} af din lyttetid klassificeret'],
+    'genres.pending': ['{p} deiner Hörzeit werden gerade noch eingeordnet – das passiert automatisch im Hintergrund.', '{p} of your listening is still being classified – automatically in the background.', '{p} de ton écoute est encore en cours de classement – automatiquement.', '{p} de tu escucha aún se está clasificando, automáticamente.', '{p} del tuo ascolto è ancora in classificazione – automaticamente.', '{p} av din lyssning klassas fortfarande – automatiskt i bakgrunden.', '{p} af din lyttetid klassificeres stadig – automatisk i baggrunden.'],
+    'genres.unclassified': ['{n} Künstler ließen sich keinem Genre zuordnen.', '{n} artists couldn’t be assigned to a genre.', '{n} artistes n’ont pu être classés.', '{n} artistas no se pudieron clasificar.', '{n} artisti non sono stati classificati.', '{n} artister kunde inte klassas.', '{n} kunstnere kunne ikke klassificeres.'],
+    'genres.emptyPending': ['Deine Künstler werden gerade eingeordnet – schau in ein paar Minuten wieder vorbei.', 'Your artists are being classified – check back in a few minutes.', 'Tes artistes sont en cours de classement – reviens dans quelques minutes.', 'Tus artistas se están clasificando; vuelve en unos minutos.', 'I tuoi artisti sono in classificazione – torna tra qualche minuto.', 'Dina artister klassas just nu – titta in om några minuter.', 'Dine kunstnere klassificeres – kig forbi om et par minutter.'],
+    'genres.empty': ['Noch keine Genre-Daten in diesem Zeitraum.', 'No genre data in this period yet.', 'Pas encore de genres sur cette période.', 'Aún no hay géneros en este periodo.', 'Ancora nessun genere in questo periodo.', 'Inga genredata för perioden ännu.', 'Ingen genredata i perioden endnu.'],
+    'genres.no1': ['Dein Genre Nr. 1', 'Your #1 genre', 'Ton genre n° 1', 'Tu género n.º 1', 'Il tuo genere n. 1', 'Din genre nr 1', 'Din genre nr. 1'],
+    'genres.count.one': ['{n} Genre', '{n} genre', '{n} genre', '{n} género', '{n} genere', '{n} genre', '{n} genre'],
+    'genres.count.other': ['{n} Genres', '{n} genres', '{n} genres', '{n} géneros', '{n} generi', '{n} genrer', '{n} genrer'],
+    'genres.other': ['Weitere', 'Others', 'Autres', 'Otros', 'Altri', 'Övriga', 'Andre'],
+    'gcard.sub': ['{min} Min. · {n} Künstler', '{min} min · {n} artists', '{min} min · {n} artistes', '{min} min · {n} artistas', '{min} min · {n} artisti', '{min} min · {n} artister', '{min} min · {n} kunstnere'],
+    'genre.Pop': ['Pop', 'Pop', 'Pop', 'Pop', 'Pop', 'Pop', 'Pop'],
+    'genre.Hip-Hop & Rap': ['Hip-Hop & Rap', 'Hip-hop & rap', 'Hip-hop & rap', 'Hip-hop y rap', 'Hip hop e rap', 'Hiphop & rap', 'Hiphop & rap'],
+    'genre.Rock': ['Rock', 'Rock', 'Rock', 'Rock', 'Rock', 'Rock', 'Rock'],
+    'genre.Electronic & Dance': ['Electronic & Dance', 'Electronic & dance', 'Électro & dance', 'Electrónica y dance', 'Elettronica e dance', 'Elektroniskt & dans', 'Elektronisk & dance'],
+    'genre.R&B & Soul': ['R&B & Soul', 'R&B & soul', 'R&B & soul', 'R&B y soul', 'R&B e soul', 'R&B & soul', 'R&B & soul'],
+    'genre.Indie & Alternative': ['Indie & Alternative', 'Indie & alternative', 'Indé & alternatif', 'Indie y alternativo', 'Indie e alternative', 'Indie & alternativ', 'Indie & alternativ'],
+    'genre.Jazz': ['Jazz', 'Jazz', 'Jazz', 'Jazz', 'Jazz', 'Jazz', 'Jazz'],
+    'genre.Klassik': ['Klassik', 'Classical', 'Classique', 'Clásica', 'Classica', 'Klassiskt', 'Klassisk'],
+    'genre.Country & Folk': ['Country & Folk', 'Country & folk', 'Country & folk', 'Country y folk', 'Country e folk', 'Country & folk', 'Country & folk'],
+    'genre.Metal': ['Metal', 'Metal', 'Metal', 'Metal', 'Metal', 'Metal', 'Metal'],
+    'genre.Latin': ['Latin', 'Latin', 'Latino', 'Latina', 'Latina', 'Latin', 'Latin'],
+    'genre.Reggae & Dancehall': ['Reggae & Dancehall', 'Reggae & dancehall', 'Reggae & dancehall', 'Reggae y dancehall', 'Reggae e dancehall', 'Reggae & dancehall', 'Reggae & dancehall'],
+    'genre.Blues': ['Blues', 'Blues', 'Blues', 'Blues', 'Blues', 'Blues', 'Blues'],
+    'genre.Schlager & Volksmusik': ['Schlager & Volksmusik', 'Schlager & folk music', 'Schlager & musique folk', 'Schlager y música popular', 'Schlager e musica popolare', 'Schlager & folkmusik', 'Schlager & folkemusik'],
+    'genre.Soundtrack': ['Soundtrack', 'Soundtrack', 'Bandes originales', 'Bandas sonoras', 'Colonne sonore', 'Soundtrack', 'Soundtrack'],
+
+    // ------------------------------------------------------------ Entwicklung
+    'trends.perMonth': ['Pro Monat', 'Per month', 'Par mois', 'Por mes', 'Per mese', 'Per månad', 'Pr. måned'],
+    'trends.sub': ['über deine gesamte Historie', 'across your entire history', 'sur tout ton historique', 'en todo tu historial', 'su tutta la tua cronologia', 'över hela din historik', 'over hele din historik'],
+    'trends.minutes': ['Minuten', 'Minutes', 'Minutes', 'Minutos', 'Minuti', 'Minuter', 'Minutter'],
+    'trends.artists': ['Künstler', 'Artists', 'Artistes', 'Artistas', 'Artisti', 'Artister', 'Kunstnere'],
+    'trends.new': ['Neu entdeckt', 'Discovered', 'Découvertes', 'Descubiertos', 'Scoperte', 'Upptäckta', 'Opdaget'],
+    'trends.label.minutes': ['Minuten', 'minutes', 'minutes', 'minutos', 'minuti', 'minuter', 'minutter'],
+    'trends.label.artists': ['verschiedene Künstler', 'different artists', 'artistes différents', 'artistas distintos', 'artisti diversi', 'olika artister', 'forskellige kunstnere'],
+    'trends.label.new_artists': ['neue Künstler', 'new artists', 'nouveaux artistes', 'artistas nuevos', 'nuovi artisti', 'nya artister', 'nye kunstnere'],
+    'trends.caption': ['{n} Monate · Bester Monat: {m} ({v} {label})', '{n} months · Best month: {m} ({v} {label})', '{n} mois · Meilleur mois : {m} ({v} {label})', '{n} meses · Mejor mes: {m} ({v} {label})', '{n} mesi · Mese migliore: {m} ({v} {label})', '{n} månader · Bästa månad: {m} ({v} {label})', '{n} måneder · Bedste måned: {m} ({v} {label})'],
+    'trends.soFar': ['(bisher)', '(so far)', '(en cours)', '(hasta ahora)', '(finora)', '(hittills)', '(indtil nu)'],
+    'rank.title': ['Spotify-Ranking', 'Spotify ranking', 'Classement Spotify', 'Ranking de Spotify', 'Classifica Spotify', 'Spotify-ranking', 'Spotify-rangliste'],
+    'rank.sub': ['Tägliche Snapshots deiner Spotify-Top-Listen', 'Daily snapshots of your Spotify top lists', 'Instantanés quotidiens de tes tops Spotify', 'Instantáneas diarias de tus listas top', 'Istantanee giornaliere delle tue classifiche', 'Dagliga ögonblicksbilder av dina topplistor', 'Daglige øjebliksbilleder af dine toplister'],
+    'rank.stand': ['Stand {d} · Pfeile: Veränderung zur Vorwoche', 'As of {d} · Arrows: change vs. last week', 'Au {d} · Flèches : évolution sur une semaine', 'A {d} · Flechas: cambio frente a la semana pasada', 'Al {d} · Frecce: variazione sulla settimana scorsa', 'Per {d} · Pilar: förändring mot förra veckan', 'Pr. {d} · Pile: ændring ift. sidste uge'],
+    'rank.4w': ['4 Wo.', '4 wk', '4 sem.', '4 sem.', '4 sett.', '4 v.', '4 u.'],
+    'rank.6m': ['6 Mon.', '6 mo', '6 mois', '6 meses', '6 mesi', '6 mån', '6 mdr.'],
+    'rank.1y': ['1 J+', '1 y+', '1 an+', '1 a+', '1 a+', '1 år+', '1 år+'],
+    'rank.history': ['Rangverlauf der aktuellen Top 5', 'Rank history of the current top 5', 'Évolution du top 5 actuel', 'Evolución del top 5 actual', 'Andamento della top 5 attuale', 'Rankingutveckling för topp 5', 'Placeringsforløb for top 5'],
+    'rank.new': ['neu', 'new', 'nouveau', 'nuevo', 'nuovo', 'ny', 'ny'],
+    'rank.place': ['{name}: Platz {n}', '{name}: #{n}', '{name} : n° {n}', '{name}: n.º {n}', '{name}: n. {n}', '{name}: plats {n}', '{name}: nr. {n}'],
+    'rank.empty': ['Noch kein Snapshot – der erste entsteht beim nächsten Sync.', 'No snapshot yet – the first one is created at the next sync.', 'Pas encore d’instantané – il sera créé à la prochaine synchro.', 'Aún no hay instantánea: se crea en la próxima sincronización.', 'Ancora nessuna istantanea – verrà creata alla prossima sincronizzazione.', 'Ingen ögonblicksbild ännu – den skapas vid nästa synk.', 'Intet øjebliksbillede endnu – det oprettes ved næste synk.'],
+
+    // ------------------------------------------------------------ Verlauf
+    'history.more': ['Ältere Tage laden', 'Load older days', 'Charger les jours précédents', 'Cargar días anteriores', 'Carica giorni precedenti', 'Ladda äldre dagar', 'Indlæs ældre dage'],
+    'history.empty': ['Noch nichts gehört – oder noch nicht synchronisiert.', 'Nothing played yet – or not synced yet.', 'Rien écouté – ou pas encore synchronisé.', 'Nada escuchado todavía, o aún sin sincronizar.', 'Ancora niente ascoltato – o non ancora sincronizzato.', 'Inget lyssnat ännu – eller inte synkat.', 'Intet afspillet endnu – eller ikke synkroniseret.'],
+    'history.today': ['Heute', 'Today', 'Aujourd’hui', 'Hoy', 'Oggi', 'I dag', 'I dag'],
+    'history.yesterday': ['Gestern', 'Yesterday', 'Hier', 'Ayer', 'Ieri', 'I går', 'I går'],
+    'day.songs.one': ['{n} Song', '{n} song', '{n} titre', '{n} canción', '{n} brano', '{n} låt', '{n} sang'],
+    'day.songs.other': ['{n} Songs', '{n} songs', '{n} titres', '{n} canciones', '{n} brani', '{n} låtar', '{n} sange'],
+    'history.topArtist': ['meist gehört', 'most played', 'le plus écouté', 'más escuchado', 'più ascoltato', 'mest spelad', 'mest spillet'],
+    'history.showAll': ['Alle {n} Songs anzeigen', 'Show all {n} songs', 'Afficher les {n} titres', 'Mostrar las {n} canciones', 'Mostra tutti i {n} brani', 'Visa alla {n} låtar', 'Vis alle {n} sange'],
+    'history.showLess': ['Weniger anzeigen', 'Show less', 'Afficher moins', 'Mostrar menos', 'Mostra meno', 'Visa färre', 'Vis færre'],
+    'history.activity': ['Hörzeit nach Uhrzeit', 'Listening by time of day', 'Écoute par heure', 'Escucha por hora', 'Ascolto per ora', 'Lyssning per tid', 'Lytning efter tid'],
+
+    // ------------------------------------------------------------ Profil & Einstellungen
+    'profile.spotifySub': ['Verbundenes Spotify-Konto', 'Connected Spotify account', 'Compte Spotify connecté', 'Cuenta de Spotify conectada', 'Account Spotify collegato', 'Anslutet Spotify-konto', 'Forbundet Spotify-konto'],
+    'profile.data': ['Daten & Synchronisierung', 'Data & sync', 'Données & synchro', 'Datos y sincronización', 'Dati e sincronizzazione', 'Data & synk', 'Data & synk'],
+    'profile.dataSub': ['Deine gespeicherte Hörhistorie', 'Your saved listening history', 'Ton historique enregistré', 'Tu historial guardado', 'La tua cronologia salvata', 'Din sparade historik', 'Din gemte historik'],
+    'btn.syncNow': ['Jetzt synchronisieren', 'Sync now', 'Synchroniser', 'Sincronizar ahora', 'Sincronizza ora', 'Synka nu', 'Synkroniser nu'],
+    'btn.import': ['Streaming-History importieren', 'Import streaming history', 'Importer l’historique', 'Importar historial', 'Importa cronologia', 'Importera historik', 'Importér historik'],
+    'settings.title': ['Einstellungen', 'Settings', 'Paramètres', 'Ajustes', 'Impostazioni', 'Inställningar', 'Indstillinger'],
+    'settings.sub': ['Gilt auf allen deinen Geräten', 'Applies on all your devices', 'S’applique à tous tes appareils', 'Se aplica en todos tus dispositivos', 'Vale su tutti i tuoi dispositivi', 'Gäller på alla dina enheter', 'Gælder på alle dine enheder'],
+    'settings.appearance': ['Darstellung', 'Appearance', 'Apparence', 'Apariencia', 'Aspetto', 'Utseende', 'Udseende'],
+    'settings.language': ['Sprache', 'Language', 'Langue', 'Idioma', 'Lingua', 'Språk', 'Sprog'],
+    'settings.festive': ['Festliche Effekte', 'Festive effects', 'Effets festifs', 'Efectos festivos', 'Effetti festivi', 'Festliga effekter', 'Festlige effekter'],
+    'settings.festiveHint': ['Kleine Animationen zu Fasching, Ostern, Midsommar, Weihnachten, Neujahr und deinem Geburtstag.', 'Little animations for carnival, Easter, Midsummer, Christmas, New Year and your birthday.', 'Petites animations pour le carnaval, Pâques, la Saint-Jean, Noël, le Nouvel An et ton anniversaire.', 'Pequeñas animaciones para Carnaval, Pascua, San Juan, Navidad, Año Nuevo y tu cumpleaños.', 'Piccole animazioni per Carnevale, Pasqua, mezza estate, Natale, Capodanno e il tuo compleanno.', 'Små animationer till karneval, påsk, midsommar, jul, nyår och din födelsedag.', 'Små animationer til fastelavn, påske, midsommer, jul, nytår og din fødselsdag.'],
+    'settings.festiveActive': ['Gerade aktiv: {e}', 'Active now: {e}', 'Actif : {e}', 'Activo ahora: {e}', 'Attivo ora: {e}', 'Aktivt nu: {e}', 'Aktiv nu: {e}'],
+    'settings.festiveNext': ['Nächstes Event: {e} am {d}', 'Next event: {e} on {d}', 'Prochain événement : {e} le {d}', 'Próximo evento: {e} el {d}', 'Prossimo evento: {e} il {d}', 'Nästa: {e} den {d}', 'Næste: {e} den {d}'],
+    'switch.on': ['An', 'On', 'Activé', 'Activado', 'Attivo', 'På', 'Til'],
+    'switch.off': ['Aus', 'Off', 'Désactivé', 'Desactivado', 'Disattivo', 'Av', 'Fra'],
+    'theme.system': ['System', 'System', 'Système', 'Sistema', 'Sistema', 'System', 'System'],
+    'theme.light': ['Hell', 'Light', 'Clair', 'Claro', 'Chiaro', 'Ljust', 'Lyst'],
+    'theme.dark': ['Dunkel', 'Dark', 'Sombre', 'Oscuro', 'Scuro', 'Mörkt', 'Mørkt'],
+    'theme.season': ['Jahreszeit', 'Seasons', 'Saisons', 'Estaciones', 'Stagioni', 'Årstider', 'Årstider'],
+    'theme.hint.system': ['Folgt der Einstellung deines Geräts – gerade {x}.', 'Follows your device setting – currently {x}.', 'Suit le réglage de ton appareil – actuellement {x}.', 'Sigue el ajuste de tu dispositivo: ahora {x}.', 'Segue l’impostazione del dispositivo – ora {x}.', 'Följer enhetens inställning – just nu {x}.', 'Følger din enheds indstilling – lige nu {x}.'],
+    'theme.word.light': ['hell', 'light', 'clair', 'claro', 'chiaro', 'ljust', 'lyst'],
+    'theme.word.dark': ['dunkel', 'dark', 'sombre', 'oscuro', 'scuro', 'mörkt', 'mørkt'],
+    'theme.hint.light': ['Helle Farbwelt.', 'Light colour scheme.', 'Thème clair.', 'Tema claro.', 'Tema chiaro.', 'Ljust färgtema.', 'Lyst farvetema.'],
+    'theme.hint.dark': ['Dunkle Farbwelt.', 'Dark colour scheme.', 'Thème sombre.', 'Tema oscuro.', 'Tema scuro.', 'Mörkt färgtema.', 'Mørkt farvetema.'],
+    'theme.hint.season': ['Passend zur Jahreszeit: {s}', 'Matching the season: {s}', 'Selon la saison : {s}', 'Según la estación: {s}', 'In base alla stagione: {s}', 'Efter årstid: {s}', 'Efter årstid: {s}'],
+    'season.text': ['<b>{name} {icon}</b> – ab {date} wechselt die Farbwelt zu {next} {nicon}', '<b>{name} {icon}</b> – switches to {next} {nicon} on {date}', '<b>{name} {icon}</b> – passe à {next} {nicon} le {date}', '<b>{name} {icon}</b> – cambia a {next} {nicon} el {date}', '<b>{name} {icon}</b> – passa a {next} {nicon} il {date}', '<b>{name} {icon}</b> – byter till {next} {nicon} den {date}', '<b>{name} {icon}</b> – skifter til {next} {nicon} den {date}'],
+    'season.spring': ['Frühling', 'Spring', 'Printemps', 'Primavera', 'Primavera', 'Vår', 'Forår'],
+    'season.summer': ['Sommer', 'Summer', 'Été', 'Verano', 'Estate', 'Sommar', 'Sommer'],
+    'season.autumn': ['Herbst', 'Autumn', 'Automne', 'Otoño', 'Autunno', 'Höst', 'Efterår'],
+    'season.winter': ['Winter', 'Winter', 'Hiver', 'Invierno', 'Inverno', 'Vinter', 'Vinter'],
+    'season.testDate': ['Test-Datum {d}', 'Test date {d}', 'Date de test {d}', 'Fecha de prueba {d}', 'Data di test {d}', 'Testdatum {d}', 'Testdato {d}'],
+    'account.title': ['Konto', 'Account', 'Compte', 'Cuenta', 'Account', 'Konto', 'Konto'],
+    'account.sub': ['Dein Spotlfy-Konto', 'Your Spotlfy account', 'Ton compte Spotlfy', 'Tu cuenta de Spotlfy', 'Il tuo account Spotlfy', 'Ditt Spotlfy-konto', 'Din Spotlfy-konto'],
+    'account.username': ['Benutzername', 'Username', 'Nom d’utilisateur', 'Usuario', 'Nome utente', 'Användarnamn', 'Brugernavn'],
+    'account.role': ['Rolle', 'Role', 'Rôle', 'Rol', 'Ruolo', 'Roll', 'Rolle'],
+    'role.admin': ['Admin', 'Admin', 'Admin', 'Admin', 'Admin', 'Admin', 'Admin'],
+    'role.user': ['Nutzer', 'User', 'Utilisateur', 'Usuario', 'Utente', 'Användare', 'Bruger'],
+    'account.since': ['Mitglied seit', 'Member since', 'Membre depuis', 'Miembro desde', 'Membro dal', 'Medlem sedan', 'Medlem siden'],
+    'account.birthday': ['Geburtstag', 'Birthday', 'Anniversaire', 'Cumpleaños', 'Compleanno', 'Födelsedag', 'Fødselsdag'],
+    'account.birthdayHint': ['Für eine kleine Überraschung an deinem Ehrentag.', 'For a little surprise on your special day.', 'Pour une petite surprise le jour J.', 'Para una pequeña sorpresa en tu día.', 'Per una piccola sorpresa nel tuo giorno speciale.', 'För en liten överraskning på din dag.', 'Til en lille overraskelse på din dag.'],
+    'btn.save': ['Speichern', 'Save', 'Enregistrer', 'Guardar', 'Salva', 'Spara', 'Gem'],
+    'btn.remove': ['Entfernen', 'Remove', 'Retirer', 'Quitar', 'Rimuovi', 'Ta bort', 'Fjern'],
+    'toast.saved': ['Gespeichert', 'Saved', 'Enregistré', 'Guardado', 'Salvato', 'Sparat', 'Gemt'],
+    'btn.password': ['Passwort ändern', 'Change password', 'Changer le mot de passe', 'Cambiar contraseña', 'Cambia password', 'Byt lösenord', 'Skift adgangskode'],
+    'btn.logout': ['Abmelden', 'Log out', 'Se déconnecter', 'Cerrar sesión', 'Esci', 'Logga ut', 'Log ud'],
+    'btn.deleteAccount': ['Konto & Daten löschen', 'Delete account & data', 'Supprimer compte & données', 'Eliminar cuenta y datos', 'Elimina account e dati', 'Radera konto & data', 'Slet konto & data'],
+    'btn.disconnect': ['Spotify trennen', 'Disconnect Spotify', 'Déconnecter Spotify', 'Desconectar Spotify', 'Scollega Spotify', 'Koppla från Spotify', 'Afbryd Spotify'],
+    'status.label': ['Status', 'Status', 'Statut', 'Estado', 'Stato', 'Status', 'Status'],
+    'status.connected': ['Verbunden', 'Connected', 'Connecté', 'Conectado', 'Collegato', 'Ansluten', 'Forbundet'],
+    'status.expired': ['Verbindung abgelaufen', 'Connection expired', 'Connexion expirée', 'Conexión caducada', 'Connessione scaduta', 'Anslutningen har gått ut', 'Forbindelsen er udløbet'],
+    'status.notConnected': ['Nicht verbunden', 'Not connected', 'Non connecté', 'No conectado', 'Non collegato', 'Inte ansluten', 'Ikke forbundet'],
+    'profile.spotifyName': ['Spotify-Name', 'Spotify name', 'Nom Spotify', 'Nombre de Spotify', 'Nome Spotify', 'Spotify-namn', 'Spotify-navn'],
+    'profile.email': ['E-Mail', 'Email', 'E-mail', 'Correo', 'E-mail', 'E-post', 'E-mail'],
+    'profile.spotifyId': ['Spotify-ID', 'Spotify ID', 'ID Spotify', 'ID de Spotify', 'ID Spotify', 'Spotify-ID', 'Spotify-ID'],
+    'profile.plan': ['Abo', 'Plan', 'Abonnement', 'Plan', 'Abbonamento', 'Abonnemang', 'Abonnement'],
+    'profile.country': ['Land', 'Country', 'Pays', 'País', 'Paese', 'Land', 'Land'],
+    'profile.notConnectedSub': ['Spotify noch nicht verbunden', 'Spotify not connected yet', 'Spotify pas encore connecté', 'Spotify aún no conectado', 'Spotify non ancora collegato', 'Spotify inte anslutet ännu', 'Spotify ikke forbundet endnu'],
+    'profile.savedPlays': ['Gespeicherte Plays', 'Saved plays', 'Écoutes enregistrées', 'Reproducciones guardadas', 'Ascolti salvati', 'Sparade lyssningar', 'Gemte afspilninger'],
+    'profile.imported': ['Davon importiert', 'Imported', 'Dont importées', 'Importadas', 'Di cui importati', 'Varav importerade', 'Heraf importeret'],
+    'profile.snapshots': ['Ranking-Snapshots', 'Ranking snapshots', 'Instantanés', 'Instantáneas', 'Istantanee', 'Rankingbilder', 'Ranglistebilleder'],
+    'profile.lastSync': ['Letzter Sync', 'Last sync', 'Dernière synchro', 'Última sincronización', 'Ultima sincronizzazione', 'Senaste synk', 'Seneste synk'],
+    'profile.failed': ['fehlgeschlagen', 'failed', 'échec', 'fallida', 'non riuscita', 'misslyckades', 'mislykkedes'],
+    'profile.autoSync': ['Automatischer Sync', 'Automatic sync', 'Synchro automatique', 'Sincronización automática', 'Sincronizzazione automatica', 'Automatisk synk', 'Automatisk synk'],
+    'profile.every30': ['alle 30 Minuten', 'every 30 minutes', 'toutes les 30 minutes', 'cada 30 minutos', 'ogni 30 minuti', 'var 30:e minut', 'hvert 30. minut'],
+    'profile.waitingCovers': ['Warten auf Cover', 'Waiting for covers', 'Pochettes en attente', 'Portadas pendientes', 'Copertine in attesa', 'Väntar på omslag', 'Venter på covers'],
+    'profile.dataLabel': ['Daten', 'Data', 'Données', 'Datos', 'Dati', 'Data', 'Data'],
+    'profile.noData': ['Verbinde Spotify, um deine Hörhistorie zu speichern.', 'Connect Spotify to save your listening history.', 'Connecte Spotify pour enregistrer ton historique.', 'Conecta Spotify para guardar tu historial.', 'Collega Spotify per salvare la tua cronologia.', 'Anslut Spotify för att spara din historik.', 'Forbind Spotify for at gemme din historik.'],
+
+    // ------------------------------------------------------------ Toasts, Import, Passwort
+    'toast.newPlays': ['{n} neue Plays gespeichert', '{n} new plays saved', '{n} nouvelles écoutes enregistrées', '{n} reproducciones nuevas guardadas', '{n} nuovi ascolti salvati', '{n} nya lyssningar sparade', '{n} nye afspilninger gemt'],
+    'toast.upToDate': ['Alles aktuell – keine neuen Plays', 'All up to date – no new plays', 'Tout est à jour – aucune nouvelle écoute', 'Todo al día: no hay reproducciones nuevas', 'Tutto aggiornato – nessun nuovo ascolto', 'Allt är uppdaterat – inga nya lyssningar', 'Alt er opdateret – ingen nye afspilninger'],
+    'toast.expired': ['Spotify-Verbindung abgelaufen – bitte neu verbinden.', 'Spotify connection expired – please reconnect.', 'Connexion Spotify expirée – reconnecte-toi.', 'La conexión con Spotify caducó; vuelve a conectar.', 'Connessione Spotify scaduta – ricollegati.', 'Spotify-anslutningen har gått ut – anslut igen.', 'Spotify-forbindelsen er udløbet – forbind igen.'],
+    'toast.syncFailed': ['Sync fehlgeschlagen: {e}', 'Sync failed: {e}', 'Échec de la synchro : {e}', 'Error de sincronización: {e}', 'Sincronizzazione non riuscita: {e}', 'Synk misslyckades: {e}', 'Synk mislykkedes: {e}'],
+    'toast.loadFailed': ['Laden fehlgeschlagen: {e}', 'Loading failed: {e}', 'Échec du chargement : {e}', 'Error al cargar: {e}', 'Caricamento non riuscito: {e}', 'Kunde inte ladda: {e}', 'Indlæsning mislykkedes: {e}'],
+    'toast.settingsFailed': ['Einstellung nicht gespeichert: {e}', 'Setting not saved: {e}', 'Réglage non enregistré : {e}', 'Ajuste no guardado: {e}', 'Impostazione non salvata: {e}', 'Inställningen sparades inte: {e}', 'Indstillingen blev ikke gemt: {e}'],
+    'toast.deleteFailed': ['Löschen fehlgeschlagen: {e}', 'Delete failed: {e}', 'Échec de la suppression : {e}', 'Error al eliminar: {e}', 'Eliminazione non riuscita: {e}', 'Radering misslyckades: {e}', 'Sletning mislykkedes: {e}'],
+    'toast.connected': ['Spotify verbunden – deine ersten Daten werden geladen …', 'Spotify connected – loading your first data …', 'Spotify connecté – chargement de tes premières données …', 'Spotify conectado: cargando tus primeros datos …', 'Spotify collegato – caricamento dei primi dati …', 'Spotify anslutet – dina första data laddas …', 'Spotify forbundet – dine første data indlæses …'],
+    'welcome.admin': ['Willkommen! Du bist als erster Nutzer Admin – den Admin-Tab findest du oben.', 'Welcome! As the first user you’re an admin – find the Admin tab at the top.', 'Bienvenue ! Premier utilisateur, tu es admin – l’onglet Admin est en haut.', '¡Bienvenido! Como primer usuario eres admin: la pestaña Admin está arriba.', 'Benvenuto! Come primo utente sei admin – la scheda Admin è in alto.', 'Välkommen! Som första användare är du admin – fliken Admin finns högst upp.', 'Velkommen! Som første bruger er du admin – fanen Admin er øverst.'],
+    'welcome.user': ['Willkommen bei Spotlfy! Verbinde jetzt dein Spotify-Konto.', 'Welcome to Spotlfy! Now connect your Spotify account.', 'Bienvenue sur Spotlfy ! Connecte maintenant ton compte Spotify.', '¡Bienvenido a Spotlfy! Ahora conecta tu cuenta de Spotify.', 'Benvenuto su Spotlfy! Ora collega il tuo account Spotify.', 'Välkommen till Spotlfy! Anslut nu ditt Spotify-konto.', 'Velkommen til Spotlfy! Forbind nu din Spotify-konto.'],
+    'import.text': ['Fordere unter <em>spotify.com → Konto → Datenschutz</em> die <strong>„Extended streaming history“</strong> an. Wähle anschließend die Dateien <code>Streaming_History_Audio_*.json</code> aus. Duplikate werden automatisch übersprungen.', 'Request your <strong>“Extended streaming history”</strong> at <em>spotify.com → Account → Privacy</em>. Then select the <code>Streaming_History_Audio_*.json</code> files. Duplicates are skipped automatically.', 'Demande ton <strong>« Extended streaming history »</strong> sur <em>spotify.com → Compte → Confidentialité</em>. Sélectionne ensuite les fichiers <code>Streaming_History_Audio_*.json</code>. Les doublons sont ignorés.', 'Solicita tu <strong>“Extended streaming history”</strong> en <em>spotify.com → Cuenta → Privacidad</em>. Después selecciona los archivos <code>Streaming_History_Audio_*.json</code>. Los duplicados se omiten.', 'Richiedi la tua <strong>“Extended streaming history”</strong> su <em>spotify.com → Account → Privacy</em>. Poi seleziona i file <code>Streaming_History_Audio_*.json</code>. I duplicati vengono saltati.', 'Begär din <strong>”Extended streaming history”</strong> på <em>spotify.com → Konto → Sekretess</em>. Välj sedan filerna <code>Streaming_History_Audio_*.json</code>. Dubbletter hoppas över.', 'Anmod om din <strong>“Extended streaming history”</strong> på <em>spotify.com → Konto → Privatliv</em>. Vælg derefter filerne <code>Streaming_History_Audio_*.json</code>. Dubletter springes over.'],
+    'import.drop': ['JSON-Dateien hierher ziehen oder <u>auswählen</u>', 'Drop JSON files here or <u>browse</u>', 'Dépose les fichiers JSON ici ou <u>parcours</u>', 'Arrastra aquí los archivos JSON o <u>selecciónalos</u>', 'Trascina qui i file JSON o <u>sfoglia</u>', 'Dra JSON-filer hit eller <u>välj</u>', 'Træk JSON-filer hertil eller <u>vælg</u>'],
+    'import.close': ['Schließen', 'Close', 'Fermer', 'Cerrar', 'Chiudi', 'Stäng', 'Luk'],
+    'import.running': ['wird importiert …', 'importing …', 'import en cours …', 'importando …', 'importazione …', 'importerar …', 'importerer …'],
+    'import.short': ['Kurzformat ohne Track-IDs – bitte „Extended“ History nutzen', 'Short format without track IDs – please use the “Extended” history', 'Format court sans ID – utilise l’historique « Extended »', 'Formato corto sin IDs: usa el historial “Extended”', 'Formato breve senza ID – usa la cronologia “Extended”', 'Kort format utan spår-ID – använd ”Extended”', 'Kort format uden spor-ID – brug “Extended”'],
+    'import.result': ['+{n} Plays ({d} doppelt)', '+{n} plays ({d} duplicates)', '+{n} écoutes ({d} doublons)', '+{n} reproducciones ({d} duplicadas)', '+{n} ascolti ({d} duplicati)', '+{n} lyssningar ({d} dubbletter)', '+{n} afspilninger ({d} dubletter)'],
+    'import.invalid': ['Kein gültiges JSON', 'Not valid JSON', 'JSON invalide', 'JSON no válido', 'JSON non valido', 'Ogiltig JSON', 'Ugyldig JSON'],
+    'import.done': ['Import abgeschlossen – Cover & Genres werden im Hintergrund nachgeladen', 'Import complete – covers & genres load in the background', 'Import terminé – pochettes et genres se chargent en arrière-plan', 'Importación completa: portadas y géneros se cargan en segundo plano', 'Importazione completata – copertine e generi si caricano in background', 'Importen är klar – omslag och genrer laddas i bakgrunden', 'Import fuldført – covers og genrer hentes i baggrunden'],
+    'pw.current': ['Aktuelles Passwort:', 'Current password:', 'Mot de passe actuel :', 'Contraseña actual:', 'Password attuale:', 'Nuvarande lösenord:', 'Nuværende adgangskode:'],
+    'pw.new': ['Neues Passwort (mindestens 8 Zeichen):', 'New password (at least 8 characters):', 'Nouveau mot de passe (8 caractères min.) :', 'Nueva contraseña (mínimo 8 caracteres):', 'Nuova password (almeno 8 caratteri):', 'Nytt lösenord (minst 8 tecken):', 'Ny adgangskode (mindst 8 tegn):'],
+    'pw.repeat': ['Neues Passwort wiederholen:', 'Repeat new password:', 'Répète le nouveau mot de passe :', 'Repite la nueva contraseña:', 'Ripeti la nuova password:', 'Upprepa nytt lösenord:', 'Gentag ny adgangskode:'],
+    'pw.mismatch': ['Die Passwörter stimmen nicht überein.', 'The passwords don’t match.', 'Les mots de passe ne correspondent pas.', 'Las contraseñas no coinciden.', 'Le password non coincidono.', 'Lösenorden matchar inte.', 'Adgangskoderne stemmer ikke overens.'],
+    'pw.changed': ['Passwort geändert.', 'Password changed.', 'Mot de passe modifié.', 'Contraseña cambiada.', 'Password modificata.', 'Lösenordet har ändrats.', 'Adgangskoden er ændret.'],
+    'confirm.disconnect': ['Spotify-Verbindung trennen? Deine bisherigen Daten bleiben gespeichert und sind beim erneuten Verbinden wieder da.', 'Disconnect Spotify? Your data stays saved and returns when you reconnect.', 'Déconnecter Spotify ? Tes données restent enregistrées et reviennent à la reconnexion.', '¿Desconectar Spotify? Tus datos se conservan y vuelven al reconectar.', 'Scollegare Spotify? I dati restano salvati e tornano quando ti ricolleghi.', 'Koppla från Spotify? Dina data sparas och kommer tillbaka när du ansluter igen.', 'Afbryd Spotify? Dine data forbliver gemt og kommer tilbage, når du forbinder igen.'],
+    'confirm.delete': ['Dein Spotlfy-Konto und alle gespeicherten Hördaten werden endgültig gelöscht. Fortfahren?', 'Your Spotlfy account and all saved listening data will be permanently deleted. Continue?', 'Ton compte Spotlfy et toutes tes données seront supprimés définitivement. Continuer ?', 'Tu cuenta de Spotlfy y todos tus datos se eliminarán definitivamente. ¿Continuar?', 'Il tuo account Spotlfy e tutti i dati verranno eliminati definitivamente. Continuare?', 'Ditt Spotlfy-konto och all sparad data raderas permanent. Fortsätta?', 'Din Spotlfy-konto og alle gemte data slettes permanent. Fortsæt?'],
+    'sperr.access_denied': ['Du hast die Verbindung mit Spotify abgebrochen.', 'You cancelled the Spotify connection.', 'Tu as annulé la connexion à Spotify.', 'Cancelaste la conexión con Spotify.', 'Hai annullato la connessione a Spotify.', 'Du avbröt anslutningen till Spotify.', 'Du afbrød forbindelsen til Spotify.'],
+    'sperr.user_not_registered': ['Dein Spotify-Konto ist für diese App noch nicht freigeschaltet. Bitte den Betreiber, dich in der Spotify-App unter „User Management“ hinzuzufügen.', 'Your Spotify account isn’t approved for this app yet. Ask the operator to add you under “User Management”.', 'Ton compte Spotify n’est pas encore autorisé. Demande à l’administrateur de t’ajouter dans « User Management ».', 'Tu cuenta de Spotify aún no está autorizada. Pide al administrador que te añada en “User Management”.', 'Il tuo account Spotify non è ancora abilitato. Chiedi al gestore di aggiungerti in “User Management”.', 'Ditt Spotify-konto är inte godkänt ännu. Be operatören lägga till dig under ”User Management”.', 'Din Spotify-konto er ikke godkendt endnu. Bed operatøren om at tilføje dig under “User Management”.'],
+    'sperr.already_linked': ['Dieses Spotify-Konto ist bereits mit einem anderen Spotlfy-Konto verbunden.', 'This Spotify account is already linked to another Spotlfy account.', 'Ce compte Spotify est déjà lié à un autre compte Spotlfy.', 'Esta cuenta de Spotify ya está vinculada a otra cuenta.', 'Questo account Spotify è già collegato a un altro account.', 'Spotify-kontot är redan kopplat till ett annat Spotlfy-konto.', 'Spotify-kontoen er allerede knyttet til en anden Spotlfy-konto.'],
+    'sperr.state_mismatch': ['Die Verbindung ist abgelaufen – bitte noch einmal versuchen.', 'The connection timed out – please try again.', 'La connexion a expiré – réessaie.', 'La conexión caducó; inténtalo de nuevo.', 'La connessione è scaduta – riprova.', 'Anslutningen gick ut – försök igen.', 'Forbindelsen udløb – prøv igen.'],
+    'sperr.generic': ['Spotify-Verbindung fehlgeschlagen ({e}).', 'Spotify connection failed ({e}).', 'Échec de la connexion Spotify ({e}).', 'Error al conectar con Spotify ({e}).', 'Connessione a Spotify non riuscita ({e}).', 'Spotify-anslutningen misslyckades ({e}).', 'Spotify-forbindelsen mislykkedes ({e}).'],
+
+    // ------------------------------------------------------------ Serverfehler (Schlüssel aus der API)
+    'err.badCredentials': ['Benutzername oder Passwort ist falsch.', 'Wrong username or password.', 'Nom d’utilisateur ou mot de passe incorrect.', 'Usuario o contraseña incorrectos.', 'Nome utente o password errati.', 'Fel användarnamn eller lösenord.', 'Forkert brugernavn eller adgangskode.'],
+    'err.tooMany': ['Zu viele Fehlversuche – bitte in 15 Minuten erneut versuchen.', 'Too many attempts – please try again in 15 minutes.', 'Trop de tentatives – réessaie dans 15 minutes.', 'Demasiados intentos: inténtalo en 15 minutos.', 'Troppi tentativi – riprova tra 15 minuti.', 'För många försök – försök igen om 15 minuter.', 'For mange forsøg – prøv igen om 15 minutter.'],
+    'err.tooManyRegs': ['Zu viele Registrierungen – bitte später erneut versuchen.', 'Too many sign-ups – please try again later.', 'Trop d’inscriptions – réessaie plus tard.', 'Demasiados registros: inténtalo más tarde.', 'Troppe registrazioni – riprova più tardi.', 'För många registreringar – försök senare.', 'For mange registreringer – prøv igen senere.'],
+    'err.usernameInvalid': ['Der Benutzername muss 3–24 Zeichen lang sein (Buchstaben, Zahlen, _ . -).', 'The username must be 3–24 characters (letters, numbers, _ . -).', 'Le nom d’utilisateur doit faire 3 à 24 caractères (lettres, chiffres, _ . -).', 'El usuario debe tener 3–24 caracteres (letras, números, _ . -).', 'Il nome utente deve avere 3–24 caratteri (lettere, numeri, _ . -).', 'Användarnamnet måste vara 3–24 tecken (bokstäver, siffror, _ . -).', 'Brugernavnet skal være 3–24 tegn (bogstaver, tal, _ . -).'],
+    'err.passwordShort': ['Das Passwort muss mindestens 8 Zeichen lang sein.', 'The password must be at least 8 characters long.', 'Le mot de passe doit contenir au moins 8 caractères.', 'La contraseña debe tener al menos 8 caracteres.', 'La password deve avere almeno 8 caratteri.', 'Lösenordet måste ha minst 8 tecken.', 'Adgangskoden skal være mindst 8 tegn.'],
+    'err.passwordLong': ['Das Passwort ist zu lang.', 'The password is too long.', 'Le mot de passe est trop long.', 'La contraseña es demasiado larga.', 'La password è troppo lunga.', 'Lösenordet är för långt.', 'Adgangskoden er for lang.'],
+    'err.usernameTaken': ['Dieser Benutzername ist bereits vergeben.', 'This username is already taken.', 'Ce nom d’utilisateur est déjà pris.', 'Este nombre de usuario ya está en uso.', 'Questo nome utente è già in uso.', 'Användarnamnet är redan upptaget.', 'Brugernavnet er allerede taget.'],
+    'err.registrationClosed': ['Neue Registrierungen sind derzeit deaktiviert.', 'New sign-ups are currently disabled.', 'Les inscriptions sont désactivées.', 'Los registros están desactivados.', 'Le registrazioni sono disattivate.', 'Nya registreringar är avstängda.', 'Nye registreringer er slået fra.'],
+    'err.wrongPassword': ['Das aktuelle Passwort stimmt nicht.', 'The current password is incorrect.', 'Le mot de passe actuel est incorrect.', 'La contraseña actual no es correcta.', 'La password attuale non è corretta.', 'Nuvarande lösenord stämmer inte.', 'Den nuværende adgangskode er forkert.'],
+    'err.notConnected': ['Bitte verbinde zuerst dein Spotify-Konto.', 'Please connect your Spotify account first.', 'Connecte d’abord ton compte Spotify.', 'Primero conecta tu cuenta de Spotify.', 'Collega prima il tuo account Spotify.', 'Anslut ditt Spotify-konto först.', 'Forbind først din Spotify-konto.'],
+    'err.adminOnly': ['Nur für Admins.', 'Admins only.', 'Réservé aux admins.', 'Solo para admins.', 'Solo per admin.', 'Endast för admins.', 'Kun for admins.'],
+    'err.lastAdmin': ['Der letzte Admin kann nicht entfernt werden.', 'The last admin can’t be removed.', 'Le dernier admin ne peut pas être retiré.', 'No se puede quitar al último admin.', 'L’ultimo admin non può essere rimosso.', 'Den sista admin kan inte tas bort.', 'Den sidste admin kan ikke fjernes.'],
+    'err.lastAdminDelete': ['Der letzte Admin kann nicht gelöscht werden. Ernenne vorher einen anderen Admin.', 'The last admin can’t be deleted. Appoint another admin first.', 'Le dernier admin ne peut pas être supprimé. Nomme d’abord un autre admin.', 'No se puede eliminar al último admin. Nombra antes a otro.', 'L’ultimo admin non può essere eliminato. Nominane prima un altro.', 'Den sista admin kan inte raderas. Utse en annan först.', 'Den sidste admin kan ikke slettes. Udnævn først en anden.'],
+    'err.ownAccount': ['Dein eigenes Konto löschst du im Profil.', 'Delete your own account in your profile.', 'Supprime ton propre compte dans ton profil.', 'Elimina tu propia cuenta en tu perfil.', 'Elimina il tuo account nel profilo.', 'Radera ditt eget konto i profilen.', 'Slet din egen konto i profilen.'],
+    'err.alreadyLinked': ['Dieses Spotify-Konto ist bereits mit einem anderen Spotlfy-Konto verbunden.', 'This Spotify account is already linked to another Spotlfy account.', 'Ce compte Spotify est déjà lié à un autre compte Spotlfy.', 'Esta cuenta de Spotify ya está vinculada a otra cuenta.', 'Questo account Spotify è già collegato a un altro account.', 'Spotify-kontot är redan kopplat till ett annat konto.', 'Spotify-kontoen er allerede knyttet til en anden konto.'],
+    'err.accountNotFound': ['Konto nicht gefunden.', 'Account not found.', 'Compte introuvable.', 'Cuenta no encontrada.', 'Account non trovato.', 'Kontot hittades inte.', 'Kontoen blev ikke fundet.'],
+    'err.invalidSetting': ['Ungültige Einstellung.', 'Invalid setting.', 'Réglage invalide.', 'Ajuste no válido.', 'Impostazione non valida.', 'Ogiltig inställning.', 'Ugyldig indstilling.'],
+    'err.noSpotify': ['Dieses Konto hat kein Spotify verbunden.', 'This account has no Spotify connected.', 'Ce compte n’a pas de Spotify connecté.', 'Esta cuenta no tiene Spotify conectado.', 'Questo account non ha Spotify collegato.', 'Kontot har inget Spotify anslutet.', 'Kontoen har ikke Spotify forbundet.'],
+
+    // ------------------------------------------------------------ Login
+    'login.tagline': ['Deine persönliche Spotify-Statistik', 'Your personal Spotify stats', 'Tes statistiques Spotify personnelles', 'Tus estadísticas personales de Spotify', 'Le tue statistiche Spotify personali', 'Din personliga Spotify-statistik', 'Din personlige Spotify-statistik'],
+    'login.login': ['Anmelden', 'Log in', 'Se connecter', 'Iniciar sesión', 'Accedi', 'Logga in', 'Log ind'],
+    'login.register': ['Registrieren', 'Sign up', 'S’inscrire', 'Registrarse', 'Registrati', 'Registrera dig', 'Opret konto'],
+    'login.createAccount': ['Konto erstellen', 'Create account', 'Créer un compte', 'Crear cuenta', 'Crea account', 'Skapa konto', 'Opret konto'],
+    'login.password': ['Passwort', 'Password', 'Mot de passe', 'Contraseña', 'Password', 'Lösenord', 'Adgangskode'],
+    'login.password2': ['Passwort wiederholen', 'Repeat password', 'Répéter le mot de passe', 'Repetir contraseña', 'Ripeti password', 'Upprepa lösenord', 'Gentag adgangskode'],
+    'login.hint': ['3–24 Zeichen (Buchstaben, Zahlen, _ . -) · Passwort mindestens 8 Zeichen', '3–24 characters (letters, numbers, _ . -) · password at least 8 characters', '3–24 caractères (lettres, chiffres, _ . -) · mot de passe 8 caractères min.', '3–24 caracteres (letras, números, _ . -) · contraseña mínimo 8', '3–24 caratteri (lettere, numeri, _ . -) · password almeno 8', '3–24 tecken (bokstäver, siffror, _ . -) · lösenord minst 8 tecken', '3–24 tegn (bogstaver, tal, _ . -) · adgangskode mindst 8 tegn'],
+    'login.haveAccount': ['Schon ein Konto?', 'Already have an account?', 'Déjà un compte ?', '¿Ya tienes cuenta?', 'Hai già un account?', 'Har du redan ett konto?', 'Har du allerede en konto?'],
+    'login.noAccount': ['Noch kein Konto?', 'No account yet?', 'Pas encore de compte ?', '¿Aún no tienes cuenta?', 'Non hai un account?', 'Inget konto ännu?', 'Ingen konto endnu?'],
+    'login.back': ['Zurück', 'Back', 'Retour', 'Atrás', 'Indietro', 'Tillbaka', 'Tilbage'],
+    'login.fillIn': ['Bitte Benutzername und Passwort eingeben.', 'Please enter username and password.', 'Saisis ton nom d’utilisateur et ton mot de passe.', 'Introduce usuario y contraseña.', 'Inserisci nome utente e password.', 'Ange användarnamn och lösenord.', 'Indtast brugernavn og adgangskode.'],
+
+    // ------------------------------------------------------------ Festliche Events
+    'fest.carnival': ['Fasching', 'Carnival', 'Carnaval', 'Carnaval', 'Carnevale', 'Karneval', 'Fastelavn'],
+    'fest.easter': ['Ostern', 'Easter', 'Pâques', 'Pascua', 'Pasqua', 'Påsk', 'Påske'],
+    'fest.midsummer': ['Midsommar', 'Midsummer', 'Saint-Jean', 'San Juan', 'Mezza estate', 'Midsommar', 'Sankthans'],
+    'fest.christmas': ['Weihnachten', 'Christmas', 'Noël', 'Navidad', 'Natale', 'Jul', 'Jul'],
+    'fest.newyear': ['Neujahr', 'New Year', 'Nouvel An', 'Año Nuevo', 'Capodanno', 'Nyår', 'Nytår'],
+    'fest.birthday': ['Geburtstag', 'Birthday', 'Anniversaire', 'Cumpleaños', 'Compleanno', 'Födelsedag', 'Fødselsdag'],
+    'greet.carnival': ['Helau & Alaaf, {name}! Viel Spaß beim Feiern', 'Happy carnival, {name}! Have fun celebrating', 'Joyeux carnaval, {name} ! Amuse-toi bien', '¡Feliz carnaval, {name}! Diviértete', 'Buon Carnevale, {name}! Divertiti', 'Glad karneval, {name}! Ha kul', 'God fastelavn, {name}! God fornøjelse'],
+    'greet.easter': ['Frohe Ostern, {name}!', 'Happy Easter, {name}!', 'Joyeuses Pâques, {name} !', '¡Felices Pascuas, {name}!', 'Buona Pasqua, {name}!', 'Glad påsk, {name}!', 'God påske, {name}!'],
+    'greet.midsummer': ['Glad midsommar, {name}!', 'Happy Midsummer, {name}!', 'Belle Saint-Jean, {name} !', '¡Feliz San Juan, {name}!', 'Buona mezza estate, {name}!', 'Glad midsommar, {name}!', 'God sankthans, {name}!'],
+    'greet.christmas': ['Frohe Weihnachten, {name}!', 'Merry Christmas, {name}!', 'Joyeux Noël, {name} !', '¡Feliz Navidad, {name}!', 'Buon Natale, {name}!', 'God jul, {name}!', 'Glædelig jul, {name}!'],
+    'greet.newyear': ['Frohes neues Jahr, {name}!', 'Happy New Year, {name}!', 'Bonne année, {name} !', '¡Feliz Año Nuevo, {name}!', 'Buon anno, {name}!', 'Gott nytt år, {name}!', 'Godt nytår, {name}!'],
+    'greet.birthday': ['Alles Gute zum Geburtstag, {name}!', 'Happy birthday, {name}!', 'Joyeux anniversaire, {name} !', '¡Feliz cumpleaños, {name}!', 'Buon compleanno, {name}!', 'Grattis på födelsedagen, {name}!', 'Tillykke med fødselsdagen, {name}!'],
+    'greet.sub': ['Heute schon {n} gehört – feier mit deiner Musik!', 'Already {n} listened today – celebrate with your music!', 'Déjà {n} écoutés aujourd’hui – fête ça en musique !', 'Hoy ya llevas {n}: ¡celébralo con tu música!', 'Oggi già {n} ascoltati – festeggia con la tua musica!', 'Redan {n} lyssnade i dag – fira med din musik!', 'Allerede {n} afspillet i dag – fejr det med din musik!'],
+    'fest.dismiss': ['Ausblenden', 'Hide', 'Masquer', 'Ocultar', 'Nascondi', 'Dölj', 'Skjul'],
+
+    // ------------------------------------------------------------ Admin
+    'admin.accounts': ['Konten', 'Accounts', 'Comptes', 'Cuentas', 'Account', 'Konton', 'Konti'],
+    'admin.registered': ['registriert', 'registered', 'inscrits', 'registradas', 'registrati', 'registrerade', 'registreret'],
+    'admin.withSpotify': ['{n} mit Spotify', '{n} with Spotify', '{n} avec Spotify', '{n} con Spotify', '{n} con Spotify', '{n} med Spotify', '{n} med Spotify'],
+    'admin.active': ['Aktiv', 'Active', 'Actifs', 'Activas', 'Attivi', 'Aktiva', 'Aktive'],
+    'admin.last7': ['in den letzten 7 Tagen', 'in the last 7 days', 'ces 7 derniers jours', 'en los últimos 7 días', 'negli ultimi 7 giorni', 'senaste 7 dagarna', 'de seneste 7 dage'],
+    'admin.logins': ['Logins', 'Logins', 'Connexions', 'Inicios de sesión', 'Accessi', 'Inloggningar', 'Logins'],
+    'admin.total': ['insgesamt', 'in total', 'au total', 'en total', 'in totale', 'totalt', 'i alt'],
+    'admin.allUsers': ['aller Nutzer', 'of all users', 'de tous', 'de todos', 'di tutti', 'alla användare', 'alle brugere'],
+    'admin.tester': ['Farbschemas & Events testen', 'Test colour schemes & events', 'Tester thèmes & événements', 'Probar temas y eventos', 'Prova temi ed eventi', 'Testa teman & högtider', 'Test temaer & begivenheder'],
+    'admin.testerSub': ['Datum vorgeben, um Jahreszeiten und festliche Events zu prüfen (nur in diesem Browser)', 'Set a date to preview seasons and festive events (this browser only)', 'Choisis une date pour tester saisons et fêtes (ce navigateur uniquement)', 'Elige una fecha para probar estaciones y fiestas (solo este navegador)', 'Imposta una data per provare stagioni e feste (solo questo browser)', 'Ange ett datum för att testa årstider och högtider (endast denna webbläsare)', 'Angiv en dato for at teste årstider og højtider (kun denne browser)'],
+    'admin.date': ['Datum', 'Date', 'Date', 'Fecha', 'Data', 'Datum', 'Dato'],
+    'admin.today': ['Heutiges Datum verwenden', 'Use today’s date', 'Utiliser la date du jour', 'Usar la fecha de hoy', 'Usa la data di oggi', 'Använd dagens datum', 'Brug dagens dato'],
+    'admin.testActive': ['Test-Datum aktiv', 'Test date active', 'Date de test active', 'Fecha de prueba activa', 'Data di test attiva', 'Testdatum aktivt', 'Testdato aktiv'],
+    'admin.todayApplies': ['Es gilt das heutige Datum', 'Today’s date applies', 'Date du jour utilisée', 'Se usa la fecha de hoy', 'Vale la data di oggi', 'Dagens datum gäller', 'Dagens dato gælder'],
+    'admin.seasonShows': ['Jahreszeiten-Modus zeigt: {s}', 'Seasons mode shows: {s}', 'Le mode saisons affiche : {s}', 'El modo estaciones muestra: {s}', 'La modalità stagioni mostra: {s}', 'Årstidsläget visar: {s}', 'Årstidstilstand viser: {s}'],
+    'admin.festiveShows': ['Festliches Event: {e}', 'Festive event: {e}', 'Événement festif : {e}', 'Evento festivo: {e}', 'Evento festivo: {e}', 'Högtid: {e}', 'Højtid: {e}'],
+    'admin.noEvent': ['keines', 'none', 'aucun', 'ninguno', 'nessuno', 'ingen', 'ingen'],
+    'admin.modeNote': ['Hinweis: Dein Modus ist gerade nicht „Jahreszeit“.', 'Note: your mode isn’t “Seasons” right now.', 'Remarque : ton mode n’est pas « Saisons ».', 'Nota: tu modo no es “Estaciones”.', 'Nota: la tua modalità non è “Stagioni”.', 'Obs: ditt läge är inte ”Årstider”.', 'Bemærk: din tilstand er ikke “Årstider”.'],
+    'admin.festiveOffNote': ['Hinweis: Festliche Effekte sind in deinem Profil ausgeschaltet.', 'Note: festive effects are turned off in your profile.', 'Remarque : les effets festifs sont désactivés dans ton profil.', 'Nota: los efectos festivos están desactivados en tu perfil.', 'Nota: gli effetti festivi sono disattivati nel profilo.', 'Obs: festliga effekter är avstängda i din profil.', 'Bemærk: festlige effekter er slået fra i din profil.'],
+    'admin.noBirthday': ['Trag zuerst deinen Geburtstag im Profil ein.', 'Enter your birthday in your profile first.', 'Indique d’abord ton anniversaire dans ton profil.', 'Primero añade tu cumpleaños en el perfil.', 'Inserisci prima il tuo compleanno nel profilo.', 'Ange din födelsedag i profilen först.', 'Angiv først din fødselsdag i profilen.'],
+    'admin.accountsSub': ['Alle registrierten Spotlfy-Konten und ihr verbundenes Spotify', 'All registered Spotlfy accounts and their linked Spotify', 'Tous les comptes Spotlfy et leur Spotify lié', 'Todas las cuentas de Spotlfy y su Spotify vinculado', 'Tutti gli account Spotlfy e il loro Spotify collegato', 'Alla Spotlfy-konton och deras kopplade Spotify', 'Alle Spotlfy-konti og deres tilknyttede Spotify'],
+    'admin.csv': ['CSV-Export', 'CSV export', 'Export CSV', 'Exportar CSV', 'Esporta CSV', 'CSV-export', 'CSV-eksport'],
+    'admin.refresh': ['Aktualisieren', 'Refresh', 'Actualiser', 'Actualizar', 'Aggiorna', 'Uppdatera', 'Opdater'],
+    'admin.search': ['Nach Benutzername, Spotify-Name, E-Mail oder ID suchen …', 'Search by username, Spotify name, email or ID …', 'Rechercher par nom, nom Spotify, e-mail ou ID …', 'Buscar por usuario, nombre de Spotify, correo o ID …', 'Cerca per nome utente, nome Spotify, e-mail o ID …', 'Sök på användarnamn, Spotify-namn, e-post eller ID …', 'Søg efter brugernavn, Spotify-navn, e-mail eller ID …'],
+    'admin.lastLogins': ['Letzte Logins', 'Recent logins', 'Dernières connexions', 'Últimos inicios de sesión', 'Ultimi accessi', 'Senaste inloggningar', 'Seneste logins'],
+    'admin.lastLoginsSub': ['Die 50 neuesten Anmeldungen', 'The 50 most recent sign-ins', 'Les 50 dernières connexions', 'Los 50 más recientes', 'Gli ultimi 50 accessi', 'De 50 senaste', 'De 50 seneste'],
+    'admin.system': ['System', 'System', 'Système', 'Sistema', 'Sistema', 'System', 'System'],
+    'admin.systemSub': ['Datenbank, Katalog & Zeitplan', 'Database, catalogue & schedule', 'Base de données, catalogue & planning', 'Base de datos, catálogo y programación', 'Database, catalogo e pianificazione', 'Databas, katalog & schema', 'Database, katalog & tidsplan'],
+    'admin.syncErrors': ['Sync-Fehler', 'Sync errors', 'Erreurs de synchro', 'Errores de sincronización', 'Errori di sincronizzazione', 'Synkfel', 'Synkfejl'],
+    'admin.syncErrorsSub': ['Die letzten fehlgeschlagenen Läufe', 'The most recent failed runs', 'Les dernières exécutions échouées', 'Las últimas ejecuciones fallidas', 'Le ultime esecuzioni non riuscite', 'De senaste misslyckade körningarna', 'De seneste mislykkede kørsler'],
+    'admin.you': ['Du', 'You', 'Toi', 'Tú', 'Tu', 'Du', 'Dig'],
+    'admin.notConnected': ['Spotify nicht verbunden', 'Spotify not connected', 'Spotify non connecté', 'Spotify no conectado', 'Spotify non collegato', 'Spotify ej anslutet', 'Spotify ikke forbundet'],
+    'admin.noEmail': ['keine E-Mail', 'no email', 'pas d’e-mail', 'sin correo', 'nessuna e-mail', 'ingen e-post', 'ingen e-mail'],
+    'admin.lastSync': ['letzter Sync', 'last sync', 'dernière synchro', 'última sincronización', 'ultima sincronizzazione', 'senaste synk', 'seneste synk'],
+    'admin.error': ['Fehler', 'error', 'erreur', 'error', 'errore', 'fel', 'fejl'],
+    'admin.registeredAt': ['registriert', 'registered', 'inscrit le', 'registrado', 'registrato', 'registrerad', 'registreret'],
+    'admin.resetPw': ['Passwort zurücksetzen', 'Reset password', 'Réinitialiser le mot de passe', 'Restablecer contraseña', 'Reimposta password', 'Återställ lösenord', 'Nulstil adgangskode'],
+    'admin.makeAdmin': ['Zum Admin machen', 'Make admin', 'Rendre admin', 'Hacer admin', 'Rendi admin', 'Gör till admin', 'Gør til admin'],
+    'admin.revokeAdmin': ['Admin entziehen', 'Revoke admin', 'Retirer admin', 'Quitar admin', 'Revoca admin', 'Ta bort admin', 'Fjern admin'],
+    'admin.delete': ['Löschen', 'Delete', 'Supprimer', 'Eliminar', 'Elimina', 'Radera', 'Slet'],
+    'admin.syncing': ['Synchronisiere …', 'Syncing …', 'Synchronisation …', 'Sincronizando …', 'Sincronizzazione …', 'Synkar …', 'Synkroniserer …'],
+    'admin.noHits': ['Keine Treffer.', 'No results.', 'Aucun résultat.', 'Sin resultados.', 'Nessun risultato.', 'Inga träffar.', 'Ingen resultater.'],
+    'admin.noAccounts': ['Noch keine Konten.', 'No accounts yet.', 'Aucun compte.', 'Aún no hay cuentas.', 'Ancora nessun account.', 'Inga konton ännu.', 'Ingen konti endnu.'],
+    'admin.noLogins': ['Noch keine Logins.', 'No logins yet.', 'Aucune connexion.', 'Aún no hay accesos.', 'Ancora nessun accesso.', 'Inga inloggningar ännu.', 'Ingen logins endnu.'],
+    'admin.noErrors': ['Keine Fehler – alles läuft.', 'No errors – all good.', 'Aucune erreur – tout va bien.', 'Sin errores: todo funciona.', 'Nessun errore – tutto ok.', 'Inga fel – allt fungerar.', 'Ingen fejl – alt kører.'],
+    'admin.confirmDelete': ['Konto „{n}“ samt aller Hördaten endgültig löschen?', 'Permanently delete account “{n}” and all its data?', 'Supprimer définitivement le compte « {n} » et ses données ?', '¿Eliminar definitivamente la cuenta “{n}” y sus datos?', 'Eliminare definitivamente l’account “{n}” e i suoi dati?', 'Radera kontot ”{n}” och all data permanent?', 'Slet kontoen “{n}” og alle data permanent?'],
+    'admin.deleted': ['{n} wurde gelöscht', '{n} was deleted', '{n} a été supprimé', '{n} se eliminó', '{n} è stato eliminato', '{n} raderades', '{n} blev slettet'],
+    'admin.confirmAdmin': ['„{n}“ Admin-Rechte geben? Admins sehen alle Konten mit Namen und E-Mails.', 'Give “{n}” admin rights? Admins see all accounts with names and emails.', 'Donner les droits admin à « {n} » ? Les admins voient tous les comptes et e-mails.', '¿Dar derechos de admin a “{n}”? Los admins ven todas las cuentas y correos.', 'Dare i diritti admin a “{n}”? Gli admin vedono tutti gli account ed e-mail.', 'Ge ”{n}” adminrättigheter? Admins ser alla konton och e-post.', 'Giv “{n}” adminrettigheder? Admins ser alle konti og e-mails.'],
+    'admin.nowAdmin': ['{n} ist jetzt Admin', '{n} is now an admin', '{n} est maintenant admin', '{n} ahora es admin', '{n} ora è admin', '{n} är nu admin', '{n} er nu admin'],
+    'admin.noLongerAdmin': ['{n} ist kein Admin mehr', '{n} is no longer an admin', '{n} n’est plus admin', '{n} ya no es admin', '{n} non è più admin', '{n} är inte längre admin', '{n} er ikke længere admin'],
+    'admin.confirmReset': ['Neues Passwort für „{n}“ erzeugen? Das alte Passwort funktioniert danach nicht mehr.', 'Generate a new password for “{n}”? The old one will stop working.', 'Générer un nouveau mot de passe pour « {n} » ? L’ancien ne fonctionnera plus.', '¿Generar una nueva contraseña para “{n}”? La anterior dejará de funcionar.', 'Generare una nuova password per “{n}”? Quella vecchia non funzionerà più.', 'Skapa nytt lösenord för ”{n}”? Det gamla slutar fungera.', 'Opret ny adgangskode til “{n}”? Den gamle virker ikke længere.'],
+    'admin.newPw': ['Neues Passwort für „{n}“ – jetzt kopieren und weitergeben (wird nur einmal angezeigt):', 'New password for “{n}” – copy it now (shown only once):', 'Nouveau mot de passe pour « {n} » – copie-le maintenant (affiché une seule fois) :', 'Nueva contraseña para “{n}”: cópiala ahora (solo se muestra una vez):', 'Nuova password per “{n}” – copiala ora (mostrata una sola volta):', 'Nytt lösenord för ”{n}” – kopiera nu (visas bara en gång):', 'Ny adgangskode til “{n}” – kopiér nu (vises kun én gang):'],
+    'admin.actionFailed': ['Aktion fehlgeschlagen: {e}', 'Action failed: {e}', 'Échec de l’action : {e}', 'La acción falló: {e}', 'Azione non riuscita: {e}', 'Åtgärden misslyckades: {e}', 'Handlingen mislykkedes: {e}'],
+    'sys.db': ['Datenbank', 'Database', 'Base de données', 'Base de datos', 'Database', 'Databas', 'Database'],
+    'sys.plays': ['Plays gesamt', 'Total plays', 'Écoutes totales', 'Reproducciones totales', 'Ascolti totali', 'Lyssningar totalt', 'Afspilninger i alt'],
+    'sys.songs': ['Songs im Katalog', 'Songs in catalogue', 'Titres au catalogue', 'Canciones en el catálogo', 'Brani in catalogo', 'Låtar i katalogen', 'Sange i kataloget'],
+    'sys.noCover': ['{n} ohne Cover', '{n} without cover', '{n} sans pochette', '{n} sin portada', '{n} senza copertina', '{n} utan omslag', '{n} uden cover'],
+    'sys.artists': ['Künstler im Katalog', 'Artists in catalogue', 'Artistes au catalogue', 'Artistas en el catálogo', 'Artisti in catalogo', 'Artister i katalogen', 'Kunstnere i kataloget'],
+    'sys.noGenres': ['{n} ohne Genres', '{n} without genres', '{n} sans genres', '{n} sin géneros', '{n} senza generi', '{n} utan genrer', '{n} uden genrer'],
+    'sys.runs': ['Sync-Läufe (24 h)', 'Sync runs (24 h)', 'Synchros (24 h)', 'Sincronizaciones (24 h)', 'Sincronizzazioni (24 h)', 'Synkkörningar (24 h)', 'Synkkørsler (24 t)'],
+    'sys.errors': ['{n} Fehler', '{n} errors', '{n} erreurs', '{n} errores', '{n} errori', '{n} fel', '{n} fejl'],
+    'sys.noErrors': ['keine Fehler', 'no errors', 'aucune erreur', 'sin errores', 'nessun errore', 'inga fel', 'ingen fejl'],
+    'sys.schedule': ['Zeitplan', 'Schedule', 'Planning', 'Programación', 'Pianificazione', 'Schema', 'Tidsplan'],
+    'sys.every': ['alle {n} Min.', 'every {n} min', 'toutes les {n} min', 'cada {n} min', 'ogni {n} min', 'var {n}:e min', 'hvert {n}. min'],
+    'sys.tz': ['Zeitzone', 'Time zone', 'Fuseau horaire', 'Zona horaria', 'Fuso orario', 'Tidszon', 'Tidszone'],
+    'sys.reg': ['Registrierung', 'Sign-ups', 'Inscriptions', 'Registros', 'Registrazioni', 'Registrering', 'Registrering'],
+    'sys.open': ['offen', 'open', 'ouvertes', 'abiertos', 'aperte', 'öppen', 'åben'],
+    'sys.closed': ['geschlossen', 'closed', 'fermées', 'cerrados', 'chiuse', 'stängd', 'lukket'],
+  };
+
+  // ---------------------------------------------------------------- Sprache bestimmen
+  const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const set = (k, v) => { try { localStorage.setItem(k, v); } catch { /* egal */ } };
+  function detect() {
+    const saved = get('lang');
+    if (LANGS.includes(saved)) return saved;
+    for (const l of navigator.languages || [navigator.language || 'de']) {
+      const p = String(l).slice(0, 2).toLowerCase();
+      if (LANGS.includes(p)) return p;
+    }
+    return 'de';
+  }
+  let lang = detect();
+  const idx = () => LANGS.indexOf(lang);
+
+  function t(key, vars) {
+    const e = D[key];
+    let s = e ? (e[idx()] ?? e[0]) : key;
+    if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+    return s;
+  }
+  // Einzahl/Mehrzahl: key.one / key.other
+  const tn = (key, n, vars = {}) => t(`${key}.${n === 1 ? 'one' : 'other'}`, { n, ...vars });
+
+  /** Übersetzt statische Texte: data-i18n (Text), data-i18n-html (HTML), data-i18n-attr="attr:key;attr:key" */
+  function apply(root = document) {
+    document.documentElement.lang = lang;
+    root.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    root.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+    root.querySelectorAll('[data-i18n-attr]').forEach((el) => {
+      el.dataset.i18nAttr.split(';').forEach((pair) => {
+        const [attr, key] = pair.split(':');
+        if (attr && key) el.setAttribute(attr.trim(), t(key.trim()));
+      });
+    });
+  }
+
+  function setLang(l) {
+    if (!LANGS.includes(l)) return;
+    lang = l;
+    set('lang', l);
+    apply();
+  }
+
+  window.SpotlfyI18n = {
+    LANGS, NAMES, D, t, tn, apply, setLang,
+    get lang() { return lang; },
+    get locale() { return LOCALES[lang]; },
+  };
+  document.documentElement.lang = lang;
+  document.addEventListener('DOMContentLoaded', () => apply());
+})();

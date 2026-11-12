@@ -2,11 +2,10 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0c0b" />
   <meta name="color-scheme" content="dark" />
   <meta name="robots" content="noindex, nofollow" />
-  <!-- Web-App (Homescreen): Vollbild ohne Browserleiste -->
   <link rel="manifest" href="/assets/manifest.webmanifest" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -15,46 +14,48 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
-  <script src="/assets/theme.js?v=20261112i"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20261112i" />
+  <title>Spotlfy</title>
+  <script src="/assets/theme.js?v=20261112k"></script>
+  <script src="/assets/i18n.js?v=20261112k"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261112k" />
 </head>
 <body class="login-body">
   <div class="aurora" aria-hidden="true"></div>
   <main class="login-card">
-    <img src="/assets/icon.svg" alt="" class="login-logo" width="56" height="56" />
+    <img src="/assets/logo-animated.svg" alt="" class="login-logo" width="72" height="72" />
     <h1>Spotlfy</h1>
-    <p class="muted">Deine persönliche Spotify-Statistik</p>
+    <p class="muted" data-i18n="login.tagline"></p>
 
     <!-- Schritt 1: Auswahl -->
     <div class="auth-choice" id="auth-choice">
-      <button type="button" class="btn btn-primary auth-choice-btn" data-mode="login">Anmelden</button>
-      <button type="button" class="btn btn-ghost auth-choice-btn" data-mode="register" id="choice-register">Registrieren</button>
+      <button type="button" class="btn btn-primary auth-choice-btn" data-mode="login" data-i18n="login.login"></button>
+      <button type="button" class="btn btn-ghost auth-choice-btn" data-mode="register" id="choice-register" data-i18n="login.register"></button>
     </div>
 
     <!-- Schritt 2: Benutzername + Passwort -->
     <form class="login-form" id="auth-form" novalidate hidden>
       <div class="auth-form-head">
-        <button type="button" class="auth-back" id="auth-back" aria-label="Zurück">
+        <button type="button" class="auth-back" id="auth-back" data-i18n-attr="aria-label:login.back">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        <h2 id="auth-title">Anmelden</h2>
+        <h2 id="auth-title"></h2>
       </div>
-      <label for="username" class="sr-only">Benutzername</label>
-      <input id="username" name="username" type="text" placeholder="Benutzername" autocomplete="username"
-             autocapitalize="none" spellcheck="false" maxlength="24" required />
-      <label for="password" class="sr-only">Passwort</label>
-      <input id="password" name="password" type="password" placeholder="Passwort" autocomplete="current-password" maxlength="200" required />
+      <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="24" required
+             data-i18n-attr="placeholder:account.username;aria-label:account.username" />
+      <input id="password" name="password" type="password" autocomplete="current-password" maxlength="200" required
+             data-i18n-attr="placeholder:login.password;aria-label:login.password" />
       <div id="register-extra" hidden>
-        <label for="password2" class="sr-only">Passwort wiederholen</label>
-        <input id="password2" name="password2" type="password" placeholder="Passwort wiederholen" autocomplete="new-password" maxlength="200" />
-        <p class="login-hint">3–24 Zeichen (Buchstaben, Zahlen, _ . -) · Passwort mindestens 8 Zeichen</p>
+        <input id="password2" name="password2" type="password" autocomplete="new-password" maxlength="200"
+               data-i18n-attr="placeholder:login.password2;aria-label:login.password2" />
+        <p class="login-hint" data-i18n="login.hint"></p>
       </div>
-      <button type="submit" class="btn btn-primary" id="submit-btn">Anmelden</button>
+      <button type="submit" class="btn btn-primary" id="submit-btn"></button>
       <p class="auth-switch" id="auth-switch"></p>
     </form>
     <p id="error" class="login-error" role="alert" hidden></p>
 
+    <div class="login-lang" id="login-lang" role="radiogroup" data-i18n-attr="aria-label:settings.language"></div>
   </main>
-  <script src="/assets/login.js?v=20261112i"></script>
+  <script src="/assets/login.js?v=20261112k"></script>
 </body>
 </html>
