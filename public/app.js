@@ -191,6 +191,7 @@
       img.classList.add('avatar-sm');
     }
     $('#view-tabs').hidden = !s.user?.is_admin;
+    if (s.user) $('#my-id').innerHTML = `Deine Spotify-ID: <code>${esc(s.user.id)}</code>`;
     const job = s.jobs.recently_played;
     $('#last-sync').textContent = job
       ? `${job.ok ? 'Zuletzt synchronisiert' : 'Sync fehlgeschlagen'} ${relTime(job.finished_at)}`
@@ -637,34 +638,111 @@
       : `<div class="placeholder" aria-hidden="true">${initials(u.display_name || u.id)}</div>`;
   }
 
+  let adminUsers = [];
+
+  function renderAdminUsers() {
+    const q = ($('#admin-search').value || '').trim().toLowerCase();
+    const me = state.user?.id;
+    const list = q
+      ? adminUsers.filter((u) => [u.display_name, u.email, u.id].some((v) => String(v || '').toLowerCase().includes(q)))
+      : adminUsers;
+    $('#admin-users').innerHTML = list.length
+      ? list.map((u) => `
+        <li class="user-row" data-id="${esc(u.id)}">
+          ${userAvatar(u)}
+          <div class="t-main">
+            <div class="user-name">${esc(u.display_name || u.id)}
+              ${u.id === me ? '<span class="tag tag-muted">Du</span>' : ''}
+              ${u.is_admin ? '<span class="tag tag-admin">Admin</span>' : ''}
+              ${u.auth_expired ? '<span class="tag tag-warn">Verbindung abgelaufen</span>' : ''}
+              ${u.product ? `<span class="tag tag-muted">${esc(u.product)}</span>` : ''}
+            </div>
+            <div class="user-mail">${u.email ? `<a href="mailto:${esc(u.email)}">${esc(u.email)}</a>` : '<span class="muted">keine E-Mail freigegeben</span>'}</div>
+            <div class="user-meta">Spotify-ID ${esc(u.id)}${u.country ? ` · ${esc(u.country)}` : ''} · registriert ${fmtDT(u.created_at)}
+              · letzter Sync ${u.last_sync ? `${relTime(u.last_sync)}${u.last_sync_ok === false ? ' (Fehler)' : ''}` : '–'}</div>
+            <div class="user-actions">
+              <button class="btn btn-ghost btn-xs" data-act="sync" ${u.auth_expired ? 'disabled title="Verbindung abgelaufen"' : ''}>Jetzt synchronisieren</button>
+              ${u.id === me ? '' : `<button class="btn btn-ghost btn-xs" data-act="${u.is_admin ? 'unadmin' : 'admin'}">${u.is_admin ? 'Admin entziehen' : 'Zum Admin machen'}</button>`}
+              ${u.id === me ? '' : '<button class="btn btn-ghost btn-xs btn-danger" data-act="delete">Löschen</button>'}
+            </div>
+          </div>
+          <div class="user-side">
+            ${fmt(u.plays)} Plays<small>${fmt(u.minutes)} Min.</small>
+            <small>Login ${relTime(u.last_login_at) || '–'} · ${fmt(u.login_count)}×</small>
+          </div>
+        </li>`).join('')
+      : `<li class="empty">${q ? 'Keine Treffer.' : 'Noch keine Nutzer.'}</li>`;
+  }
+
+  async function adminAction(e) {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const id = btn.closest('.user-row').dataset.id;
+    const u = adminUsers.find((x) => x.id === id);
+    const name = u?.display_name || id;
+    const act = btn.dataset.act;
+    try {
+      if (act === 'delete') {
+        if (!confirm(`„${name}“ samt aller Hördaten endgültig löschen?`)) return;
+        btn.disabled = true;
+        await api(`/api/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        toast(`${name} wurde gelöscht`);
+      } else if (act === 'admin' || act === 'unadmin') {
+        if (act === 'admin' && !confirm(`„${name}“ Admin-Rechte geben? Admins sehen Namen und E-Mails aller Nutzer.`)) return;
+        btn.disabled = true;
+        await api(`/api/admin/users/${encodeURIComponent(id)}/admin`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: act === 'admin' }),
+        });
+        toast(act === 'admin' ? `${name} ist jetzt Admin` : `${name} ist kein Admin mehr`);
+      } else if (act === 'sync') {
+        btn.disabled = true;
+        btn.textContent = 'Synchronisiere …';
+        const r = await api(`/api/admin/users/${encodeURIComponent(id)}/sync`, { method: 'POST' });
+        toast(`${name}: ${fmt(r.recent?.inserted ?? 0)} neue Plays`);
+      }
+      await loadAdmin();
+    } catch (err) {
+      toast(`Aktion fehlgeschlagen: ${err.message}`, true);
+      btn.disabled = false;
+    }
+  }
+
+  function renderSystem(sys) {
+    const rows = [
+      ['Datenbank', `${sys.database.size} · ${sys.database.version}`],
+      ['Plays gesamt', fmt(sys.catalog.plays)],
+      ['Songs im Katalog', `${fmt(sys.catalog.tracks)}${sys.catalog.tracks_pending ? ` (${fmt(sys.catalog.tracks_pending)} ohne Cover)` : ''}`],
+      ['Künstler im Katalog', `${fmt(sys.catalog.artists)}${sys.catalog.artists_pending ? ` (${fmt(sys.catalog.artists_pending)} ohne Genres)` : ''}`],
+      ['Ranking-Snapshots', fmt(sys.catalog.snapshots)],
+      ['Sync-Läufe (24 h)', `${fmt(sys.jobs.runs_24h)}${sys.jobs.errors_24h ? ` · ${fmt(sys.jobs.errors_24h)} Fehler` : ' · keine Fehler'}`],
+      ['Letzter Sync', sys.jobs.last_run ? relTime(sys.jobs.last_run) : '–'],
+      ['Zeitplan', sys.config.internalScheduler ? `alle ${sys.config.syncIntervalMinutes} Min.` : 'aus'],
+      ['Keep-Alive', sys.config.keepAlive ? 'an' : 'aus'],
+      ['Zeitzone', sys.config.timezone],
+    ];
+    $('#admin-system').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+    $('#admin-errors').innerHTML = sys.errors.length
+      ? sys.errors.map((e) => `
+        <li>
+          ${userAvatar({ display_name: e.display_name, id: e.user_id || '?' })}
+          <div class="who">${esc(e.display_name || e.user_id || 'System')} <span>· ${esc(e.job)}</span>
+            <span class="err-msg" title="${esc(e.message)}">${esc(e.message)}</span></div>
+          <time datetime="${esc(e.started_at)}">${fmtDT(e.started_at)}</time>
+        </li>`).join('')
+      : '<li class="empty">Keine Fehler – alles läuft.</li>';
+  }
+
   async function loadAdmin() {
     try {
-      const d = await api('/api/admin/users');
+      const [d, sys] = await Promise.all([api('/api/admin/users'), api('/api/admin/system')]);
       const weekAgo = Date.now() - 7 * 864e5;
       countUp($('[data-admin="users"]'), d.users.length);
       countUp($('[data-admin="active"]'), d.users.filter((u) => u.last_seen_at && new Date(u.last_seen_at) > weekAgo).length);
       countUp($('[data-admin="logins"]'), d.users.reduce((a, u) => a + (u.login_count || 0), 0));
       countUp($('[data-admin="plays"]'), d.users.reduce((a, u) => a + (u.plays || 0), 0));
-
-      $('#admin-users').innerHTML = d.users.length
-        ? d.users.map((u) => `
-          <li class="user-row">
-            ${userAvatar(u)}
-            <div class="t-main">
-              <div class="user-name">${esc(u.display_name || u.id)}
-                ${u.is_admin ? '<span class="tag tag-admin">Admin</span>' : ''}
-                ${u.auth_expired ? '<span class="tag tag-warn">Verbindung abgelaufen</span>' : ''}
-                ${u.product ? `<span class="tag tag-muted">${esc(u.product)}</span>` : ''}
-              </div>
-              <div class="user-mail">${u.email ? `<a href="mailto:${esc(u.email)}">${esc(u.email)}</a>` : '<span class="muted">keine E-Mail freigegeben</span>'}</div>
-              <div class="user-meta">Spotify-ID ${esc(u.id)}${u.country ? ` · ${esc(u.country)}` : ''} · registriert ${fmtDT(u.created_at)}</div>
-            </div>
-            <div class="user-side">
-              ${fmt(u.plays)} Plays<small>${fmt(u.minutes)} Min.</small>
-              <small>Login ${relTime(u.last_login_at) || '–'} · ${fmt(u.login_count)}×</small>
-            </div>
-          </li>`).join('')
-        : '<li class="empty">Noch keine Nutzer.</li>';
+      adminUsers = d.users;
+      renderAdminUsers();
+      renderSystem(sys);
 
       $('#admin-logins').innerHTML = d.logins.length
         ? d.logins.map((l) => `
@@ -675,7 +753,7 @@
           </li>`).join('')
         : '<li class="empty">Noch keine Logins.</li>';
     } catch (err) {
-      if (err.message !== 'unauthorized') toast(`Nutzerliste: ${err.message}`, true);
+      if (err.message !== 'unauthorized') toast(`Admin: ${err.message}`, true);
     }
   }
 
@@ -709,6 +787,8 @@
     bindImport();
     $('#delete-account').addEventListener('click', deleteAccount);
     $('#admin-refresh').addEventListener('click', loadAdmin);
+    $('#admin-users').addEventListener('click', adminAction);
+    $('#admin-search').addEventListener('input', renderAdminUsers);
     const justConnected = handleQueryFlags();
     refreshAll().then(() => {
       if (state.user?.is_admin) segmented($('#view-control'), 'view', 'stats', showView);

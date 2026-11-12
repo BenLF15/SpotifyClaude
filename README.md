@@ -18,9 +18,19 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
   - Zuletzt gehört
 - Dunkles, mobilfreundliches Design mit flüssigen Animationen.
 - **Mehrere Nutzer**: Jeder meldet sich mit dem eigenen Spotify-Konto an und sieht nur die eigenen Werte.
-- **Admin-Tab „Nutzer“**: Name, E-Mail, Spotify-ID, letzter Login und Anzahl der Plays aller Konten, dazu die letzten Logins.
-- **Konto löschen**: Jeder kann sein Konto samt aller Hördaten selbst löschen.
-- Alle Secrets kommen aus **Umgebungsvariablen**. Fehlt etwas, zeigt die App eine **Setup-Seite**, die genau sagt, was noch zu tun ist.
+- **Admin-Tab „Admin“**: Wer Admin ist, sieht oben „Meine Statistik | Admin“. Dort gibt es:
+
+- **Kennzahlen**: registrierte Nutzer, Aktive der letzten 7 Tage, Logins, Plays.
+- **Nutzerliste** mit Suche: Name, E-Mail, Spotify-ID, Land, Abo, Registrierung, letzter Login und Sync, Plays. Pro Nutzer kannst du:
+  - **Jetzt synchronisieren**
+  - **Zum Admin machen** bzw. **Admin entziehen** (der letzte Admin bleibt geschützt)
+  - **Löschen** (samt aller Hördaten)
+- **CSV-Export** aller Nutzer (öffnet sich direkt in Excel).
+- **Letzte Logins**: die 50 neuesten Anmeldungen mit Browser und Gerät.
+- **System**: Datenbankgröße, Katalog (Songs und Künstler, fehlende Cover und Genres), Sync-Läufe und Fehler der letzten 24 h, Zeitplan, Zeitzone.
+- **Sync-Fehler**: die letzten fehlgeschlagenen Läufe mit Fehlermeldung.
+
+**Admin werden**: Admin wird der erste Nutzer, der sich anmeldet (bzw. der nächste, solange es keinen Admin gibt), oder wer in `ADMIN_SPOTIFY_IDS` steht. Diese Variable wirkt sofort, ohne neuen Login. Deine Spotify-ID steht unten im Dashboard unter „Deine Spotify-ID“.
 
 ---
 

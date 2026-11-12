@@ -52,7 +52,7 @@
     <nav class="view-tabs" id="view-tabs" aria-label="Bereich" hidden>
       <div class="segmented" id="view-control" role="tablist">
         <button role="tab" data-view="stats">Meine Statistik</button>
-        <button role="tab" data-view="admin">Nutzer</button>
+        <button role="tab" data-view="admin">Admin</button>
       </div>
     </nav>
 
@@ -161,6 +161,7 @@
 
     <footer class="footer muted small">
       <div id="footer"></div>
+      <div id="my-id" class="my-id"></div>
       <div class="footer-actions">
         <button class="btn btn-ghost btn-danger" id="delete-account" type="button">Konto &amp; Daten löschen</button>
       </div>
@@ -177,14 +178,30 @@
       <section class="card">
         <header class="card-head">
           <div><h2>Nutzer</h2><p class="muted small">Alle Konten, die sich mit Spotify angemeldet haben</p></div>
-          <button class="btn btn-ghost" id="admin-refresh" type="button">Aktualisieren</button>
+          <div class="head-controls">
+            <a class="btn btn-ghost" href="/api/admin/users.csv" download>CSV-Export</a>
+            <button class="btn btn-ghost" id="admin-refresh" type="button">Aktualisieren</button>
+          </div>
         </header>
+        <input class="admin-search" id="admin-search" type="search" placeholder="Nach Name, E-Mail oder Spotify-ID suchen …" autocomplete="off" />
         <ul class="user-list" id="admin-users"></ul>
       </section>
-      <section class="card">
-        <header class="card-head"><div><h2>Letzte Logins</h2><p class="muted small">Die 50 neuesten Anmeldungen</p></div></header>
-        <ul class="login-log" id="admin-logins"></ul>
-      </section>
+      <div class="grid-2">
+        <section class="card">
+          <header class="card-head"><div><h2>Letzte Logins</h2><p class="muted small">Die 50 neuesten Anmeldungen</p></div></header>
+          <ul class="login-log" id="admin-logins"></ul>
+        </section>
+        <div class="stack">
+          <section class="card">
+            <header class="card-head"><div><h2>System</h2><p class="muted small">Datenbank, Katalog &amp; Zeitplan</p></div></header>
+            <dl class="sys-list" id="admin-system"></dl>
+          </section>
+          <section class="card">
+            <header class="card-head"><div><h2>Sync-Fehler</h2><p class="muted small">Die letzten fehlgeschlagenen Läufe</p></div></header>
+            <ul class="login-log" id="admin-errors"></ul>
+          </section>
+        </div>
+      </div>
     </div>
   </main>
 

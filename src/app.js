@@ -182,7 +182,11 @@ const rangeDays = (req) => stats.RANGE_DAYS[req.query.range] ?? 30;
 
 api.get(
   '/status',
-  wrap(async (req, res) => res.json(await stats.status(req.user.id))),
+  wrap(async (req, res) => {
+    const s = await stats.status(req.user.id);
+    // is_admin inkl. ADMIN_SPOTIFY_IDS (siehe users.getUser)
+    res.json({ ...s, user: s.user && { ...s.user, is_admin: req.user.is_admin } });
+  }),
 );
 
 api.get(
@@ -243,12 +247,58 @@ api.delete(
   }),
 );
 
-// Admin: Nutzer & Logins
-api.get(
-  '/admin/users',
-  requireAdmin,
-  wrap(async (_req, res) => res.json(await users.adminOverview())),
+// ---------------------------------------------------------------- Admin
+const admin = express.Router();
+admin.use(requireAdmin);
+
+admin.get('/users', wrap(async (_req, res) => res.json(await users.adminOverview())));
+admin.get('/system', wrap(async (_req, res) => res.json(await users.adminSystem())));
+
+admin.get(
+  '/users.csv',
+  wrap(async (_req, res) => {
+    const date = new Date().toISOString().slice(0, 10);
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="spotlfy-nutzer-${date}.csv"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(await users.usersCsv());
+  }),
 );
+
+// Sync für einen Nutzer sofort starten
+admin.post(
+  '/users/:id/sync',
+  wrap(async (req, res) => res.json(await triggerSync(req.params.id, { forceSnapshot: req.query.snapshot === '1' }))),
+);
+
+// Admin-Rechte geben/entziehen
+admin.post(
+  '/users/:id/admin',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => {
+    try {
+      await users.setAdmin(req.params.id, Boolean(req.body?.admin));
+      res.json({ ok: true });
+    } catch (err) {
+      if (err.status) return res.status(err.status).json({ error: err.message });
+      throw err;
+    }
+  }),
+);
+
+// Nutzer samt Daten löschen (das eigene Konto geht über DELETE /api/me)
+admin.delete(
+  '/users/:id',
+  wrap(async (req, res) => {
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Dein eigenes Konto löschst du unten im Dashboard.' });
+    await users.deleteUser(req.params.id);
+    res.json({ ok: true });
+  }),
+);
+
+api.use('/admin', admin);
 
 app.use('/api', api);
 

@@ -6,8 +6,12 @@ import { bestImage } from './spotify.js';
 /** Speichert bzw. aktualisiert den Nutzer nach erfolgreichem Spotify-Login. */
 export async function upsertUserFromLogin({ profile, tokens }, { userAgent } = {}) {
   return withTransaction(async (db) => {
-    const { rows: countRows } = await db.query('SELECT count(*) AS n FROM users');
+    const { rows: countRows } = await db.query(
+      'SELECT count(*) AS n, count(*) FILTER (WHERE is_admin) AS admins FROM users',
+    );
     const isFirstUser = countRows[0].n === 0;
+    // Gibt es (noch) keinen Admin, wird der nächste Nutzer, der sich anmeldet, Admin.
+    const noAdminYet = countRows[0].admins === 0;
     const isConfiguredAdmin = config.adminIds.includes(profile.id);
 
     const { rows } = await db.query(
@@ -35,7 +39,7 @@ export async function upsertUserFromLogin({ profile, tokens }, { userAgent } = {
         tokens.refreshToken,
         tokens.expiresAt,
         tokens.scope || null,
-        isFirstUser || isConfiguredAdmin,
+        noAdminYet || isConfiguredAdmin,
       ],
     );
     const user = rows[0];
@@ -53,13 +57,91 @@ export async function upsertUserFromLogin({ profile, tokens }, { userAgent } = {
   });
 }
 
+const withConfiguredAdmin = (u) => (u ? { ...u, is_admin: u.is_admin || config.adminIds.includes(u.id) } : null);
+
 export async function getUser(id) {
   const { rows } = await query(
     `SELECT id, display_name, email, avatar_url, country, product, is_admin, auth_error, created_at, last_login_at
        FROM users WHERE id = $1`,
     [id],
   );
-  return rows[0] || null;
+  // ADMIN_SPOTIFY_IDS wirkt sofort, auch ohne erneuten Login.
+  return withConfiguredAdmin(rows[0] || null);
+}
+
+/** Admin-Rechte setzen/entziehen. Der letzte Admin kann nicht entfernt werden. */
+export async function setAdmin(id, isAdmin) {
+  return withTransaction(async (db) => {
+    if (!isAdmin) {
+      const { rows } = await db.query('SELECT count(*) AS n FROM users WHERE is_admin AND id <> $1', [id]);
+      if (rows[0].n === 0 && !config.adminIds.length) {
+        const err = new Error('Der letzte Admin kann nicht entfernt werden.');
+        err.status = 400;
+        throw err;
+      }
+    }
+    const { rowCount } = await db.query('UPDATE users SET is_admin = $2, updated_at = now() WHERE id = $1', [id, isAdmin]);
+    if (!rowCount) {
+      const err = new Error('Nutzer nicht gefunden.');
+      err.status = 404;
+      throw err;
+    }
+  });
+}
+
+/** Admin: Systemübersicht (Datenbankgröße, Katalog, Sync-Fehler). */
+export async function adminSystem() {
+  const [db, catalog, errors, jobs] = await Promise.all([
+    query(`SELECT pg_size_pretty(pg_database_size(current_database())) AS size, version() AS version`),
+    query(
+      `SELECT (SELECT count(*) FROM tracks) AS tracks, (SELECT count(*) FROM artists) AS artists,
+              (SELECT count(*) FROM tracks WHERE enriched_at IS NULL) AS tracks_pending,
+              (SELECT count(*) FROM artists WHERE enriched_at IS NULL) AS artists_pending,
+              (SELECT count(*) FROM plays) AS plays,
+              (SELECT count(DISTINCT (user_id, snapshot_date)) FROM top_snapshots) AS snapshots`,
+    ),
+    query(
+      `SELECT l.id, l.job, l.started_at, l.message, u.id AS user_id, u.display_name
+         FROM sync_log l LEFT JOIN users u ON u.id = l.user_id
+        WHERE l.ok = false ORDER BY l.id DESC LIMIT 20`,
+    ),
+    query(
+      `SELECT count(*) FILTER (WHERE started_at > now() - interval '24 hours') AS runs_24h,
+              count(*) FILTER (WHERE started_at > now() - interval '24 hours' AND ok = false) AS errors_24h,
+              max(finished_at) AS last_run
+         FROM sync_log WHERE job = 'recently_played'`,
+    ),
+  ]);
+  return {
+    database: { size: db.rows[0].size, version: db.rows[0].version.split(' ').slice(0, 2).join(' ') },
+    catalog: catalog.rows[0],
+    jobs: jobs.rows[0],
+    errors: errors.rows,
+    config: {
+      timezone: config.timezone,
+      syncIntervalMinutes: config.syncIntervalMinutes,
+      internalScheduler: config.internalScheduler,
+      keepAlive: Boolean(config.keepAliveUrl),
+      configuredAdmins: config.adminIds.length,
+    },
+  };
+}
+
+/** CSV-Export aller Nutzer (für Excel: Semikolon + BOM). */
+export async function usersCsv() {
+  const { users } = await adminOverview();
+  const cols = [
+    ['id', 'Spotify-ID'], ['display_name', 'Name'], ['email', 'E-Mail'], ['country', 'Land'], ['product', 'Abo'],
+    ['is_admin', 'Admin'], ['created_at', 'Registriert'], ['last_login_at', 'Letzter Login'], ['login_count', 'Logins'],
+    ['plays', 'Plays'], ['minutes', 'Minuten'], ['last_sync', 'Letzter Sync'],
+  ];
+  const cell = (v) => {
+    if (v === null || v === undefined) return '';
+    const str = v instanceof Date ? v.toISOString() : String(v);
+    return /[";\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  };
+  const lines = [cols.map((c) => c[1]).join(';'), ...users.map((u) => cols.map(([k]) => cell(u[k])).join(';'))];
+  return '\uFEFF' + lines.join('\r\n');
 }
 
 /** Aktualisiert last_seen_at höchstens alle 5 Minuten (spart Schreibzugriffe). */
@@ -101,7 +183,7 @@ export async function adminOverview() {
         ORDER BY l.at DESC LIMIT 50`,
     ),
   ]);
-  return { users: users.rows, logins: logins.rows };
+  return { users: users.rows.map(withConfiguredAdmin), logins: logins.rows };
 }
 
 /** Löscht ein Konto samt aller Hördaten (Tracks/Künstler bleiben als gemeinsamer Katalog). */

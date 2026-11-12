@@ -397,3 +397,21 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 6px; font-
   .user-side { grid-column: 2; text-align: left; }
   .user-side small { display: inline; margin-left: 6px; }
 }
+
+/* ------------------------------------------------------------------ Admin-Tab */
+.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (min-width: 900px) { .stack { gap: 20px; } }
+.admin-search {
+  width: 100%; height: 42px; padding: 0 14px; margin-bottom: 12px; border-radius: 12px;
+  border: 1px solid var(--border-strong); background: var(--bg); color: var(--text); font: inherit; font-size: 0.9rem;
+}
+.user-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.btn-xs { height: 30px; padding: 0 12px; font-size: 0.75rem; }
+.btn-xs:disabled { opacity: 0.5; cursor: default; }
+.sys-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: 0.86rem; }
+.sys-list dt { color: var(--text-3); }
+.sys-list dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.err-msg { color: var(--down); font-size: 0.75rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-id { margin-top: 6px; }
+.my-id code { user-select: all; }
+#view-admin .grid-2 { align-items: start; }
