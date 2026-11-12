@@ -307,6 +307,7 @@
     $('#admin-tab').hidden = !s.account.is_admin;
     renderProfile(s);
     updateFestive();
+    maybeShowTour();
     return s;
   }
 
@@ -1294,6 +1295,114 @@
     if (ev) previewDate(isoDay(ev.start));
   }
 
+  // ================================================================ Walkthrough der festlichen Effekte
+  const TOUR_KEYS = ['carnival', 'easter', 'midsummer', 'christmas', 'newyear', 'birthday'];
+  const tour = { step: 0 };
+  const tourSeenKey = () => `fest-tour-seen-${state.account?.id}`;
+
+  function nextDateOf(key) {
+    const now = T.effectiveDate();
+    const n = dayNum(now);
+    const hit = [...eventsForYear(now.getFullYear() - 1), ...eventsForYear(now.getFullYear()), ...eventsForYear(now.getFullYear() + 1)]
+      .filter((e) => e.key === key && dayNum(e.end) >= n)
+      .sort((a, b) => a.start - b.start)[0];
+    return hit ? (dayNum(hit.start) <= n ? t('history.today') : longDate.format(hit.start)) : null;
+  }
+
+  function renderTour() {
+    const total = TOUR_KEYS.length + 2;
+    const i = tour.step;
+    const ev = i >= 1 && i <= TOUR_KEYS.length ? TOUR_KEYS[i - 1] : null;
+    const last = i === total - 1;
+    let hero; let title; let body;
+    if (i === 0) {
+      hero = ['🎉', '🎄', '🐣', '🎂'];
+      title = t('tour.introTitle');
+      body = `<p>${esc(t('tour.introText'))}</p>`;
+    } else if (ev) {
+      const f = FEST[ev];
+      hero = f.emojis;
+      title = `${f.deco} ${t(`fest.${ev}`)}`;
+      const nd = nextDateOf(ev);
+      const noBd = ev === 'birthday' && !state.account?.birthday;
+      body = `<p class="tour-when">${esc(t(`tour.when.${ev}`))}</p>
+        <p>${esc(t(`tour.desc.${ev}`))}</p>
+        ${nd && !noBd ? `<p class="tour-date">📅 ${esc(t('tour.nextDate', { d: nd }))}</p>` : ''}
+        ${noBd ? `<p class="tour-date">${esc(t('tour.noBirthday'))}</p>
+          <button type="button" class="btn btn-ghost btn-xs" data-tour="birthday">🎂 ${esc(t('tour.addBirthday'))}</button>` : ''}`;
+    } else {
+      hero = ['✨', '🎶', '✨'];
+      title = t('tour.outroTitle');
+      body = `<p>${esc(t('tour.outroText'))}</p>`;
+    }
+    const dots = Array.from({ length: total }, (_, k) =>
+      `<button type="button" class="tour-dot${k === i ? ' on' : ''}" data-tour-go="${k}" aria-label="${esc(t('tour.step', { i: k + 1, n: total }))}"></button>`).join('');
+    $('#tour-body').innerHTML = `
+      <button type="button" class="tour-close" data-tour="close" aria-label="${esc(t('tour.close'))}">✕</button>
+      <div class="tour-hero fest-${ev || 'intro'}" aria-hidden="true">
+        ${hero.map((e, k) => `<span style="--k:${k}">${e}</span>`).join('')}
+      </div>
+      <div class="tour-content" key="${i}">
+        <p class="tour-step">${esc(t('tour.step', { i: i + 1, n: total }))}</p>
+        <h2 id="tour-title">${esc(title)}</h2>
+        ${body}
+      </div>
+      <div class="tour-foot">
+        <div class="tour-dots">${dots}</div>
+        <div class="tour-btns">
+          ${i > 0 ? `<button type="button" class="btn btn-ghost" data-tour="back">${esc(t('tour.back'))}</button>` : ''}
+          <button type="button" class="btn btn-primary" data-tour="next">${esc(t(i === 0 ? 'tour.start' : last ? 'tour.done' : 'tour.next'))}</button>
+        </div>
+      </div>`;
+  }
+
+  function openTour() {
+    const dlg = $('#fest-tour');
+    if (dlg.open) return;
+    tour.step = 0;
+    renderTour();
+    dlg.showModal();
+    $('[data-tour="next"]', dlg)?.focus();
+  }
+
+  function closeTour() {
+    store.set(tourSeenKey(), '1');
+    const dlg = $('#fest-tour');
+    if (dlg.open) dlg.close();
+  }
+
+  function bindTour() {
+    const dlg = $('#fest-tour');
+    dlg.addEventListener('click', (e) => {
+      if (e.target === dlg) { closeTour(); return; } // Klick auf den Hintergrund
+      const go = e.target.closest('[data-tour-go]');
+      if (go) { tour.step = Number(go.dataset.tourGo); renderTour(); return; }
+      const b = e.target.closest('[data-tour]');
+      if (!b) return;
+      const act = b.dataset.tour;
+      if (act === 'close') closeTour();
+      else if (act === 'back') { tour.step = Math.max(0, tour.step - 1); renderTour(); }
+      else if (act === 'next') {
+        if (tour.step >= TOUR_KEYS.length + 1) closeTour();
+        else { tour.step++; renderTour(); }
+      } else if (act === 'birthday') {
+        closeTour();
+        showPanel('profile');
+        requestAnimationFrame(() => { const inp = $('#birthday-input'); inp.scrollIntoView({ block: 'center' }); inp.focus(); });
+      }
+    });
+    dlg.addEventListener('cancel', () => store.set(tourSeenKey(), '1')); // Esc
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') $('[data-tour="next"]', dlg)?.click();
+      if (e.key === 'ArrowLeft') $('[data-tour="back"]', dlg)?.click();
+    });
+  }
+
+  // Beim ersten Mal mit aktiven Effekten einmalig zeigen (Standard ist „an“)
+  function maybeShowTour() {
+    if (festOn() && !store.get(tourSeenKey()) && !$('#import-dialog').open) setTimeout(openTour, 900);
+  }
+
   // ================================================================ Sync & Import
   async function runSync() {
     const btn = $('#sync-btn');
@@ -1483,6 +1592,7 @@
     if (await saveSettings({ festive: on })) {
       state.account.festive = on;
       $('#festive-switch').setAttribute('aria-checked', String(on));
+      if (on) openTour();
       updateFestive({ burst: on });
       renderThemeSettings();
     }
@@ -1646,6 +1756,7 @@
     $('#profile-btn').addEventListener('click', () => showPanel(state.panel === 'profile' ? 'overview' : 'profile'));
     bindHeatTooltip();
     bindImport();
+    bindTour();
     document.addEventListener('click', (e) => {
       const tog = e.target.closest('[data-toggle-day]');
       if (tog) {
