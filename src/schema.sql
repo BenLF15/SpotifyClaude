@@ -162,3 +162,16 @@ BEGIN
     INSERT INTO app_meta (key, value) VALUES ('admin_reset_2026_11', now()::text);
   END IF;
 END $$;
+
+-- ---------------------------------------------------------------- Eigene Genre-Einordnung
+-- Pro Künstlername (kleingeschrieben): eigenes Hauptgenre + Stil-Tags, ermittelt aus MusicBrainz.
+CREATE TABLE IF NOT EXISTS artist_genres (
+  name_key     text PRIMARY KEY,
+  artist_name  text NOT NULL,
+  main_genre   text,
+  styles       text[] NOT NULL DEFAULT '{}',
+  mbid         text,
+  tags         jsonb,
+  checked_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS artist_genres_main_idx ON artist_genres (main_genre);

@@ -15,9 +15,9 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/assets/styles.css?v=20261112f" />
+  <link rel="stylesheet" href="/assets/styles.css?v=20261112h" />
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261112f" defer></script>
+  <script src="/app.js?v=20261112h" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
@@ -161,12 +161,15 @@
       <!-- ================================================= Genres -->
       <section class="panel" data-panel="genres" hidden>
         <section class="card">
-          <header class="card-head"><div><h2>Deine Genres</h2><p class="muted small" id="genre-caption">Anteil an deiner Hörzeit</p></div></header>
+          <header class="card-head">
+            <div><h2>Deine Genres</h2><p class="muted small" id="genre-caption">Von Spotlfy eingeordnet</p></div>
+          </header>
           <div class="genre-layout">
             <div class="donut-wrap"><canvas id="genre-donut" aria-label="Genre-Verteilung" role="img"></canvas>
               <div class="donut-center" id="donut-center"></div></div>
-            <ul class="genre-list" id="genres"></ul>
+            <ul class="genre-cards" id="genres"></ul>
           </div>
+          <p class="genre-note muted small" id="genre-note"></p>
         </section>
       </section>
 
@@ -210,12 +213,9 @@
 
       <!-- ================================================= Verlauf -->
       <section class="panel" data-panel="history" hidden>
-        <section class="card">
-          <header class="card-head"><div><h2>Zuletzt gehört</h2><p class="muted small">Die letzten 40 Songs</p></div></header>
-          <div id="recent"></div>
-        </section>
+        <div class="history" id="history"></div>
+        <button class="btn btn-ghost history-more" id="history-more" type="button" hidden>Ältere Tage laden</button>
       </section>
-
     </div><!-- /view-stats -->
 
     <!-- ================================================= Profil -->

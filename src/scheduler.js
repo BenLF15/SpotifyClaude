@@ -6,6 +6,7 @@
 import { config } from './config.js';
 import { query } from './db.js';
 import { runCron } from './sync.js';
+import { classifyPendingArtists } from './genres.js';
 
 const running = new Map();
 
@@ -59,6 +60,13 @@ async function tick() {
     if (n) console.log(`[scheduler] ${new Date().toISOString()} ${n} Nutzer synchronisiert`);
   } catch (err) {
     console.error('[scheduler] Fehler:', err.message);
+  }
+  try {
+    // Eigene Genre-Einordnung: pro Minute bis zu 20 neue Künstler (MusicBrainz: 1 Anfrage/s)
+    const g = await classifyPendingArtists({ limit: 20 });
+    if (g.checked) console.log(`[genres] ${g.checked} Künstler geprüft, ${g.classified} eingeordnet`);
+  } catch (err) {
+    console.error('[genres] Fehler:', err.message);
   } finally {
     ticking = false;
   }

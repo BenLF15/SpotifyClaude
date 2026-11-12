@@ -346,6 +346,7 @@
     }
     if (panel === 'admin') return loadAdmin();
     if (panel === 'profile') { if (state.status) renderProfile(state.status); return; }
+    if (panel === 'history') { if (history.days.length) renderHistory(); else loadHistory(true); return; }
     if (!d) return;
     if (panel === 'overview') {
       renderKpis(d.overview, d.timeline.daily);
@@ -364,7 +365,7 @@
     } else if (panel === 'genres') {
       renderGenres(d.genres);
     } else if (panel === 'history') {
-      renderRecent(d.recent);
+      if (history.days.length) renderHistory(); else loadHistory(true);
     }
   }
 
@@ -645,30 +646,56 @@
     intensityBars('weekdays', $('#weekday-chart'), DAYS, days, (i) => DAYS_LONG[i]);
   }
 
-  // ================================================================ Genres
+  // ================================================================ Genres (eigene Einordnung)
+  // Feste Farbe je Hauptgenre – die Farbe folgt dem Genre, nicht seinem Rang.
+  const GENRE_COLORS = {
+    Pop: '#d55181',
+    'Hip-Hop & Rap': '#c98500',
+    Rock: '#e66767',
+    'Electronic & Dance': '#3987e5',
+    'R&B & Soul': '#9085e9',
+    'Indie & Alternative': '#199e70',
+    Jazz: '#d95926',
+    Klassik: '#c9b27c',
+    'Country & Folk': '#a0703f',
+    Metal: '#8a8f98',
+    Latin: '#2bb3c0',
+    'Reggae & Dancehall': '#3a9a3a',
+    Blues: '#5b7fd1',
+    'Schlager & Volksmusik': '#e8a3c0',
+    Soundtrack: '#b4bcb6',
+  };
+  const genreColor = (g) => GENRE_COLORS[g] || COLORS.other;
+
   function renderGenres(g) {
     const list = $('#genres');
+    const note = $('#genre-note');
+    const pct = (x) => `${Math.round(x * 100)} %`;
     $('#genre-caption').textContent = g.items.length
-      ? `Anteil an deiner Hörzeit · Grau = weitere Genres · bekannt für ${Math.round(g.coverage * 100)} % der Hörzeit`
-      : 'Anteil an deiner Hörzeit';
+      ? `Von Spotlfy eingeordnet · ${pct(g.coverage)} deiner Hörzeit zugeordnet`
+      : 'Von Spotlfy eingeordnet';
+    note.textContent = [
+      g.pending > 0.01 ? `${pct(g.pending)} deiner Hörzeit werden gerade noch eingeordnet – das passiert automatisch im Hintergrund.` : '',
+      g.unclassifiedArtists ? `${fmt(g.unclassifiedArtists)} ${g.unclassifiedArtists === 1 ? 'Künstler ließ' : 'Künstler ließen'} sich keinem Genre zuordnen.` : '',
+    ].filter(Boolean).join(' ');
     if (!g.items.length) {
-      list.innerHTML = '<li class="empty">Noch keine Genre-Daten. Spotify liefert Genres nicht für jeden Künstler – sie werden nach und nach geladen.</li>';
+      list.innerHTML = `<li class="empty">${g.pending > 0 ? 'Deine Künstler werden gerade eingeordnet – schau in ein paar Minuten wieder vorbei.' : 'Noch keine Genre-Daten in diesem Zeitraum.'}</li>`;
       $('#donut-center').innerHTML = '';
       charts.donut?.destroy();
       delete charts.donut;
       return;
     }
-    const slices = g.items.slice(0, 7);
-    const otherShare = Math.max(0, 1 - slices.reduce((a, i) => a + i.share, 0));
-    const withOther = otherShare > 0.005;
-    const data = [...slices.map((i) => i.share), ...(withOther ? [otherShare] : [])];
-    const labels = [...slices.map((i) => i.genre), ...(withOther ? ['Sonstige'] : [])];
-    const colors = [...slices.map((_, i) => COLORS.series[i]), COLORS.other];
+    const shown = g.items.slice(0, 8);
+    const rest = g.items.slice(8);
+    const restShare = rest.reduce((a, i) => a + i.share, 0);
+    const labels = [...shown.map((i) => i.genre), ...(restShare > 0.002 ? ['Weitere'] : [])];
+    const data = [...shown.map((i) => i.share), ...(restShare > 0.002 ? [restShare] : [])];
+    const colors = [...shown.map((i) => genreColor(i.genre)), COLORS.other];
     upsertChart('donut', $('#genre-donut'), {
       type: 'doughnut',
       data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: COLORS.surface, borderWidth: 2, hoverOffset: 6 }] },
       options: {
-        cutout: '68%',
+        cutout: '70%',
         layout: { padding: 6 },
         animation: { animateRotate: !reduceMotion, duration: reduceMotion ? 0 : 900 },
         plugins: {
@@ -676,49 +703,118 @@
         },
       },
     });
-    const top = slices[0];
-    $('#donut-center').innerHTML = `<span>Top-Genre</span><b>${Math.round(top.share * 100)} %</b><strong>${esc(top.genre)}</strong>`;
-    const max = g.items[0].share || 1;
-    list.innerHTML = g.items.slice(0, 12).map((x, i) => {
-      const color = i < 7 ? COLORS.series[i] : COLORS.other;
-      return `<li class="genre-row" title="${fmt(x.minutes)} Minuten">
-        <span class="genre-dot" style="background:${color}"></span>
-        <span class="genre-name">${esc(x.genre)}</span>
-        <span class="genre-val">${(x.share * 100).toFixed(x.share < 0.1 ? 1 : 0)} %</span>
-        <span class="genre-track"><span class="genre-fill" data-w="${(x.share / max) * 100}" style="background:${color}"></span></span>
+    const top = g.items[0];
+    $('#donut-center').innerHTML = `<span>Dein Genre Nr. 1</span><b>${pct(top.share)}</b><strong>${esc(top.genre)}</strong>
+      <small>${fmt(g.items.length)} ${g.items.length === 1 ? 'Genre' : 'Genres'}</small>`;
+    const max = top.share || 1;
+    list.innerHTML = g.items.slice(0, 10).map((x) => {
+      const color = genreColor(x.genre);
+      const avatars = x.artists.slice(0, 4).map((a) => `<span title="${esc(a.name)}">${imgOrPlaceholder(a.image, a.name)}</span>`).join('');
+      const chips = x.styles.slice(0, 3).map((st) => `<span class="chip">${esc(st)}</span>`).join('');
+      return `<li class="gcard">
+        <span class="gcard-stripe" style="background:${color}"></span>
+        <span class="gcard-name">${esc(x.genre)}</span>
+        <span class="gcard-pct">${x.share < 0.1 ? (x.share * 100).toFixed(1).replace('.', ',') : Math.round(x.share * 100)} %</span>
+        <span class="gcard-bar"><span data-w="${(x.share / max) * 100}" style="background:${color}"></span></span>
+        <span class="gcard-meta">
+          <span class="gcard-avatars">${avatars}</span>
+          <span class="gcard-sub" title="${esc(x.artists.map((a) => a.name).join(', '))}">${fmt(x.minutes)} Min. · ${fmt(x.artistCount)} ${x.artistCount === 1 ? 'Künstler' : 'Künstler'} ${chips}</span>
+        </span>
       </li>`;
     }).join('');
-    growBars(list, '.genre-fill');
+    growBars(list, '.gcard-bar span');
   }
 
-  // ================================================================ Verlauf
-  function renderRecent(list) {
-    const el = $('#recent');
-    if (!list.length) { el.innerHTML = '<p class="empty">Noch nichts gehört – oder noch nicht synchronisiert.</p>'; return; }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const label = (d) => {
-      const day = new Date(d);
-      day.setHours(0, 0, 0, 0);
-      const diff = Math.round((today - day) / 864e5);
-      return diff === 0 ? 'Heute' : diff === 1 ? 'Gestern' : longDayFmt.format(day);
-    };
-    const groups = [];
-    for (const t of list) {
-      const l = label(t.played_at);
-      if (!groups.length || groups.at(-1).label !== l) groups.push({ label: l, items: [] });
-      groups.at(-1).items.push(t);
+  // ================================================================ Verlauf (nach Tagen, aufklappbar)
+  const DAY_PREVIEW = 5;
+  const history = { days: [], hasMore: false, loading: false, open: new Set() };
+
+  async function loadHistory(reset = false) {
+    if (history.loading) return;
+    history.loading = true;
+    try {
+      const before = !reset && history.days.length ? history.days.at(-1).day : '';
+      const r = await api(`/api/history${before ? `?before=${before}` : ''}`);
+      history.days = reset ? r.days : [...history.days, ...r.days];
+      history.hasMore = r.hasMore;
+      if (state.panel === 'history') renderHistory();
+    } catch (err) {
+      if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(`Verlauf: ${err.message}`, true);
+    } finally {
+      history.loading = false;
     }
-    el.innerHTML = groups.map((g) => `
-      <div class="day-group">
-        <div class="day-label"><span>${esc(g.label)}</span><span>${g.items.length} ${g.items.length === 1 ? 'Song' : 'Songs'}</span></div>
-        <ul class="recent-list">${g.items.map((t) => `
-          <li class="track">
-            <div class="cover">${imgOrPlaceholder(t.image, t.name)}</div>
-            <div class="t-main"><div class="t-title">${esc(t.name)}</div><div class="t-sub">${esc(t.artists)}</div></div>
-            <div class="t-stat">${timeFmt.format(new Date(t.played_at))}</div>
-          </li>`).join('')}</ul>
-      </div>`).join('');
+  }
+
+  function dayTitle(dayStr) {
+    const today = new Date();
+    const fmtLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const yest = new Date(today);
+    yest.setDate(today.getDate() - 1);
+    if (dayStr === fmtLocal(today)) return 'Heute';
+    if (dayStr === fmtLocal(yest)) return 'Gestern';
+    return longDayFmt.format(parseDay(dayStr));
+  }
+
+  // Direkt hintereinander gehörte gleiche Songs zu einem Eintrag „×n“ zusammenfassen
+  function mergeRepeats(items) {
+    const out = [];
+    for (const t of items) {
+      const last = out.at(-1);
+      if (last && last.id === t.id) last.count++;
+      else out.push({ ...t, count: 1 });
+    }
+    return out;
+  }
+
+  const CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>';
+
+  function renderDayList(items, expanded) {
+    let html = '';
+    let lastHour = null;
+    for (const t of items) {
+      const d = new Date(t.played_at);
+      if (expanded && d.getHours() !== lastHour) {
+        lastHour = d.getHours();
+        html += `<li class="hour-sep">${hh(lastHour)} Uhr</li>`;
+      }
+      html += `<li class="track">
+        <div class="cover">${imgOrPlaceholder(t.image, t.name)}</div>
+        <div class="t-main"><div class="t-title">${esc(t.name)}${t.count > 1 ? `<span class="repeat">${t.count}×</span>` : ''}</div><div class="t-sub">${esc(t.artists)}</div></div>
+        <div class="t-stat">${timeFmt.format(d)}</div>
+      </li>`;
+    }
+    return html;
+  }
+
+  function renderHistory() {
+    const el = $('#history');
+    if (!history.days.length) {
+      el.innerHTML = history.loading ? '' : '<section class="card"><p class="empty">Noch nichts gehört – oder noch nicht synchronisiert.</p></section>';
+      $('#history-more').hidden = true;
+      return;
+    }
+    el.innerHTML = history.days.map((d) => {
+      const merged = mergeRepeats(d.items);
+      const open = history.open.has(d.day);
+      const items = open ? merged : merged.slice(0, DAY_PREVIEW);
+      const maxH = Math.max(1, ...d.hours);
+      const strip = d.hours.map((m, h) => `<span class="${m ? 'on' : ''}" style="height:${m ? Math.max(18, (m / maxH) * 100) : 12}%;opacity:${m ? 0.35 + 0.65 * (m / maxH) : 1}" title="${hh(h)} Uhr: ${m} Min."></span>`).join('');
+      return `<section class="card day-card${open ? ' open' : ''}" data-day="${d.day}">
+        <div class="day-head">
+          <div>
+            <div class="day-title">${esc(dayTitle(d.day))}</div>
+            <div class="day-stats"><b>${fmt(d.plays)}</b> ${d.plays === 1 ? 'Song' : 'Songs'} · <b>${fmt(d.minutes)}</b> Min.${d.topArtist ? ` · meist gehört: <b>${esc(d.topArtist)}</b>` : ''}</div>
+          </div>
+          <div aria-label="Hörzeit nach Uhrzeit">
+            <div class="day-strip">${strip}</div>
+            <div class="day-strip-labels"><span>0</span><span>12</span><span>24 Uhr</span></div>
+          </div>
+        </div>
+        <ul class="day-list">${renderDayList(items, open)}</ul>
+        ${merged.length > DAY_PREVIEW ? `<button class="day-more" type="button" data-toggle-day="${d.day}">${open ? 'Weniger anzeigen' : `Alle ${fmt(d.plays)} Songs anzeigen`} ${CHEVRON}</button>` : ''}
+      </section>`;
+    }).join('');
+    $('#history-more').hidden = !history.hasMore;
   }
 
   // ================================================================ Entwicklung
@@ -973,7 +1069,9 @@
     if (!state.spotify) return;
     state.trends = null;
     state.ranking = null;
+    history.days = [];
     const jobs = [loadDashboard()];
+    if (state.panel === 'history') jobs.push(loadHistory(true));
     if (state.panel === 'trends') jobs.push(loadTrends(), loadRanking());
     await Promise.all(jobs);
   }
@@ -1196,12 +1294,21 @@
     bindHeatTooltip();
     bindImport();
     document.addEventListener('click', (e) => {
+      const tog = e.target.closest('[data-toggle-day]');
+      if (tog) {
+        const day = tog.dataset.toggleDay;
+        if (history.open.has(day)) history.open.delete(day); else history.open.add(day);
+        renderHistory();
+        if (!history.open.has(day)) document.querySelector(`[data-day="${day}"]`)?.scrollIntoView({ block: 'nearest' });
+        return;
+      }
       const go = e.target.closest('[data-goto]');
       if (go) { showPanel(go.dataset.goto); return; }
       const b = e.target.closest('[data-action]');
       if (b) ({ password: changePassword, disconnect: disconnectSpotify, delete: deleteAccount })[b.dataset.action]?.();
     });
     $('#admin-refresh').addEventListener('click', loadAdmin);
+    $('#history-more').addEventListener('click', () => loadHistory(false));
     $('#admin-users').addEventListener('click', adminAction);
     $('#admin-search').addEventListener('input', renderAdminUsers);
     const justConnected = handleQueryFlags();

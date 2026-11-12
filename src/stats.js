@@ -144,44 +144,103 @@ export async function heatmap(userId, days) {
 }
 
 /**
- * Genre-Verteilung als echte Anteile (summieren sich zu 100 %): Die Hörzeit eines Künstlers wird
- * gleichmäßig auf seine Genres verteilt. coverage = Anteil der Hörzeit mit bekannten Genres.
+ * Eigene Genre-Verteilung: Jeder Play zählt für das Hauptgenre seines Hauptkünstlers
+ * (Einordnung durch Spotlfy, siehe genres.js). Liefert je Genre Anteil, Minuten, Top-Künstler und Stile.
  */
-export async function genres(userId, days, limit = 12) {
+export async function genres(userId, days) {
   const { rows } = await query(
     `WITH ${PLAYS_CTE},
      per_artist AS (
-       SELECT min(artist) AS name, (array_agg(artist_id) FILTER (WHERE artist_id IS NOT NULL))[1] AS id, sum(ms_played) AS ms
-         FROM p GROUP BY lower(artist)
+       SELECT min(artist) AS name, lower(artist) AS key,
+              (array_agg(artist_id) FILTER (WHERE artist_id IS NOT NULL))[1] AS id,
+              sum(ms_played) AS ms, count(*) AS plays
+         FROM p WHERE artist IS NOT NULL GROUP BY lower(artist)
      ),
-     tagged AS (
-       SELECT pa.ms, COALESCE(ai.genres, '{}') AS genres FROM per_artist pa ${ARTIST_LOOKUP('pa.name', 'pa.id')}
-     ),
-     weighted AS (
-       SELECT g.genre, t.ms::float8 / cardinality(t.genres) AS ms
-         FROM tagged t CROSS JOIN LATERAL unnest(t.genres) AS g(genre)
-        WHERE cardinality(t.genres) > 0
-     ),
-     totals AS (
-       SELECT COALESCE(sum(ms), 0) AS all_ms,
-              COALESCE(sum(ms) FILTER (WHERE cardinality(genres) > 0), 0) AS tagged_ms FROM tagged
+     joined AS (
+       SELECT pa.*, g.main_genre, g.styles, g.name_key IS NOT NULL AS checked
+         FROM per_artist pa LEFT JOIN artist_genres g ON g.name_key = pa.key
      )
-     SELECT w.genre, round(sum(w.ms) / 60000.0)::int AS minutes, sum(w.ms) AS ms,
-            (SELECT tagged_ms FROM totals) AS tagged_ms, (SELECT all_ms FROM totals) AS all_ms,
-            count(*) OVER () AS total_genres
-       FROM weighted w GROUP BY w.genre ORDER BY sum(w.ms) DESC LIMIT $4`,
-    [config.timezone, days, userId, limit],
+     SELECT j.*, ai.image_url AS image
+       FROM joined j ${ARTIST_LOOKUP('j.name', 'j.id')}
+      ORDER BY j.ms DESC`,
+    [config.timezone, days, userId],
   );
-  const tagged = rows[0]?.tagged_ms || 0;
-  const all = rows[0]?.all_ms || 0;
-  const items = rows.map((r) => ({ genre: r.genre, minutes: r.minutes, share: tagged ? r.ms / tagged : 0 }));
-  const shown = items.reduce((a, i) => a + i.share, 0);
+  const total = rows.reduce((a, r) => a + r.ms, 0);
+  const byGenre = new Map();
+  let classifiedMs = 0;
+  let pendingMs = 0;
+  for (const r of rows) {
+    if (!r.main_genre) {
+      if (!r.checked) pendingMs += r.ms;
+      continue;
+    }
+    classifiedMs += r.ms;
+    const g = byGenre.get(r.main_genre) || { genre: r.main_genre, ms: 0, plays: 0, artists: [], styles: new Map() };
+    g.ms += r.ms;
+    g.plays += r.plays;
+    if (g.artists.length < 4) g.artists.push({ name: r.name, image: r.image, minutes: Math.round(r.ms / 60000) });
+    for (const st of r.styles || []) g.styles.set(st, (g.styles.get(st) || 0) + r.ms);
+    byGenre.set(r.main_genre, g);
+  }
+  const items = [...byGenre.values()]
+    .sort((a, b) => b.ms - a.ms)
+    .map((g) => ({
+      genre: g.genre,
+      minutes: Math.round(g.ms / 60000),
+      plays: g.plays,
+      share: classifiedMs ? g.ms / classifiedMs : 0,
+      artistCount: rows.filter((r) => r.main_genre === g.genre).length,
+      artists: g.artists,
+      styles: [...g.styles.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([s]) => s),
+    }));
   return {
-    coverage: all ? tagged / all : 0,
-    totalGenres: rows[0]?.total_genres || 0,
-    other: Math.max(0, 1 - shown),
     items,
+    coverage: total ? classifiedMs / total : 0,
+    pending: total ? pendingMs / total : 0,
+    unclassifiedArtists: rows.filter((r) => r.checked && !r.main_genre).length,
   };
+}
+
+/** Verlauf nach Tagen: alle Plays von bis zu `days` Tagen vor `before` (lokales Datum). */
+export async function historyDays(userId, { before = null, days = 7 } = {}) {
+  const tz = config.timezone;
+  const { rows: dayRows } = await query(
+    `SELECT to_char((played_at AT TIME ZONE $1)::date, 'YYYY-MM-DD') AS day
+       FROM plays WHERE user_id = $2 AND ($3::date IS NULL OR (played_at AT TIME ZONE $1)::date < $3::date)
+      GROUP BY 1 ORDER BY 1 DESC LIMIT $4`,
+    [tz, userId, before, days + 1],
+  );
+  const wanted = dayRows.slice(0, days).map((r) => r.day);
+  if (!wanted.length) return { days: [], hasMore: false };
+  const { rows } = await query(
+    `SELECT pl.played_at, pl.ms_played, t.id, t.name, array_to_string(t.artist_names, ', ') AS artists,
+            t.artist_names[1] AS artist, t.album_image AS image,
+            to_char((pl.played_at AT TIME ZONE $1)::date, 'YYYY-MM-DD') AS day,
+            extract(hour FROM pl.played_at AT TIME ZONE $1)::int AS hour
+       FROM plays pl JOIN tracks t ON t.id = pl.track_id
+      WHERE pl.user_id = $2 AND to_char((pl.played_at AT TIME ZONE $1)::date, 'YYYY-MM-DD') = ANY($3)
+      ORDER BY pl.played_at DESC`,
+    [tz, userId, wanted],
+  );
+  const result = wanted.map((day) => {
+    const items = rows.filter((r) => r.day === day);
+    const hours = Array(24).fill(0);
+    const artistMs = new Map();
+    for (const r of items) {
+      hours[r.hour] += r.ms_played / 60000;
+      artistMs.set(r.artist, (artistMs.get(r.artist) || 0) + r.ms_played);
+    }
+    const topArtist = [...artistMs.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    return {
+      day,
+      plays: items.length,
+      minutes: Math.round(items.reduce((a, r) => a + r.ms_played, 0) / 60000),
+      topArtist,
+      hours: hours.map((m) => Math.round(m)),
+      items: items.map(({ played_at, id, name, artists, image, ms_played }) => ({ played_at, id, name, artists, image, minutes: Math.round(ms_played / 60000) })),
+    };
+  });
+  return { days: result, hasMore: dayRows.length > days };
 }
 
 /** Langfristige Entwicklung: Hörminuten, Künstlervielfalt und neue Künstler pro Monat. */

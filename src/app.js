@@ -397,9 +397,17 @@ api.get(
       stats.topTracks(uid, days),
       stats.heatmap(uid, days),
       stats.genres(uid, days),
-      stats.recentPlays(uid, 40),
+      stats.recentPlays(uid, 5),
     ]);
     res.json({ range: req.query.range || '30d', overview, timeline, topArtists, topTracks, heatmap, genres, recent });
+  }),
+);
+
+api.get(
+  '/history',
+  wrap(async (req, res) => {
+    const before = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.before || '')) ? req.query.before : null;
+    res.json(await stats.historyDays(req.sid, { before, days: 7 }));
   }),
 );
 

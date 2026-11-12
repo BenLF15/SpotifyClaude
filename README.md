@@ -12,10 +12,10 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
   - Hörminuten pro Tag und Woche
   - Top-Künstler und Top-Songs mit Covern
   - Heatmap nach Uhrzeit und Wochentag
-  - Genre-Verteilung
+  - Genre-Verteilung (eigene Einordnung in Hauptgenres, unabhängig von Spotify)
   - Entwicklung pro Monat
   - Spotify-Ranking mit Verlauf
-  - Zuletzt gehört
+  - Verlauf nach Tagen (je 5 Songs, aufklappbar, mit Hör-Aktivität pro Stunde)
 - Dunkles, mobilfreundliches Design mit flüssigen Animationen.
 - **Eigene Konten**: Jeder registriert sich mit Benutzername und Passwort, verbindet danach sein Spotify-Konto und sieht nur die eigenen Werte.
 - **Admin-Tab „Admin“**: Wer Admin ist, sieht oben „Meine Statistik | Admin“. Dort gibt es:
@@ -213,7 +213,7 @@ Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an.
 ## Gut zu wissen
 
 - **Hördauer**: Für per API erfasste Plays liefert Spotify keine echte Hördauer, daher zählt die volle Track-Länge. Importierte Plays nutzen das exakte `ms_played`.
-- **Genres**: Seit den API-Änderungen vom Februar 2026 lädt die App Künstler einzeln über `/artists/{id}`. Liefert Spotify keine Genres, fehlt der Künstler in der Genre-Verteilung. Das Dashboard zeigt, für welchen Anteil der Hörzeit Genres bekannt sind.
+- **Genres (eigene Einordnung)**: Spotlfy übernimmt keine Genres von Spotify. Für jeden Künstler holt die App im Hintergrund die offenen Genre-Tags von [MusicBrainz](https://musicbrainz.org) (ohne API-Key, max. 1 Anfrage/s, ca. 20 Künstler pro Minute) und ordnet sie selbst einer festen Liste von Hauptgenres zu: Pop, Hip-Hop & Rap, Rock, Electronic & Dance, R&B & Soul, Indie & Alternative, Jazz, Klassik, Country & Folk, Metal, Latin, Reggae & Dancehall, Blues, Schlager & Volksmusik, Soundtrack. Jeder Song zählt für das Hauptgenre seines Hauptkünstlers. Die Regeln stehen in `src/genres.js`.
 - **Snapshots** entstehen beim ersten Sync eines Tages in `TIMEZONE`. Der Rangverlauf wird also nach einigen Tagen interessant.
 - **Sicherheit**:
   - Alles außer `/login`, `/auth/*`, `/healthz` und dem optionalen `/cron/run` erfordert eine Anmeldung mit Spotify. Jeder Nutzer sieht nur die eigenen Daten, `/api/admin/*` nur Admins.
