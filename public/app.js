@@ -1,4 +1,4 @@
-/* Hörstatistik – Dashboard-Frontend (Vanilla JS + Chart.js) */
+/* Spotlfy – Dashboard-Frontend (Vanilla JS + Chart.js) */
 (() => {
   'use strict';
 

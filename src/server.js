@@ -19,7 +19,7 @@ function startSetupServer({ missing = [], error = null }) {
     .join('');
   const html = `<!doctype html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
-<title>Einrichtung · Hörstatistik</title><style>
+<title>Einrichtung · Spotlfy</title><style>
 :root{color-scheme:dark}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:#0a0c0b;color:#f0f2f0;font:15px/1.55 system-ui,sans-serif}
 main{width:min(640px,100%);background:#141916;border:1px solid #ffffff14;border-radius:20px;padding:28px}
 h1{margin:0 0 6px;font-size:1.4rem}p{color:#b4bcb6}ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px}

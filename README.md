@@ -1,4 +1,4 @@
-# Hörstatistik – persönliches Spotify-Dashboard
+# Spotlfy – persönliches Spotify-Dashboard
 
 Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert jeden Play dauerhaft in Postgres und zeigt dir Auswertungen, die Spotify selbst nicht bietet. Auf [Render](https://render.com) läuft alles in **einem einzigen Node-Web-Service** (Build `npm install`, Start `npm start`) mit einer Postgres-Datenbank.
 
