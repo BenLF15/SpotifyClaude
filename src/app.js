@@ -270,7 +270,7 @@ api.get(
   wrap(async (req, res) => {
     const a = req.account;
     const base = {
-      account: { id: a.id, username: a.username, is_admin: a.is_admin, created_at: a.created_at },
+      account: { id: a.id, username: a.username, is_admin: a.is_admin, created_at: a.created_at, theme: a.theme },
       spotify: a.spotify_user_id
         ? {
             id: a.spotify_user_id,
@@ -295,6 +295,16 @@ api.post(
   express.json({ limit: '5kb' }),
   wrap(async (req, res) => {
     await users.changePassword(req.account.id, req.body?.current, req.body?.next);
+    res.json({ ok: true });
+  }),
+);
+
+// Darstellung (Hell/Dunkel/System/Jahreszeit) speichern
+api.post(
+  '/me/settings',
+  express.json({ limit: '2kb' }),
+  wrap(async (req, res) => {
+    await users.setTheme(req.account.id, String(req.body?.theme || ''));
     res.json({ ok: true });
   }),
 );

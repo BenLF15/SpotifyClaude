@@ -148,16 +148,31 @@
   }
 
   // ================================================================ Chart.js
+  // Diagrammfarben folgen der aktiven Farbwelt (CSS-Variablen aus styles.css)
   const COLORS = {
-    accent: '#1ed760',
-    grid: 'rgba(255,255,255,0.06)',
-    tick: '#7d877f',
-    // Kategoriale Reihenfolge (für dunkle Flächen validiert): Blau, Orange, Aqua, Gelb, Magenta, Grün, Violett, Rot
+    // Kategoriale Reihenfolge (validiert): Blau, Orange, Aqua, Gelb, Magenta, Grün, Violett, Rot
     series: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'],
     other: '#4a524c',
-    surface: '#141916',
   };
-  const accentA = (a) => `rgba(30,215,96,${a})`;
+  function readThemeColors() {
+    const cs = getComputedStyle(document.documentElement);
+    const v = (n) => cs.getPropertyValue(n).trim();
+    const ink = v('--ink-rgb') || '255, 255, 255';
+    Object.assign(COLORS, {
+      accent: v('--accent') || '#1ed760',
+      accentRgb: (v('--accent-rgb') || '30, 215, 96').replace(/\s+/g, ''),
+      accentHover: v('--accent-hover') || '#3be477',
+      grid: `rgba(${ink}, 0.08)`,
+      tick: v('--text-3'),
+      text: v('--text'),
+      text2: v('--text-2'),
+      surface: v('--surface'),
+      tooltipBg: v('--tooltip-bg'),
+      border: `rgba(${ink}, 0.16)`,
+    });
+  }
+  readThemeColors();
+  const accentA = (a) => `rgba(${COLORS.accentRgb},${a})`;
   const charts = {};
 
   // Gestrichelte Durchschnittslinie mit Beschriftung
@@ -169,19 +184,21 @@
       const yy = y.getPixelForValue(opts.value);
       ctx.save();
       ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(240,242,240,0.5)';
+      ctx.strokeStyle = COLORS.text2;
+      ctx.globalAlpha = 0.7;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(left, yy);
       ctx.lineTo(right, yy);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
       ctx.font = "600 11px Inter, system-ui, sans-serif";
       const text = opts.label;
       const w = ctx.measureText(text).width + 10;
-      ctx.fillStyle = 'rgba(20,25,22,0.92)';
+      ctx.fillStyle = COLORS.surface;
       ctx.fillRect(left, yy - 8, w, 16);
-      ctx.fillStyle = '#d6dbd7';
+      ctx.fillStyle = COLORS.text;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(text, left + 5, yy);
@@ -200,11 +217,21 @@
     C.defaults.maintainAspectRatio = false;
     C.defaults.plugins.legend.display = false;
     Object.assign(C.defaults.plugins.tooltip, {
-      backgroundColor: '#212823', borderColor: 'rgba(255,255,255,0.14)', borderWidth: 1,
-      titleColor: '#f0f2f0', bodyColor: '#b4bcb6', padding: 10, cornerRadius: 10,
+      backgroundColor: COLORS.tooltipBg, borderColor: COLORS.border, borderWidth: 1,
+      titleColor: COLORS.text, bodyColor: COLORS.text2, padding: 10, cornerRadius: 10,
       displayColors: false, titleFont: { weight: '650' }, caretSize: 0,
     });
   }
+
+  // Farbwelt gewechselt → Farben neu lesen und alle Diagramme frisch zeichnen
+  window.addEventListener('spotlfy:theme', () => {
+    if (!window.Chart) return;
+    readThemeColors();
+    setupChartDefaults();
+    Object.keys(charts).forEach((k) => { charts[k].destroy(); delete charts[k]; });
+    if (state.panel) renderPanel(state.panel);
+    renderThemeSettings();
+  });
 
   const baseScales = (extra = {}) => ({
     x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 16 } },
@@ -236,6 +263,7 @@
     state.account = s.account;
     state.spotify = s.spotify;
     state.status = s;
+    if (T && s.account.theme && s.account.theme !== T.mode()) T.setMode(s.account.theme);
     const sp = s.spotify;
     $('#auth-banner').hidden = !sp?.auth_expired;
     $('#user-line').textContent = sp?.display_name && sp.display_name !== s.account.username
@@ -256,8 +284,62 @@
     return s;
   }
 
+  // ================================================================ Darstellung (Hell/Dunkel/System/Jahreszeit)
+  const T = window.SpotlfyTheme;
+  const longDate = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long' });
+  const shortDate = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  function seasonText() {
+    const date = T.effectiveDate();
+    const key = T.seasonOf(date);
+    const info = T.SEASONS[key];
+    const next = T.SEASONS[info.next];
+    const end = T.seasonEnd(key, date);
+    end.setDate(end.getDate() + 1);
+    return `<b>${info.name} ${info.icon}</b> – ab ${longDate.format(end)} wechselt die Farbwelt zu ${next.name} ${next.icon}`;
+  }
+
+  function renderThemeSettings() {
+    if (!T) return;
+    const mode = T.mode();
+    $$('#theme-picker [data-theme-mode]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeMode === mode)));
+    const override = T.seasonDate();
+    const testNote = override ? ` · <span class="tag tag-warn">Test-Datum ${esc(shortDate.format(new Date(`${override}T12:00:00`)))}</span>` : '';
+    const hints = {
+      system: `Folgt der Einstellung deines Geräts – gerade <b>${T.resolve('system') === 'light' ? 'hell' : 'dunkel'}</b>.`,
+      light: 'Helle Farbwelt.',
+      dark: 'Dunkle Farbwelt.',
+      season: `Passend zur Jahreszeit: ${seasonText()}${testNote}`,
+    };
+    $('#theme-hint').innerHTML = hints[mode] || '';
+    const input = $('#season-date');
+    if (input) {
+      if (document.activeElement !== input) input.value = override || '';
+      $('#season-status').innerHTML = `${override ? 'Test-Datum aktiv' : 'Es gilt das heutige Datum'} · Jahreszeiten-Modus zeigt: ${seasonText()}`
+        + (mode !== 'season' ? ' · <b>Hinweis:</b> Dein Modus ist gerade nicht „Jahreszeit“.' : '');
+    }
+  }
+
+  async function chooseTheme(mode, { save = true } = {}) {
+    T.setMode(mode);
+    if (save) {
+      try {
+        await api('/api/me/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: mode }) });
+      } catch (err) {
+        toast(`Darstellung nicht gespeichert: ${err.message}`, true);
+      }
+    }
+  }
+
+  async function previewSeason(iso) {
+    T.setSeasonDate(iso);
+    if (T.mode() !== 'season') await chooseTheme('season');
+    renderThemeSettings();
+  }
+
   // ================================================================ Profil
   function renderProfile(s) {
+    renderThemeSettings();
     const sp = s.spotify;
     const acc = s.account;
     const av = $('#profile-avatar');
@@ -344,7 +426,7 @@
       if (state.ranking) renderRanking(); else loadRanking();
       return;
     }
-    if (panel === 'admin') return loadAdmin();
+    if (panel === 'admin') { renderThemeSettings(); return loadAdmin(); }
     if (panel === 'profile') { if (state.status) renderProfile(state.status); return; }
     if (panel === 'history') { if (history.days.length) renderHistory(); else loadHistory(true); return; }
     if (!d) return;
@@ -401,7 +483,7 @@
     const pts = vals.map((v, i) => [(i / (vals.length - 1)) * 120, 30 - (v / max) * 26]);
     const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
     svg.innerHTML = `<defs><linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#1ed760" stop-opacity="0.35"/><stop offset="1" stop-color="#1ed760" stop-opacity="0"/></linearGradient></defs>
+        <stop offset="0" stop-color="${COLORS.accent}" stop-opacity="0.35"/><stop offset="1" stop-color="${COLORS.accent}" stop-opacity="0"/></linearGradient></defs>
       <path class="area" d="${line}L120,32L0,32Z"/><path class="line" d="${line}"/>`;
   }
 
@@ -471,7 +553,7 @@
         datasets: [{
           data: values,
           backgroundColor: (ctx) => (ctx.raw === max && max > 0 ? COLORS.accent : ctx.raw >= avg ? accentA(0.7) : accentA(0.38)),
-          hoverBackgroundColor: '#5cf08f',
+          hoverBackgroundColor: COLORS.accentHover,
           borderRadius: { topLeft: 4, topRight: 4 },
           borderSkipped: 'bottom',
           barPercentage: 0.86,
@@ -589,7 +671,7 @@
     });
     el.innerHTML = html;
     $$('.heat-cell', el).forEach((c) => {
-      c.style.background = `rgba(30,215,96,${c.dataset.a})`;
+      c.style.background = accentA(c.dataset.a);
       c.style.transitionDelay = reduceMotion ? '0ms' : `${(Number(c.dataset.h) + Number(c.dataset.d) * 2) * 10}ms`;
     });
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('is-ready')));
@@ -623,7 +705,7 @@
         datasets: [{
           data: values,
           backgroundColor: values.map((v) => (v === max ? COLORS.accent : accentA(0.2 + 0.6 * (v / max)))),
-          hoverBackgroundColor: '#5cf08f',
+          hoverBackgroundColor: COLORS.accentHover,
           borderRadius: { topLeft: 4, topRight: 4 },
           borderSkipped: 'bottom',
           barPercentage: 0.82,
@@ -844,11 +926,11 @@
           borderWidth: 2,
           tension: 0.35,
           fill: true,
-          backgroundColor: (ctx) => (ctx.chart.chartArea ? verticalGradient(ctx.chart.ctx, ctx.chart.chartArea, '30,215,96') : 'transparent'),
+          backgroundColor: (ctx) => (ctx.chart.chartArea ? verticalGradient(ctx.chart.ctx, ctx.chart.chartArea, COLORS.accentRgb) : 'transparent'),
           segment: { borderDash: (ctx) => (ctx.p1DataIndex === rows.length - 1 && isCurrentMonth(rows.at(-1)?.month) ? [5, 5] : undefined) },
           pointRadius: (ctx) => (rows[ctx.dataIndex] === best ? 5 : rows.length > 36 ? 0 : 3),
           pointHoverRadius: 6,
-          pointBackgroundColor: (ctx) => (rows[ctx.dataIndex] === best ? '#ffffff' : COLORS.accent),
+          pointBackgroundColor: (ctx) => (rows[ctx.dataIndex] === best ? COLORS.text : COLORS.accent),
           pointBorderColor: COLORS.surface,
           pointBorderWidth: 2,
         }],
@@ -938,7 +1020,7 @@
           legend: {
             display: series.length > 1,
             position: 'bottom',
-            labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14, color: '#b4bcb6' },
+            labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14, color: COLORS.text2 },
           },
           tooltip: {
             displayColors: true,
@@ -1303,12 +1385,24 @@
         return;
       }
       const go = e.target.closest('[data-goto]');
-      if (go) { showPanel(go.dataset.goto); return; }
+      if (go) {
+        e.preventDefault();
+        showPanel(go.dataset.goto);
+        window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+        return;
+      }
+      const th = e.target.closest('[data-theme-mode]');
+      if (th) { chooseTheme(th.dataset.themeMode); return; }
+      const sq = e.target.closest('[data-season-date]');
+      if (sq) { previewSeason(`${new Date().getFullYear()}-${sq.dataset.seasonDate}`); return; }
       const b = e.target.closest('[data-action]');
       if (b) ({ password: changePassword, disconnect: disconnectSpotify, delete: deleteAccount })[b.dataset.action]?.();
     });
     $('#admin-refresh').addEventListener('click', loadAdmin);
     $('#history-more').addEventListener('click', () => loadHistory(false));
+    $('#season-date').addEventListener('change', (e) => { if (e.target.value) previewSeason(e.target.value); });
+    $('#season-reset').addEventListener('click', () => { T.setSeasonDate(null); renderThemeSettings(); });
+    renderThemeSettings();
     $('#admin-users').addEventListener('click', adminAction);
     $('#admin-search').addEventListener('input', renderAdminUsers);
     const justConnected = handleQueryFlags();

@@ -105,7 +105,7 @@ export async function recordLogin(accountId, userAgent) {
 /** Konto inkl. verbundenem Spotify-Profil. */
 export async function getAccount(id) {
   const { rows } = await query(
-    `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at,
+    `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at, a.theme,
             u.display_name, u.email, u.avatar_url, u.country, u.product, u.auth_error
        FROM accounts a LEFT JOIN users u ON u.id = a.spotify_user_id
       WHERE a.id = $1`,
@@ -127,6 +127,13 @@ export async function changePassword(accountId, currentPassword, newPassword) {
   if (!(await verifyPassword(currentPassword, rows[0].password_hash))) throw new UserError('Das aktuelle Passwort stimmt nicht.');
   validateCredentials(rows[0].username, newPassword);
   await query('UPDATE accounts SET password_hash = $2, updated_at = now() WHERE id = $1', [accountId, await hashPassword(newPassword)]);
+}
+
+export const THEMES = ['system', 'dark', 'light', 'season'];
+
+export async function setTheme(accountId, theme) {
+  if (!THEMES.includes(theme)) throw new UserError('Unbekannte Darstellung.');
+  await query('UPDATE accounts SET theme = $2, updated_at = now() WHERE id = $1', [accountId, theme]);
 }
 
 // ---------------------------------------------------------------- Spotify verbinden

@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0c0b" />
   <meta name="color-scheme" content="dark" />
   <meta name="robots" content="noindex, nofollow" />
@@ -15,22 +15,23 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/assets/styles.css?v=20261112h" />
+  <script src="/assets/theme.js?v=20261112i"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261112i" />
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261112h" defer></script>
+  <script src="/app.js?v=20261112i" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
   <div class="aurora" aria-hidden="true"></div>
 
   <header class="topbar">
-    <div class="brand">
+    <a class="brand" href="/" data-goto="overview" aria-label="Zur Übersicht">
       <img src="/assets/icon.svg" alt="" width="34" height="34" class="brand-logo" />
       <div>
         <strong>Spotlfy</strong>
         <span id="user-line" class="muted small"></span>
       </div>
-    </div>
+    </a>
     <div class="topbar-actions">
       <button id="profile-btn" class="profile-btn" type="button" title="Profil" aria-label="Profil öffnen">
         <img id="avatar" alt="" hidden referrerpolicy="no-referrer" />
@@ -251,6 +252,17 @@
       </div>
 
       <section class="card">
+        <header class="card-head"><div><h2>Einstellungen</h2><p class="muted small">Darstellung der App – gilt auf allen deinen Geräten</p></div></header>
+        <div class="theme-picker" id="theme-picker" role="radiogroup" aria-label="Darstellung">
+          <button type="button" role="radio" data-theme-mode="system"><span class="tp-swatch tp-system"></span>System</button>
+          <button type="button" role="radio" data-theme-mode="light"><span class="tp-swatch tp-light"></span>Hell</button>
+          <button type="button" role="radio" data-theme-mode="dark"><span class="tp-swatch tp-dark"></span>Dunkel</button>
+          <button type="button" role="radio" data-theme-mode="season"><span class="tp-swatch tp-season"></span>Jahreszeit</button>
+        </div>
+        <p class="muted small theme-hint" id="theme-hint"></p>
+      </section>
+
+      <section class="card">
         <header class="card-head"><div><h2>Konto</h2><p class="muted small">Dein Spotlfy-Konto</p></div></header>
         <dl class="sys-list" id="profile-account"></dl>
         <div class="profile-actions">
@@ -273,6 +285,23 @@
         <article class="card kpi"><span class="kpi-label">Logins</span><strong class="kpi-value" data-admin="logins">–</strong><span class="kpi-sub">insgesamt</span></article>
         <article class="card kpi"><span class="kpi-label">Plays</span><strong class="kpi-value" data-admin="plays">–</strong><span class="kpi-sub">aller Nutzer</span></article>
       </section>
+      <section class="card">
+        <header class="card-head">
+          <div><h2>Farbschemas testen</h2><p class="muted small">Datum vorgeben, um den Jahreszeiten-Modus zu prüfen (nur in diesem Browser)</p></div>
+        </header>
+        <div class="season-tester">
+          <label class="season-date"><span class="muted small">Datum</span><input type="date" id="season-date" /></label>
+          <div class="season-quick" id="season-quick">
+            <button type="button" class="btn btn-ghost btn-xs" data-season-date="04-20">🌸 Frühling</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-season-date="07-20">☀️ Sommer</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-season-date="10-20">🍂 Herbst</button>
+            <button type="button" class="btn btn-ghost btn-xs" data-season-date="01-15">❄️ Winter</button>
+          </div>
+          <button type="button" class="btn btn-ghost btn-xs" id="season-reset">Heutiges Datum verwenden</button>
+        </div>
+        <p class="muted small theme-hint" id="season-status"></p>
+      </section>
+
       <section class="card">
         <header class="card-head">
           <div><h2>Konten</h2><p class="muted small">Alle registrierten Spotlfy-Konten und ihr verbundenes Spotify</p></div>
