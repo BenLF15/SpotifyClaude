@@ -46,7 +46,9 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+/* overflow-x: clip statt hidden – "hidden" macht auf iOS den Body zum eigenen Scroll-Container,
+   was mit der ein-/ausfahrenden Chrome-Leiste kollidiert (Hochscrollen hakt, Inhalte abgeschnitten). */
+html { -webkit-text-size-adjust: 100%; background: var(--bg); overflow-x: clip; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -57,7 +59,7 @@ body {
   font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 img { display: block; max-width: 100%; }
 h1, h2, h3 { margin: 0; letter-spacing: -0.02em; }
@@ -144,11 +146,8 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 6px; font-
 .topbar-actions form { margin: 0; }
 .avatar-sm { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--surface-3); flex: none; }
 
-/* Sticky, aber mit festem Hintergrund (kein Blur – vermeidet Scroll-/Touch-Probleme auf Mobilgeräten) */
-.subnav {
-  position: sticky; top: var(--safe-top); z-index: 30;
-  background: var(--bg); border-bottom: 1px solid var(--border);
-}
+/* Bewusst NICHT sticky: fixierte Leisten kollidieren auf iPad/iPhone mit der Chrome-Toolbar. */
+.subnav { position: relative; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--border); }
 .tabs {
   position: relative; display: flex; gap: 4px; max-width: 1240px; margin: 0 auto;
   padding: 0 calc(var(--gutter) + var(--safe-right)) 0 calc(var(--gutter) + var(--safe-left));
@@ -511,4 +510,39 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 6px; font-
   .insight-icon { width: 28px; height: 28px; border-radius: 8px; }
   .insight-icon svg { width: 15px; height: 15px; }
   .insight-value { white-space: normal; font-size: 0.88rem; line-height: 1.3; }
+}
+
+/* ------------------------------------------------------------------ Profil */
+.profile-btn {
+  width: 40px; height: 40px; border-radius: 50%; padding: 0; cursor: pointer; overflow: hidden;
+  display: grid; place-items: center; border: 2px solid var(--border-strong);
+  background: linear-gradient(135deg, var(--accent), #0c8f6b); color: #04140a; font: inherit; font-weight: 800; font-size: 0.95rem;
+  transition: transform 0.2s var(--ease), border-color 0.2s, box-shadow 0.2s;
+}
+.profile-btn:hover { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.profile-btn:active { transform: scale(0.95); }
+.profile-btn.is-active { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.profile-btn img { width: 100%; height: 100%; object-fit: cover; }
+.profile-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.profile-head { display: flex; align-items: center; gap: 16px; }
+.profile-avatar {
+  width: 72px; height: 72px; border-radius: 50%; overflow: hidden; flex: none; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--accent), #0c8f6b); color: #04140a; font-weight: 800; font-size: 1.6rem;
+  box-shadow: 0 0 0 3px var(--surface-2), 0 0 0 5px var(--accent-soft);
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-who { min-width: 0; }
+.profile-who h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.profile-who p { margin-top: 4px; overflow-wrap: anywhere; }
+.profile-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.profile-actions form { margin: 0; }
+.sys-list dd code { font-size: 0.78rem; user-select: all; overflow-wrap: anywhere; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.status-dot.ok { background: var(--accent); }
+.status-dot.bad { background: var(--down); }
+@media (max-width: 559px) {
+  .profile-actions .btn { flex: 1 1 100%; }
+  .profile-actions form { flex: 1 1 100%; }
+  .profile-actions form .btn { width: 100%; }
 }

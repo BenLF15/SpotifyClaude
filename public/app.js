@@ -16,7 +16,7 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* egal */ } },
   };
 
-  const PANELS = ['overview', 'top', 'times', 'genres', 'trends', 'history', 'admin'];
+  const PANELS = ['overview', 'top', 'times', 'genres', 'trends', 'history', 'admin', 'profile'];
   const RANGE_PANELS = new Set(['overview', 'top', 'times', 'genres']);
 
   const state = {
@@ -31,6 +31,7 @@
     ranking: null,
     account: null,
     spotify: null,
+    status: null,
   };
 
   async function api(path, opts = {}) {
@@ -229,27 +230,80 @@
     const s = await api('/api/status');
     state.account = s.account;
     state.spotify = s.spotify;
+    state.status = s;
     const sp = s.spotify;
     $('#auth-banner').hidden = !sp?.auth_expired;
     $('#user-line').textContent = sp?.display_name && sp.display_name !== s.account.username
       ? `${s.account.username} · ${sp.display_name}` : s.account.username;
+    // Profil-Button oben rechts: Spotify-Bild oder Initiale
     const avatar = $('#avatar');
-    if (sp?.avatar_url) { avatar.src = sp.avatar_url; avatar.hidden = false; } else avatar.hidden = true;
+    const initialsEl = $('#avatar-initials');
+    if (sp?.avatar_url) {
+      avatar.src = sp.avatar_url;
+      avatar.hidden = false;
+      initialsEl.textContent = '';
+    } else {
+      avatar.hidden = true;
+      initialsEl.textContent = (s.account.username[0] || '?').toUpperCase();
+    }
     $('#admin-tab').hidden = !s.account.is_admin;
-    $('#sync-btn').hidden = !sp;
-    $('#import-btn').hidden = !sp;
-    $('#my-id').innerHTML = sp ? `Angemeldet als <strong>${esc(s.account.username)}</strong> · Spotify-ID <code>${esc(sp.id)}</code>` : '';
-    if (!sp) return s;
-    const job = s.jobs.recently_played;
-    $('#last-sync').textContent = job ? `${job.ok ? 'Sync' : 'Sync fehlgeschlagen'} ${relTime(job.finished_at)}` : '';
-    const pending = s.counts.tracks_pending || 0;
-    $('#footer').textContent = [
-      `${fmt(s.counts.plays)} Plays gespeichert`,
-      s.counts.imported ? `${fmt(s.counts.imported)} davon importiert` : null,
-      s.snapshots.days ? `${fmt(s.snapshots.days)} Ranking-Snapshots` : null,
-      pending ? `${fmt(pending)} ${pending === 1 ? 'Song wartet' : 'Songs warten'} auf Cover` : null,
-    ].filter(Boolean).join(' · ');
+    renderProfile(s);
     return s;
+  }
+
+  // ================================================================ Profil
+  function renderProfile(s) {
+    const sp = s.spotify;
+    const acc = s.account;
+    const av = $('#profile-avatar');
+    av.innerHTML = sp?.avatar_url
+      ? `<img src="${esc(sp.avatar_url)}" alt="" referrerpolicy="no-referrer" />`
+      : esc((acc.username[0] || '?').toUpperCase());
+    $('#profile-name').innerHTML = `${esc(acc.username)}${acc.is_admin ? ' <span class="tag tag-admin">Admin</span>' : ''}`;
+    $('#profile-sub').textContent = [sp?.display_name, sp?.email].filter(Boolean).join(' · ') || 'Spotify noch nicht verbunden';
+
+    const row = (k, v) => `<dt>${esc(k)}</dt><dd>${v}</dd>`;
+    const spRows = sp
+      ? [
+          row('Status', sp.auth_expired
+            ? '<span class="status-dot bad"></span>Verbindung abgelaufen'
+            : '<span class="status-dot ok"></span>Verbunden'),
+          row('Spotify-Name', esc(sp.display_name || '–')),
+          row('E-Mail', esc(sp.email || '–')),
+          row('Spotify-ID', `<code>${esc(sp.id)}</code>`),
+          sp.product ? row('Abo', esc(sp.product)) : '',
+          sp.country ? row('Land', esc(sp.country)) : '',
+        ]
+      : [row('Status', '<span class="status-dot bad"></span>Nicht verbunden')];
+    $('#profile-spotify').innerHTML = spRows.join('');
+    $('#profile-spotify-actions').innerHTML = sp
+      ? `${sp.auth_expired ? '<a class="btn btn-primary" href="/auth/login">Neu verbinden</a>' : ''}
+         <button class="btn btn-ghost" data-action="disconnect" type="button">Spotify trennen</button>`
+      : '<a class="btn btn-primary" href="/auth/login">Mit Spotify verbinden</a>';
+
+    if (sp && s.counts) {
+      const job = s.jobs?.recently_played;
+      const pending = s.counts.tracks_pending || 0;
+      $('#profile-data').innerHTML = [
+        row('Gespeicherte Plays', fmt(s.counts.plays)),
+        row('Davon importiert', fmt(s.counts.imported)),
+        row('Ranking-Snapshots', fmt(s.snapshots?.days)),
+        row('Letzter Sync', job
+          ? `<span class="status-dot ${job.ok ? 'ok' : 'bad'}"></span>${job.ok ? '' : 'fehlgeschlagen · '}${esc(relTime(job.finished_at))}`
+          : '–'),
+        row('Automatischer Sync', 'alle 30 Minuten'),
+        pending ? row('Warten auf Cover', `${fmt(pending)} ${pending === 1 ? 'Song' : 'Songs'}`) : '',
+      ].join('');
+    } else {
+      $('#profile-data').innerHTML = row('Daten', 'Verbinde Spotify, um deine Hörhistorie zu speichern.');
+    }
+    $('#profile-data-actions').hidden = !sp;
+
+    $('#profile-account').innerHTML = [
+      row('Benutzername', esc(acc.username)),
+      row('Rolle', acc.is_admin ? 'Admin' : 'Nutzer'),
+      acc.created_at ? row('Mitglied seit', esc(dateFmtYear.format(new Date(acc.created_at)))) : '',
+    ].join('');
   }
 
   // ================================================================ Daten laden
@@ -286,6 +340,7 @@
       return;
     }
     if (panel === 'admin') return loadAdmin();
+    if (panel === 'profile') { if (state.status) renderProfile(state.status); return; }
     if (!d) return;
     if (panel === 'overview') {
       renderKpis(d.overview, d.timeline.daily);
@@ -880,9 +935,13 @@
     const connected = Boolean(state.spotify);
     if (state.panel === 'admin' && state.account && !state.account.is_admin) state.panel = 'overview';
     const isAdmin = state.panel === 'admin' && Boolean(state.account?.is_admin);
+    const isProfile = state.panel === 'profile';
+    const special = isAdmin || isProfile;
     $('#view-admin').hidden = !isAdmin;
-    $('#view-connect').hidden = isAdmin || connected;
-    $('#view-stats').hidden = isAdmin || !connected;
+    $('#view-profile').hidden = !isProfile;
+    $('#profile-btn').classList.toggle('is-active', isProfile);
+    $('#view-connect').hidden = special || connected;
+    $('#view-stats').hidden = special || !connected;
     $$('#view-stats .panel').forEach((p) => { p.hidden = p.dataset.panel !== state.panel; });
     $('#range-bar').hidden = !RANGE_PANELS.has(state.panel);
     $('#panel-tabs').place?.(true);
@@ -897,7 +956,7 @@
     store.set('panel', panel);
     applyView();
     if (changed) window.scrollTo({ top: 0, behavior: 'auto' });
-    if (state.spotify || panel === 'admin') renderPanel(state.panel);
+    if (state.spotify || panel === 'admin' || panel === 'profile') renderPanel(state.panel);
   }
 
   async function refreshAll() {
@@ -1128,6 +1187,7 @@
     segmented($('#rank-kind'), 'kind', state.rankKind, (v) => { state.rankKind = v; store.set('rankKind', v); loadRanking(); });
     segmented($('#rank-range'), 'range', state.rankRange, (v) => { state.rankRange = v; store.set('rankRange', v); loadRanking(); });
     $('#sync-btn').addEventListener('click', runSync);
+    $('#profile-btn').addEventListener('click', () => showPanel(state.panel === 'profile' ? 'overview' : 'profile'));
     bindHeatTooltip();
     bindImport();
     document.addEventListener('click', (e) => {

@@ -15,9 +15,9 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
-  <link rel="stylesheet" href="/assets/styles.css?v=20261112d" />
+  <link rel="stylesheet" href="/assets/styles.css?v=20261112e" />
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261112d" defer></script>
+  <script src="/app.js?v=20261112e" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
@@ -32,18 +32,10 @@
       </div>
     </div>
     <div class="topbar-actions">
-      <button id="sync-btn" class="btn btn-ghost icon-btn" type="button" title="Jetzt synchronisieren" aria-label="Jetzt synchronisieren" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9M18 3v4.5h-4.5M6 21v-4.5h4.5" /></svg>
+      <button id="profile-btn" class="profile-btn" type="button" title="Profil" aria-label="Profil öffnen">
+        <img id="avatar" alt="" hidden referrerpolicy="no-referrer" />
+        <span id="avatar-initials" aria-hidden="true"></span>
       </button>
-      <button id="import-btn" class="btn btn-ghost icon-btn" type="button" title="Streaming-History importieren" aria-label="Streaming-History importieren" hidden>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
-      </button>
-      <img id="avatar" class="avatar-sm" alt="" hidden referrerpolicy="no-referrer" />
-      <form method="post" action="/logout">
-        <button class="btn btn-ghost icon-btn" type="submit" title="Abmelden" aria-label="Abmelden">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10" /></svg>
-        </button>
-      </form>
     </div>
   </header>
 
@@ -78,12 +70,6 @@
         <a class="btn btn-primary" href="/auth/login">Mit Spotify verbinden</a>
         <p class="hint">Im Testbetrieb erlaubt Spotify nur freigeschaltete Konten. Klappt es nicht, bitte den Betreiber, dein Spotify-Konto freizuschalten.</p>
       </section>
-      <footer class="footer muted small">
-        <div class="footer-actions">
-          <button class="btn btn-ghost" data-action="password" type="button">Passwort ändern</button>
-          <button class="btn btn-ghost btn-danger" data-action="delete" type="button">Konto löschen</button>
-        </div>
-      </footer>
     </div>
 
     <div class="view" id="view-stats" hidden>
@@ -96,7 +82,6 @@
           <button role="tab" data-range="365d">1 J</button>
           <button role="tab" data-range="all">Alles</button>
         </div>
-        <span id="last-sync" class="muted small"></span>
       </div>
 
       <!-- ================================================= Übersicht -->
@@ -231,16 +216,55 @@
         </section>
       </section>
 
-      <footer class="footer muted small">
-        <div id="footer"></div>
-        <div id="my-id" class="my-id"></div>
-        <div class="footer-actions">
+    </div><!-- /view-stats -->
+
+    <!-- ================================================= Profil -->
+    <div class="view" id="view-profile" hidden>
+      <section class="card profile-head">
+        <div class="profile-avatar" id="profile-avatar"></div>
+        <div class="profile-who">
+          <h2 id="profile-name"></h2>
+          <p class="muted small" id="profile-sub"></p>
+        </div>
+      </section>
+
+      <div class="grid-2">
+        <section class="card">
+          <header class="card-head"><div><h2>Spotify</h2><p class="muted small">Verbundenes Spotify-Konto</p></div></header>
+          <dl class="sys-list" id="profile-spotify"></dl>
+          <div class="profile-actions" id="profile-spotify-actions"></div>
+        </section>
+        <section class="card">
+          <header class="card-head"><div><h2>Daten &amp; Synchronisierung</h2><p class="muted small">Deine gespeicherte Hörhistorie</p></div></header>
+          <dl class="sys-list" id="profile-data"></dl>
+          <div class="profile-actions" id="profile-data-actions">
+            <button id="sync-btn" class="btn btn-ghost" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9M18 3v4.5h-4.5M6 21v-4.5h4.5" /></svg>
+              Jetzt synchronisieren
+            </button>
+            <button id="import-btn" class="btn btn-ghost" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
+              Streaming-History importieren
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <section class="card">
+        <header class="card-head"><div><h2>Konto</h2><p class="muted small">Dein Spotlfy-Konto</p></div></header>
+        <dl class="sys-list" id="profile-account"></dl>
+        <div class="profile-actions">
           <button class="btn btn-ghost" data-action="password" type="button">Passwort ändern</button>
-          <button class="btn btn-ghost" data-action="disconnect" type="button">Spotify trennen</button>
+          <form method="post" action="/logout">
+            <button class="btn btn-ghost" type="submit">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10" /></svg>
+              Abmelden
+            </button>
+          </form>
           <button class="btn btn-ghost btn-danger" data-action="delete" type="button">Konto &amp; Daten löschen</button>
         </div>
-      </footer>
-    </div><!-- /view-stats -->
+      </section>
+    </div>
 
     <div class="view" id="view-admin" hidden>
       <section class="admin-stats" id="admin-stats">

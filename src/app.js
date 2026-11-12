@@ -265,13 +265,15 @@ api.get(
   wrap(async (req, res) => {
     const a = req.account;
     const base = {
-      account: { id: a.id, username: a.username, is_admin: a.is_admin },
+      account: { id: a.id, username: a.username, is_admin: a.is_admin, created_at: a.created_at },
       spotify: a.spotify_user_id
         ? {
             id: a.spotify_user_id,
             display_name: a.display_name,
             email: a.email,
             avatar_url: a.avatar_url,
+            country: a.country,
+            product: a.product,
             auth_expired: Boolean(a.auth_error),
           }
         : null,
