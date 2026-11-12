@@ -39,6 +39,12 @@ export const config = {
   },
   // Spotify-User-IDs mit Admin-Rechten (Komma-getrennt). Ohne Angabe wird der erste Nutzer Admin.
   adminIds: env('ADMIN_SPOTIFY_IDS', '').split(',').map((s) => s.trim()).filter(Boolean),
+  // Spotify-Anzeigenamen, die beim Login automatisch Admin werden (Komma-getrennt, Groß-/Kleinschreibung egal).
+  // Standard: "Nebs". Mit ADMIN_SPOTIFY_NAMES="" abschaltbar.
+  adminNames: (process.env.ADMIN_SPOTIFY_NAMES ?? 'Nebs')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
   sessionSecret: env('SESSION_SECRET') || derivedSecret(),
   sessionDays: int('SESSION_DAYS', 30),
   timezone: env('TIMEZONE', 'Europe/Berlin'),

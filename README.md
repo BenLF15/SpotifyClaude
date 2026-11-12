@@ -30,7 +30,7 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
 - **System**: Datenbankgröße, Katalog (Songs und Künstler, fehlende Cover und Genres), Sync-Läufe und Fehler der letzten 24 h, Zeitplan, Zeitzone.
 - **Sync-Fehler**: die letzten fehlgeschlagenen Läufe mit Fehlermeldung.
 
-**Admin werden**: Admin wird der erste Nutzer, der sich anmeldet (bzw. der nächste, solange es keinen Admin gibt), oder wer in `ADMIN_SPOTIFY_IDS` steht. Diese Variable wirkt sofort, ohne neuen Login. Deine Spotify-ID steht unten im Dashboard unter „Deine Spotify-ID“.
+**Admin werden**: Das Spotify-Konto mit dem Anzeigenamen **Nebs** wird beim Login automatisch Admin (`ADMIN_SPOTIFY_NAMES`). Außerdem wird Admin der erste Nutzer, der sich anmeldet (bzw. der nächste, solange es keinen Admin gibt), oder wer in `ADMIN_SPOTIFY_IDS` steht. Diese Variable wirkt sofort, ohne neuen Login. Deine Spotify-ID steht unten im Dashboard unter „Deine Spotify-ID“.
 
 ---
 
@@ -171,6 +171,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | `SPOTIFY_CLIENT_ID` | ✔ | Spotify-App |
 | `SPOTIFY_CLIENT_SECRET` | ✔ | Spotify-App |
 | `ADMIN_SPOTIFY_IDS` | – | Spotify-User-IDs mit Admin-Rechten, Komma-getrennt (Standard: der erste Nutzer) |
+| `ADMIN_SPOTIFY_NAMES` | – | Spotify-Anzeigenamen, die beim Login automatisch Admin werden (Standard `Nebs`; leer setzen zum Abschalten). Anzeigenamen sind nicht eindeutig, sicherer ist `ADMIN_SPOTIFY_IDS`. |
 | `SPOTIFY_REDIRECT_URI` | – | Standard: `${RENDER_EXTERNAL_URL}/auth/callback`; bei eigener Domain setzen |
 | `TIMEZONE` | – | Zeitzone für Tage, Heatmap und Snapshots (Standard `Europe/Berlin`) |
 | `SESSION_SECRET` | – | Cookie-Schlüssel; Standard: abgeleitet aus dem Client-Secret |

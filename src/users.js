@@ -12,7 +12,9 @@ export async function upsertUserFromLogin({ profile, tokens }, { userAgent } = {
     const isFirstUser = countRows[0].n === 0;
     // Gibt es (noch) keinen Admin, wird der nächste Nutzer, der sich anmeldet, Admin.
     const noAdminYet = countRows[0].admins === 0;
-    const isConfiguredAdmin = config.adminIds.includes(profile.id);
+    const isConfiguredAdmin =
+      config.adminIds.includes(profile.id) ||
+      config.adminNames.includes(String(profile.display_name || '').trim().toLowerCase());
 
     const { rows } = await db.query(
       `INSERT INTO users (id, display_name, email, avatar_url, country, product,
