@@ -24,6 +24,7 @@
     rankRange: store.get('rankRange', 'short_term'),
     dashboard: null,
     trends: null,
+    user: null,
   };
 
   async function api(path, opts = {}) {
@@ -180,19 +181,26 @@
   // ---------------------------------------------------------------- Status
   async function loadStatus() {
     const s = await api('/api/status');
-    $('#connect-banner').hidden = s.connected;
-    if (!s.connected) $('#connect-banner').classList.add('is-visible');
-    $('#user-line').textContent = s.user ? s.user.display_name || s.user.user_id : 'nicht verbunden';
+    state.user = s.user;
+    $('#auth-banner').hidden = !s.user?.auth_expired;
+    $('#user-line').textContent = s.user ? s.user.display_name || s.user.id : '';
+    if (s.user?.avatar_url) {
+      const img = $('#brand-img');
+      img.src = s.user.avatar_url;
+      img.referrerPolicy = 'no-referrer';
+      img.classList.add('avatar-sm');
+    }
+    $('#view-tabs').hidden = !s.user?.is_admin;
     const job = s.jobs.recently_played;
     $('#last-sync').textContent = job
       ? `${job.ok ? 'Zuletzt synchronisiert' : 'Sync fehlgeschlagen'} ${relTime(job.finished_at)}`
       : '';
-    const pending = (s.counts.tracks_pending || 0) + (s.counts.artists_pending || 0);
+    const pending = s.counts.tracks_pending || 0;
     $('#footer').textContent = [
       `${fmt(s.counts.plays)} Plays gespeichert`,
       s.counts.imported ? `${fmt(s.counts.imported)} davon importiert` : null,
       s.snapshots.days ? `${fmt(s.snapshots.days)} Ranking-Snapshots` : null,
-      pending ? `${fmt(pending)} Einträge warten auf Cover/Genres` : null,
+      pending ? `${fmt(pending)} Songs warten auf Cover` : null,
     ].filter(Boolean).join(' · ');
     return s;
   }
@@ -556,7 +564,7 @@
       toast(n ? `${n} neue Plays gespeichert` : 'Alles aktuell – keine neuen Plays');
       await refreshAll();
     } catch (err) {
-      toast(err.status === 409 ? 'Bitte zuerst Spotify verbinden.' : `Sync fehlgeschlagen: ${err.message}`, true);
+      toast(err.status === 409 ? 'Spotify-Verbindung abgelaufen – bitte neu anmelden.' : `Sync fehlgeschlagen: ${err.message}`, true);
     } finally {
       btn.classList.remove('is-busy');
     }
@@ -607,10 +615,86 @@
 
   function handleQueryFlags() {
     const q = new URLSearchParams(location.search);
-    if (q.has('connected')) toast('Spotify verbunden – erste Daten werden geladen …');
-    if (q.has('spotify_error')) toast(`Spotify-Verbindung fehlgeschlagen: ${q.get('spotify_error')}`, true);
-    if (q.has('connected') || q.has('spotify_error')) history.replaceState(null, '', '/');
-    return q.has('connected');
+    if (q.has('welcome')) toast('Willkommen! Deine ersten Daten werden geladen …');
+    if (q.has('welcome')) history.replaceState(null, '', '/');
+    return q.has('welcome');
+  }
+
+  // ---------------------------------------------------------------- Admin: Nutzer & Logins
+  const dateTimeFmt = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const fmtDT = (d) => (d ? dateTimeFmt.format(new Date(d)) : '–');
+
+  function shortAgent(ua) {
+    if (!ua) return '';
+    const os = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Mac OS/.test(ua) ? 'macOS' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : '';
+    const br = /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
+    return [br, os].filter(Boolean).join(' · ');
+  }
+
+  function userAvatar(u) {
+    return u.avatar_url
+      ? `<img class="avatar-sm" src="${esc(u.avatar_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`
+      : `<div class="placeholder" aria-hidden="true">${initials(u.display_name || u.id)}</div>`;
+  }
+
+  async function loadAdmin() {
+    try {
+      const d = await api('/api/admin/users');
+      const weekAgo = Date.now() - 7 * 864e5;
+      countUp($('[data-admin="users"]'), d.users.length);
+      countUp($('[data-admin="active"]'), d.users.filter((u) => u.last_seen_at && new Date(u.last_seen_at) > weekAgo).length);
+      countUp($('[data-admin="logins"]'), d.users.reduce((a, u) => a + (u.login_count || 0), 0));
+      countUp($('[data-admin="plays"]'), d.users.reduce((a, u) => a + (u.plays || 0), 0));
+
+      $('#admin-users').innerHTML = d.users.length
+        ? d.users.map((u) => `
+          <li class="user-row">
+            ${userAvatar(u)}
+            <div class="t-main">
+              <div class="user-name">${esc(u.display_name || u.id)}
+                ${u.is_admin ? '<span class="tag tag-admin">Admin</span>' : ''}
+                ${u.auth_expired ? '<span class="tag tag-warn">Verbindung abgelaufen</span>' : ''}
+                ${u.product ? `<span class="tag tag-muted">${esc(u.product)}</span>` : ''}
+              </div>
+              <div class="user-mail">${u.email ? `<a href="mailto:${esc(u.email)}">${esc(u.email)}</a>` : '<span class="muted">keine E-Mail freigegeben</span>'}</div>
+              <div class="user-meta">Spotify-ID ${esc(u.id)}${u.country ? ` · ${esc(u.country)}` : ''} · registriert ${fmtDT(u.created_at)}</div>
+            </div>
+            <div class="user-side">
+              ${fmt(u.plays)} Plays<small>${fmt(u.minutes)} Min.</small>
+              <small>Login ${relTime(u.last_login_at) || '–'} · ${fmt(u.login_count)}×</small>
+            </div>
+          </li>`).join('')
+        : '<li class="empty">Noch keine Nutzer.</li>';
+
+      $('#admin-logins').innerHTML = d.logins.length
+        ? d.logins.map((l) => `
+          <li>
+            ${userAvatar({ ...l, id: l.user_id })}
+            <div class="who">${esc(l.display_name || l.user_id)} <span>${esc(l.email || '')}${l.user_agent ? ` · ${esc(shortAgent(l.user_agent))}` : ''}</span></div>
+            <time datetime="${esc(l.at)}">${fmtDT(l.at)}</time>
+          </li>`).join('')
+        : '<li class="empty">Noch keine Logins.</li>';
+    } catch (err) {
+      if (err.message !== 'unauthorized') toast(`Nutzerliste: ${err.message}`, true);
+    }
+  }
+
+  function showView(view) {
+    $('#view-stats').hidden = view !== 'stats';
+    $('#view-admin').hidden = view !== 'admin';
+    if (view === 'admin') loadAdmin();
+    else Object.values(charts).forEach((c) => c.resize());
+  }
+
+  async function deleteAccount() {
+    const ok = confirm('Dein Konto und alle gespeicherten Hördaten werden endgültig gelöscht. Fortfahren?');
+    if (!ok) return;
+    try {
+      await api('/api/me', { method: 'DELETE' });
+      location.href = '/login';
+    } catch (err) {
+      toast(`Löschen fehlgeschlagen: ${err.message}`, true);
+    }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -623,8 +707,12 @@
     $('#sync-btn').addEventListener('click', runSync);
     bindHeatTooltip();
     bindImport();
+    $('#delete-account').addEventListener('click', deleteAccount);
+    $('#admin-refresh').addEventListener('click', loadAdmin);
     const justConnected = handleQueryFlags();
-    refreshAll();
+    refreshAll().then(() => {
+      if (state.user?.is_admin) segmented($('#view-control'), 'view', 'stats', showView);
+    });
     // Nach dem Verbinden läuft der erste Sync im Hintergrund – kurz danach neu laden.
     if (justConnected) setTimeout(refreshAll, 6000);
     // Alle 5 Minuten im Hintergrund auffrischen, wenn der Tab sichtbar ist.

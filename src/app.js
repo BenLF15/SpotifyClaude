@@ -7,8 +7,9 @@ import { config } from './config.js';
 import { migrate } from './db.js';
 import { importHistory } from './importer.js';
 import { authorizeUrl, exchangeCode } from './spotify.js';
+import * as users from './users.js';
 import * as stats from './stats.js';
-import { startScheduler, triggerSync } from './scheduler.js';
+import { startScheduler, syncAllDue, triggerSync } from './scheduler.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
@@ -58,40 +59,45 @@ function setCookie(res, name, value, maxAgeSec) {
   res.append('Set-Cookie', parts.join('; '));
 }
 
-function isAuthed(req) {
+// Session-Cookie: "<userId>.<ablauf>.<hmac>" – signiert, HttpOnly, SameSite=Lax.
+function sessionUserId(req) {
   const token = parseCookies(req)[COOKIE];
-  if (!token) return false;
-  const [exp, sig] = token.split('.');
-  if (!exp || !sig || Number(exp) < Date.now()) return false;
-  const expected = sign(`session:${exp}`);
-  return sig.length === expected.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [uid64, exp, sig] = parts;
+  if (Number(exp) < Date.now()) return null;
+  const expected = sign(`session:${uid64}:${exp}`);
+  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  return Buffer.from(uid64, 'base64url').toString('utf8');
 }
 
-function requireAuth(req, res, next) {
-  if (isAuthed(req)) return next();
-  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'unauthorized' });
-  return res.redirect('/login');
+function startSession(res, userId) {
+  const exp = Date.now() + config.sessionDays * 864e5;
+  const uid64 = Buffer.from(userId, 'utf8').toString('base64url');
+  setCookie(res, COOKIE, `${uid64}.${exp}.${sign(`session:${uid64}:${exp}`)}`, config.sessionDays * 86400);
 }
 
-const passwordMatches = (input) => {
-  const a = crypto.createHash('sha256').update(String(input ?? '')).digest();
-  const b = crypto.createHash('sha256').update(config.appPassword).digest();
-  return crypto.timingSafeEqual(a, b);
-};
-
-// Einfache Brute-Force-Bremse: max. 10 Fehlversuche pro IP in 15 Minuten.
-const attempts = new Map();
-function tooManyAttempts(ip) {
-  const now = Date.now();
-  const rec = attempts.get(ip);
-  if (!rec || now - rec.since > 15 * 60_000) return false;
-  return rec.count >= 10;
+async function requireAuth(req, res, next) {
+  try {
+    const id = sessionUserId(req);
+    const user = id ? await users.getUser(id) : null;
+    if (user) {
+      req.user = user;
+      users.touchUser(user.id);
+      return next();
+    }
+    if (id) setCookie(res, COOKIE, '', 0); // Konto gelöscht → Session beenden
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'unauthorized' });
+    return res.redirect('/login');
+  } catch (err) {
+    next(err);
+  }
 }
-function recordFailure(ip) {
-  const now = Date.now();
-  const rec = attempts.get(ip);
-  if (!rec || now - rec.since > 15 * 60_000) attempts.set(ip, { since: now, count: 1 });
-  else rec.count++;
+
+function requireAdmin(req, res, next) {
+  if (req.user?.is_admin) return next();
+  return res.status(403).json({ error: 'Nur für Admins.' });
 }
 
 // ---------------------------------------------------------------- Öffentliche Routen
@@ -113,28 +119,42 @@ app.get('/cron/run', async (req, res) => {
     crypto.timingSafeEqual(Buffer.from(key), Buffer.from(config.cronSecret));
   if (!ok) return res.status(404).end();
   try {
-    res.json(await triggerSync());
+    res.json(await syncAllDue());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.get('/login', (req, res) => {
-  if (isAuthed(req)) return res.redirect('/');
+  if (sessionUserId(req)) return res.redirect('/');
+  res.set('Cache-Control', 'no-store');
   res.sendFile(path.join(publicDir, 'login.html'));
 });
 
-app.post('/login', express.urlencoded({ extended: false, limit: '10kb' }), (req, res) => {
-  const ip = req.ip;
-  if (tooManyAttempts(ip)) return res.redirect('/login?error=locked');
-  if (!passwordMatches(req.body?.password)) {
-    recordFailure(ip);
-    return res.redirect('/login?error=1');
+// Anmeldung = Spotify-Login (Authorization Code Flow)
+app.get('/auth/login', (_req, res) => {
+  const state = crypto.randomBytes(16).toString('hex');
+  setCookie(res, 'sd_oauth_state', state, 600);
+  res.redirect(authorizeUrl(state));
+});
+
+app.get('/auth/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  const expected = parseCookies(req).sd_oauth_state;
+  setCookie(res, 'sd_oauth_state', '', 0);
+  if (error) return res.redirect(`/login?error=${encodeURIComponent(error)}`);
+  if (!code || !state || state !== expected) return res.redirect('/login?error=state_mismatch');
+  try {
+    const result = await exchangeCode(String(code));
+    const user = await users.upsertUserFromLogin(result, { userAgent: req.get('user-agent') });
+    startSession(res, user.id);
+    // Erster Sync im Hintergrund (inkl. Top-Snapshot), damit das Dashboard sofort Daten hat.
+    triggerSync(user.id, { forceSnapshot: true }).catch((err) => console.error('[sync]', user.id, err.message));
+    res.redirect(user.created ? '/?welcome=1' : '/');
+  } catch (err) {
+    console.error('[oauth]', err.message);
+    res.redirect(`/login?error=${encodeURIComponent(err.spotifyError || 'token_exchange_failed')}`);
   }
-  attempts.delete(ip);
-  const exp = Date.now() + config.sessionDays * 864e5;
-  setCookie(res, COOKIE, `${exp}.${sign(`session:${exp}`)}`, config.sessionDays * 86400);
-  res.redirect('/');
 });
 
 app.post('/logout', (_req, res) => {
@@ -152,79 +172,82 @@ app.get('/', (_req, res) => {
 });
 app.use(express.static(publicDir, { index: false, maxAge: '1h' }));
 
-// Spotify OAuth – nur für eingeloggte Nutzer, damit niemand Fremdes sein Konto verknüpft.
-app.get('/auth/login', (_req, res) => {
-  const state = crypto.randomBytes(16).toString('hex');
-  setCookie(res, 'sd_oauth_state', state, 600);
-  res.redirect(authorizeUrl(state));
-});
-
-app.get('/auth/callback', async (req, res) => {
-  const { code, state, error } = req.query;
-  const expected = parseCookies(req).sd_oauth_state;
-  setCookie(res, 'sd_oauth_state', '', 0);
-  if (error) return res.redirect(`/?spotify_error=${encodeURIComponent(error)}`);
-  if (!code || !state || state !== expected) return res.redirect('/?spotify_error=state_mismatch');
-  try {
-    await exchangeCode(String(code));
-    triggerSync({ forceSnapshot: true }).catch(() => {});
-    res.redirect('/?connected=1');
-  } catch (err) {
-    console.error('[oauth]', err.message);
-    res.redirect(`/?spotify_error=${encodeURIComponent(err.spotifyError || 'token_exchange_failed')}`);
-  }
-});
-
 const api = express.Router();
 const wrap = (fn) => (req, res) =>
   fn(req, res).catch((err) => {
     console.error('[api]', req.path, err);
-    res.status(err.code === 'NOT_CONNECTED' ? 409 : 500).json({ error: err.message });
+    res.status(err.code === 'AUTH_EXPIRED' ? 409 : 500).json({ error: err.message, code: err.code });
   });
 const rangeDays = (req) => stats.RANGE_DAYS[req.query.range] ?? 30;
 
-api.get('/status', wrap(async (_req, res) => res.json(await stats.status())));
+api.get(
+  '/status',
+  wrap(async (req, res) => res.json(await stats.status(req.user.id))),
+);
 
 api.get(
   '/dashboard',
   wrap(async (req, res) => {
+    const uid = req.user.id;
     const days = rangeDays(req);
     const [overview, timeline, topArtists, topTracks, heatmap, genres, recent] = await Promise.all([
-      stats.overview(days),
-      stats.timeline(days),
-      stats.topArtists(days),
-      stats.topTracks(days),
-      stats.heatmap(days),
-      stats.genres(days),
-      stats.recentPlays(12),
+      stats.overview(uid, days),
+      stats.timeline(uid, days),
+      stats.topArtists(uid, days),
+      stats.topTracks(uid, days),
+      stats.heatmap(uid, days),
+      stats.genres(uid, days),
+      stats.recentPlays(uid, 12),
     ]);
     res.json({ range: req.query.range || '30d', overview, timeline, topArtists, topTracks, heatmap, genres, recent });
   }),
 );
 
-api.get('/trends', wrap(async (_req, res) => res.json({ monthly: await stats.monthly() })));
+api.get(
+  '/trends',
+  wrap(async (req, res) => res.json({ monthly: await stats.monthly(req.user.id) })),
+);
 
 api.get(
   '/spotify-top',
   wrap(async (req, res) => {
     const kind = req.query.kind === 'tracks' ? 'tracks' : 'artists';
     const range = ['short_term', 'medium_term', 'long_term'].includes(req.query.range) ? req.query.range : 'short_term';
-    res.json(await stats.spotifyTop(kind, range));
+    res.json(await stats.spotifyTop(req.user.id, kind, range));
   }),
 );
 
 api.post(
   '/sync',
-  wrap(async (_req, res) => res.json(await triggerSync({ forceSnapshot: false }))),
+  wrap(async (req, res) => res.json(await triggerSync(req.user.id))),
 );
 
 api.post(
   '/import',
   express.json({ limit: '80mb' }),
   wrap(async (req, res) => {
-    if (!Array.isArray(req.body)) return res.status(400).json({ error: 'Erwartet wird der Inhalt einer Streaming_History_Audio_*.json (JSON-Array).' });
-    res.json(await importHistory(req.body));
+    if (!Array.isArray(req.body)) {
+      return res.status(400).json({ error: 'Erwartet wird der Inhalt einer Streaming_History_Audio_*.json (JSON-Array).' });
+    }
+    res.json(await importHistory(req.user.id, req.body));
   }),
+);
+
+// Eigenes Konto inkl. aller Hördaten löschen
+api.delete(
+  '/me',
+  wrap(async (req, res) => {
+    await users.deleteUser(req.user.id);
+    setCookie(res, COOKIE, '', 0);
+    res.json({ ok: true });
+  }),
+);
+
+// Admin: Nutzer & Logins
+api.get(
+  '/admin/users',
+  requireAdmin,
+  wrap(async (_req, res) => res.json(await users.adminOverview())),
 );
 
 app.use('/api', api);

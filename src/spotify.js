@@ -1,14 +1,14 @@
-// Spotify Web API: OAuth (Authorization Code Flow), Token-Refresh, API-Aufrufe mit Retry.
+// Spotify Web API: OAuth (Authorization Code Flow), Token-Refresh pro Nutzer, API-Aufrufe mit Retry.
 import { config, requireEnv } from './config.js';
 import { query } from './db.js';
 
 const ACCOUNTS = 'https://accounts.spotify.com';
 const API = 'https://api.spotify.com/v1';
 
-export class SpotifyNotConnectedError extends Error {
-  constructor() {
-    super('Spotify ist noch nicht verbunden. Bitte im Dashboard „Mit Spotify verbinden“ klicken.');
-    this.code = 'NOT_CONNECTED';
+export class SpotifyAuthError extends Error {
+  constructor(message) {
+    super(message || 'Die Spotify-Verbindung ist abgelaufen. Bitte melde dich neu an.');
+    this.code = 'AUTH_EXPIRED';
   }
 }
 
@@ -47,59 +47,73 @@ async function tokenRequest(body) {
   return data;
 }
 
-/** Tauscht den OAuth-Code gegen Tokens und speichert sie inkl. Profil. */
+/**
+ * Tauscht den OAuth-Code gegen Tokens und lädt das Profil (/me).
+ * Gibt { tokens, profile } zurück – das Speichern übernimmt users.js.
+ */
 export async function exchangeCode(code) {
   const t = await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: config.spotify.redirectUri });
-  const expiresAt = new Date(Date.now() + (t.expires_in - 60) * 1000);
   const meRes = await fetch(`${API}/me`, { headers: { Authorization: `Bearer ${t.access_token}` } });
-  const me = meRes.ok ? await meRes.json() : {};
-  await query(
-    `INSERT INTO spotify_auth (id, access_token, refresh_token, expires_at, scope, user_id, display_name, avatar_url, updated_at)
-     VALUES (1, $1, $2, $3, $4, $5, $6, $7, now())
-     ON CONFLICT (id) DO UPDATE SET access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token,
-       expires_at = EXCLUDED.expires_at, scope = EXCLUDED.scope, user_id = EXCLUDED.user_id,
-       display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url, updated_at = now()`,
-    [t.access_token, t.refresh_token, expiresAt, t.scope, me.id || null, me.display_name || me.id || null, me.images?.[0]?.url || null],
-  );
-  return me;
+  if (!meRes.ok) {
+    const err = new Error(`Spotify-Profil konnte nicht geladen werden (${meRes.status})`);
+    err.status = meRes.status;
+    // 403 im Development Mode: Nutzer ist nicht im "User Management" der Spotify-App eingetragen.
+    err.spotifyError = meRes.status === 403 ? 'user_not_registered' : 'profile_failed';
+    throw err;
+  }
+  const profile = await meRes.json();
+  return {
+    tokens: {
+      accessToken: t.access_token,
+      refreshToken: t.refresh_token,
+      expiresAt: new Date(Date.now() + (t.expires_in - 60) * 1000),
+      scope: t.scope,
+    },
+    profile,
+  };
 }
 
-export async function getAuthRow() {
-  const { rows } = await query('SELECT * FROM spotify_auth WHERE id = 1');
-  return rows[0] || null;
-}
+const refreshing = new Map();
 
-let refreshing = null;
-
-/** Liefert ein gültiges Access-Token; erneuert es automatisch über das gespeicherte Refresh-Token. */
-export async function getAccessToken({ force = false } = {}) {
-  const row = await getAuthRow();
-  if (!row) throw new SpotifyNotConnectedError();
+/** Liefert ein gültiges Access-Token des Nutzers; erneuert es automatisch über das Refresh-Token. */
+export async function getAccessToken(userId, { force = false } = {}) {
+  const { rows } = await query('SELECT access_token, refresh_token, expires_at, auth_error FROM users WHERE id = $1', [userId]);
+  const row = rows[0];
+  if (!row) throw new SpotifyAuthError('Unbekannter Nutzer.');
+  if (row.auth_error) throw new SpotifyAuthError();
   if (!force && row.access_token && row.expires_at && new Date(row.expires_at) > new Date()) {
     return row.access_token;
   }
-  if (!refreshing) {
-    refreshing = (async () => {
-      const t = await tokenRequest({ grant_type: 'refresh_token', refresh_token: row.refresh_token });
-      const expiresAt = new Date(Date.now() + (t.expires_in - 60) * 1000);
-      // Spotify liefert manchmal ein neues Refresh-Token (Rotation) – dann ersetzen.
-      await query(
-        `UPDATE spotify_auth SET access_token = $1, refresh_token = COALESCE($2, refresh_token),
-           expires_at = $3, scope = COALESCE($4, scope), updated_at = now() WHERE id = 1`,
-        [t.access_token, t.refresh_token || null, expiresAt, t.scope || null],
-      );
-      return t.access_token;
-    })().finally(() => {
-      refreshing = null;
-    });
+  if (!refreshing.has(userId)) {
+    const p = (async () => {
+      try {
+        const t = await tokenRequest({ grant_type: 'refresh_token', refresh_token: row.refresh_token });
+        const expiresAt = new Date(Date.now() + (t.expires_in - 60) * 1000);
+        // Spotify rotiert Refresh-Tokens gelegentlich – dann ersetzen.
+        await query(
+          `UPDATE users SET access_token = $2, refresh_token = COALESCE($3, refresh_token),
+             expires_at = $4, scope = COALESCE($5, scope), updated_at = now() WHERE id = $1`,
+          [userId, t.access_token, t.refresh_token || null, expiresAt, t.scope || null],
+        );
+        return t.access_token;
+      } catch (err) {
+        if (err.spotifyError === 'invalid_grant') {
+          // Zugriff widerrufen oder Token abgelaufen → bis zum nächsten Login nicht mehr versuchen.
+          await query('UPDATE users SET auth_error = $2, updated_at = now() WHERE id = $1', [userId, err.message]);
+          throw new SpotifyAuthError();
+        }
+        throw err;
+      }
+    })().finally(() => refreshing.delete(userId));
+    refreshing.set(userId, p);
   }
-  return refreshing;
+  return refreshing.get(userId);
 }
 
-/** GET gegen die Web API – mit Token-Refresh bei 401 und Backoff bei 429/5xx. */
-export async function spotifyGet(pathOrUrl, { retries = 4 } = {}) {
+/** GET gegen die Web API im Namen eines Nutzers – mit Token-Refresh bei 401 und Backoff bei 429/5xx. */
+export async function spotifyGet(userId, pathOrUrl, { retries = 4 } = {}) {
   const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API}${pathOrUrl}`;
-  let token = await getAccessToken();
+  let token = await getAccessToken(userId);
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) return res.status === 204 ? null : res.json();
@@ -111,7 +125,7 @@ export async function spotifyGet(pathOrUrl, { retries = 4 } = {}) {
       throw err;
     }
     if (res.status === 401) {
-      token = await getAccessToken({ force: true });
+      token = await getAccessToken(userId, { force: true });
     } else if (res.status === 429) {
       const wait = Math.min(Number.parseInt(res.headers.get('retry-after') || '5', 10), 120);
       console.warn(`[spotify] Rate-Limit – warte ${wait}s`);

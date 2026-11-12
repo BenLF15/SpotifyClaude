@@ -1,41 +1,66 @@
 // Interner Zeitplan: ersetzt einen separaten Cron Job.
-// - Alle 30 Min. (SYNC_INTERVAL_MINUTES) Recently Played speichern, 1× täglich Top-Snapshot,
-//   Cover/Genres nachladen (runCron).
+// - Für jeden Nutzer alle 30 Min. (SYNC_INTERVAL_MINUTES): Recently Played speichern,
+//   1× täglich Top-Snapshot, Cover/Genres nachladen (runCron).
 // - Der Zeitpunkt des letzten Laufs steht in der DB → nach Neustart/Aufwachen wird sofort nachgeholt.
 // - Optionales Keep-Alive, damit ein Render-Free-Service nicht einschläft.
 import { config } from './config.js';
 import { query } from './db.js';
 import { runCron } from './sync.js';
 
-let running = null;
+const running = new Map();
 
-/** Startet einen Sync-Lauf; läuft schon einer, wird dessen Ergebnis zurückgegeben. */
-export function triggerSync(opts = {}) {
-  if (!running) {
-    running = runCron(opts).finally(() => {
-      running = null;
-    });
+/** Startet einen Sync-Lauf für einen Nutzer; läuft schon einer, wird dessen Ergebnis zurückgegeben. */
+export function triggerSync(userId, opts = {}) {
+  if (!running.has(userId)) {
+    running.set(
+      userId,
+      runCron(userId, opts).finally(() => running.delete(userId)),
+    );
   }
-  return running;
+  return running.get(userId);
 }
 
-async function minutesSinceLastSync() {
+/** Nutzer, deren letzter Sync älter als das Intervall ist (oder die noch nie synchronisiert wurden). */
+async function dueUsers() {
   const { rows } = await query(
-    `SELECT extract(epoch FROM now() - max(started_at)) / 60 AS minutes
-       FROM sync_log WHERE job = 'recently_played'`,
+    `SELECT u.id FROM users u
+       LEFT JOIN LATERAL (
+         SELECT max(started_at) AS last FROM sync_log WHERE user_id = u.id AND job = 'recently_played'
+       ) s ON true
+      WHERE u.auth_error IS NULL
+        AND (s.last IS NULL OR s.last < now() - make_interval(secs => $1::int * 60 - 30))
+      ORDER BY s.last NULLS FIRST`,
+    [config.syncIntervalMinutes],
   );
-  return rows[0]?.minutes ?? Infinity;
+  return rows.map((r) => r.id);
 }
 
+/** Synchronisiert alle fälligen Nutzer nacheinander (schont das Spotify-Rate-Limit). */
+export async function syncAllDue() {
+  const results = {};
+  for (const userId of await dueUsers()) {
+    try {
+      results[userId] = await triggerSync(userId);
+    } catch (err) {
+      results[userId] = { error: err.message };
+      console.error(`[scheduler] Sync für ${userId} fehlgeschlagen:`, err.message);
+    }
+  }
+  return results;
+}
+
+let ticking = false;
 async function tick() {
+  if (ticking) return;
+  ticking = true;
   try {
-    const { rows } = await query('SELECT 1 FROM spotify_auth WHERE id = 1');
-    if (!rows.length) return; // noch nicht mit Spotify verbunden
-    if ((await minutesSinceLastSync()) < config.syncIntervalMinutes - 0.5) return;
-    const result = await triggerSync();
-    console.log(`[scheduler] ${new Date().toISOString()} Sync OK`, JSON.stringify(result));
+    const results = await syncAllDue();
+    const n = Object.keys(results).length;
+    if (n) console.log(`[scheduler] ${new Date().toISOString()} ${n} Nutzer synchronisiert`);
   } catch (err) {
-    console.error('[scheduler] Sync fehlgeschlagen:', err.message);
+    console.error('[scheduler] Fehler:', err.message);
+  } finally {
+    ticking = false;
   }
 }
 

@@ -33,7 +33,8 @@ services:
         sync: false
       - key: SPOTIFY_CLIENT_SECRET
         sync: false
-      - key: APP_PASSWORD
+      # Optional: Spotify-User-IDs mit Admin-Rechten (sonst wird der erste Nutzer Admin)
+      - key: ADMIN_SPOTIFY_IDS
         sync: false
       - key: TIMEZONE
         value: Europe/Berlin

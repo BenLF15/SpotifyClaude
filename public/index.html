@@ -16,7 +16,7 @@
 
   <header class="topbar">
     <div class="brand">
-      <img src="/assets/icon.svg" alt="" width="32" height="32" />
+      <img src="/assets/icon.svg" alt="" width="32" height="32" id="brand-img" />
       <div>
         <strong>Spotlfy</strong>
         <span id="user-line" class="muted small"></span>
@@ -40,15 +40,23 @@
   </header>
 
   <main class="container">
-    <section id="connect-banner" class="banner reveal" hidden>
+    <section id="auth-banner" class="banner" hidden>
       <div>
-        <h2>Verbinde dein Spotify-Konto</h2>
-        <p class="muted">Danach werden deine Plays alle 30 Minuten automatisch gespeichert.</p>
+        <h2>Spotify-Verbindung abgelaufen</h2>
+        <p class="muted">Melde dich neu mit Spotify an, damit deine Plays wieder gespeichert werden.</p>
       </div>
-      <a class="btn btn-primary" href="/auth/login">Mit Spotify verbinden</a>
+      <a class="btn btn-primary" href="/auth/login">Neu anmelden</a>
     </section>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+    <nav class="view-tabs" id="view-tabs" aria-label="Bereich" hidden>
+      <div class="segmented" id="view-control" role="tablist">
+        <button role="tab" data-view="stats">Meine Statistik</button>
+        <button role="tab" data-view="admin">Nutzer</button>
+      </div>
+    </nav>
+
+    <div class="view" id="view-stats">
     <nav class="range-bar" aria-label="Zeitraum">
       <div class="segmented" id="range-control" role="tablist">
         <button role="tab" data-range="7d">7 Tage</button>
@@ -151,7 +159,33 @@
       <ul class="recent-list" id="recent"></ul>
     </section>
 
-    <footer class="footer muted small" id="footer"></footer>
+    <footer class="footer muted small">
+      <div id="footer"></div>
+      <div class="footer-actions">
+        <button class="btn btn-ghost btn-danger" id="delete-account" type="button">Konto &amp; Daten löschen</button>
+      </div>
+    </footer>
+    </div><!-- /view-stats -->
+
+    <div class="view" id="view-admin" hidden>
+      <section class="admin-stats" id="admin-stats">
+        <article class="card kpi"><span class="kpi-label">Nutzer</span><strong class="kpi-value" data-admin="users">–</strong><span class="kpi-sub">registriert</span></article>
+        <article class="card kpi"><span class="kpi-label">Aktiv</span><strong class="kpi-value" data-admin="active">–</strong><span class="kpi-sub">in den letzten 7 Tagen</span></article>
+        <article class="card kpi"><span class="kpi-label">Logins</span><strong class="kpi-value" data-admin="logins">–</strong><span class="kpi-sub">insgesamt</span></article>
+        <article class="card kpi"><span class="kpi-label">Plays</span><strong class="kpi-value" data-admin="plays">–</strong><span class="kpi-sub">aller Nutzer</span></article>
+      </section>
+      <section class="card">
+        <header class="card-head">
+          <div><h2>Nutzer</h2><p class="muted small">Alle Konten, die sich mit Spotify angemeldet haben</p></div>
+          <button class="btn btn-ghost" id="admin-refresh" type="button">Aktualisieren</button>
+        </header>
+        <ul class="user-list" id="admin-users"></ul>
+      </section>
+      <section class="card">
+        <header class="card-head"><div><h2>Letzte Logins</h2><p class="muted small">Die 50 neuesten Anmeldungen</p></div></header>
+        <ul class="login-log" id="admin-logins"></ul>
+      </section>
+    </div>
   </main>
 
   <dialog id="import-dialog" class="dialog">

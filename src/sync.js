@@ -70,23 +70,24 @@ export async function upsertTracks(db, tracks) {
  * innerhalb von ±90 s schon gespeichert ist – so überschneiden sich API-Daten und
  * History-Import nicht (die Zeitstempel beider Quellen weichen leicht ab).
  */
-export async function insertPlays(db, plays, source) {
+export async function insertPlays(db, userId, plays, source) {
   if (!plays.length) return 0;
   const { rowCount } = await db.query(
-    `INSERT INTO plays (played_at, track_id, ms_played, source, context_uri)
-     SELECT v.played_at, v.track_id, v.ms_played, $5, v.context_uri
+    `INSERT INTO plays (user_id, played_at, track_id, ms_played, source, context_uri)
+     SELECT $6, v.played_at, v.track_id, v.ms_played, $5, v.context_uri
        FROM unnest($1::timestamptz[], $2::text[], $3::int[], $4::text[]) AS v(played_at, track_id, ms_played, context_uri)
       WHERE NOT EXISTS (
         SELECT 1 FROM plays p
-         WHERE p.track_id = v.track_id
+         WHERE p.user_id = $6 AND p.track_id = v.track_id
            AND p.played_at BETWEEN v.played_at - interval '90 seconds' AND v.played_at + interval '90 seconds')
-     ON CONFLICT (track_id, played_at) DO NOTHING`,
+     ON CONFLICT (user_id, track_id, played_at) DO NOTHING`,
     [
       plays.map((p) => p.playedAt),
       plays.map((p) => p.trackId),
       plays.map((p) => p.msPlayed),
       plays.map((p) => p.contextUri || null),
       source,
+      userId,
     ],
   );
   return rowCount;
@@ -94,8 +95,8 @@ export async function insertPlays(db, plays, source) {
 
 // ---------------------------------------------------------------- Jobs
 
-async function logJob(job, fn) {
-  const { rows } = await query('INSERT INTO sync_log (job) VALUES ($1) RETURNING id', [job]);
+async function logJob(userId, job, fn) {
+  const { rows } = await query('INSERT INTO sync_log (user_id, job) VALUES ($1, $2) RETURNING id', [userId, job]);
   try {
     const result = await fn();
     await query('UPDATE sync_log SET finished_at = now(), ok = true, message = $2 WHERE id = $1', [
@@ -113,15 +114,16 @@ async function logJob(job, fn) {
 }
 
 /** Holt die letzten 50 gehörten Tracks und speichert neue Plays. */
-export function syncRecentlyPlayed() {
-  return logJob('recently_played', async () => {
-    const data = await spotifyGet('/me/player/recently-played?limit=50');
+export function syncRecentlyPlayed(userId) {
+  return logJob(userId, 'recently_played', async () => {
+    const data = await spotifyGet(userId, '/me/player/recently-played?limit=50');
     const items = (data?.items || []).filter((i) => i.track?.id && i.played_at);
     if (!items.length) return { fetched: 0, inserted: 0 };
     const inserted = await withTransaction(async (db) => {
       await upsertTracks(db, items.map((i) => i.track));
       return insertPlays(
         db,
+        userId,
         items.map((i) => ({
           playedAt: i.played_at,
           trackId: i.track.id,
@@ -136,31 +138,34 @@ export function syncRecentlyPlayed() {
   });
 }
 
-export async function hasSnapshot(date = todayLocal()) {
-  const { rows } = await query('SELECT 1 FROM top_snapshots WHERE snapshot_date = $1 LIMIT 1', [date]);
+export async function hasSnapshot(userId, date = todayLocal()) {
+  const { rows } = await query('SELECT 1 FROM top_snapshots WHERE user_id = $1 AND snapshot_date = $2 LIMIT 1', [
+    userId,
+    date,
+  ]);
   return rows.length > 0;
 }
 
 /** Speichert Top-Artists und -Tracks (short/medium/long term) als Snapshot des heutigen Tages. */
-export function takeTopSnapshot(date = todayLocal()) {
-  return logJob('top_snapshot', async () => {
+export function takeTopSnapshot(userId, date = todayLocal()) {
+  return logJob(userId, 'top_snapshot', async () => {
     const results = {};
     for (const kind of ['artists', 'tracks']) {
       for (const range of RANGES) {
-        const data = await spotifyGet(`/me/top/${kind}?time_range=${range}&limit=50`);
+        const data = await spotifyGet(userId, `/me/top/${kind}?time_range=${range}&limit=50`);
         results[`${kind}:${range}`] = data?.items || [];
       }
     }
     await withTransaction(async (db) => {
-      await db.query('DELETE FROM top_snapshots WHERE snapshot_date = $1', [date]);
+      await db.query('DELETE FROM top_snapshots WHERE user_id = $1 AND snapshot_date = $2', [userId, date]);
       for (const [key, items] of Object.entries(results)) {
         const [kind, range] = key.split(':');
         if (kind === 'artists') await upsertArtists(db, items);
         else await upsertTracks(db, items);
         if (!items.length) continue;
         await db.query(
-          `INSERT INTO top_snapshots (snapshot_date, kind, time_range, rank, item_id, name, subtitle, image_url)
-           SELECT $1, $2, $3, v.rank, v.id, v.name, v.subtitle, v.image
+          `INSERT INTO top_snapshots (user_id, snapshot_date, kind, time_range, rank, item_id, name, subtitle, image_url)
+           SELECT $9, $1, $2, $3, v.rank, v.id, v.name, v.subtitle, v.image
              FROM unnest($4::int[], $5::text[], $6::text[], $7::text[], $8::text[]) AS v(rank, id, name, subtitle, image)`,
           [
             date,
@@ -173,6 +178,7 @@ export function takeTopSnapshot(date = todayLocal()) {
               kind === 'tracks' ? (it.artists || []).map((a) => a.name).join(', ') : (it.genres || []).slice(0, 3).join(', ') || null,
             ),
             items.map((it) => bestImage(kind === 'tracks' ? it.album?.images : it.images)),
+            userId,
           ],
         );
       }
@@ -186,8 +192,8 @@ export function takeTopSnapshot(date = todayLocal()) {
  * (Bild, Genres) schrittweise an. Seit Feb. 2026 gibt es im Development Mode
  * keine Batch-Endpunkte mehr, daher Einzelabrufe mit Limit pro Lauf.
  */
-export function enrichMetadata({ limit = config.enrichLimit } = {}) {
-  return logJob('enrich', async () => {
+export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
+  return logJob(userId, 'enrich', async () => {
     let tracks = 0;
     let artists = 0;
     const { rows: trackRows } = await query(
@@ -199,7 +205,7 @@ export function enrichMetadata({ limit = config.enrichLimit } = {}) {
     );
     for (const { id } of trackRows) {
       try {
-        const t = await spotifyGet(`/tracks/${id}`);
+        const t = await spotifyGet(userId, `/tracks/${id}`);
         await upsertTracks({ query }, [t]);
         tracks++;
       } catch (err) {
@@ -218,7 +224,7 @@ export function enrichMetadata({ limit = config.enrichLimit } = {}) {
     );
     for (const { id } of artistRows) {
       try {
-        const a = await spotifyGet(`/artists/${id}`);
+        const a = await spotifyGet(userId, `/artists/${id}`);
         await query(
           `UPDATE artists SET name = $2, image_url = COALESCE($3, image_url),
              genres = CASE WHEN cardinality($4::text[]) > 0 THEN $4::text[] ELSE genres END,
@@ -237,15 +243,15 @@ export function enrichMetadata({ limit = config.enrichLimit } = {}) {
   });
 }
 
-/** Ein kompletter Cron-Lauf. */
-export async function runCron({ forceSnapshot = false } = {}) {
+/** Ein kompletter Sync-Lauf für einen Nutzer. */
+export async function runCron(userId, { forceSnapshot = false } = {}) {
   const summary = {};
-  summary.recent = await syncRecentlyPlayed();
-  if (forceSnapshot || !(await hasSnapshot())) {
-    summary.snapshot = await takeTopSnapshot();
+  summary.recent = await syncRecentlyPlayed(userId);
+  if (forceSnapshot || !(await hasSnapshot(userId))) {
+    summary.snapshot = await takeTopSnapshot(userId);
   }
   try {
-    summary.enrich = await enrichMetadata();
+    summary.enrich = await enrichMetadata(userId);
   } catch (err) {
     // Anreicherung ist "nice to have" – sie darf den Lauf nicht scheitern lassen.
     summary.enrichError = err.message;

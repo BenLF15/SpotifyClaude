@@ -11,16 +11,20 @@
 </head>
 <body class="login-body">
   <div class="aurora" aria-hidden="true"></div>
-  <main class="login-card reveal is-visible">
+  <main class="login-card">
     <img src="/assets/icon.svg" alt="" class="login-logo" width="56" height="56" />
     <h1>Spotlfy</h1>
-    <p class="muted">Dein persönliches Musik-Dashboard</p>
-    <form method="post" action="/login" class="login-form">
-      <label for="password" class="sr-only">Passwort</label>
-      <input id="password" name="password" type="password" placeholder="Passwort" autocomplete="current-password" required autofocus />
-      <button type="submit" class="btn btn-primary">Anmelden</button>
-      <p id="error" class="login-error" role="alert" hidden></p>
-    </form>
+    <p class="muted">Deine persönliche Spotify-Statistik: Hörminuten, Top-Künstler, Heatmap und mehr.</p>
+    <a class="btn btn-primary btn-spotify" href="/auth/login">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M7 9.5c3.5-1 7-.7 10 1M7.8 12.7c2.8-.8 5.7-.5 8.2.9M8.6 15.7c2.2-.6 4.4-.4 6.3.7" /></svg>
+      Mit Spotify anmelden
+    </a>
+    <p id="error" class="login-error" role="alert" hidden></p>
+    <p class="login-note">
+      Beim Anmelden werden dein Spotify-Name, deine E-Mail-Adresse und dein Hörverlauf gespeichert,
+      um deine Statistik zu berechnen. Der Betreiber dieser Seite kann Name und E-Mail sehen.
+      Du kannst dein Konto samt aller Daten jederzeit im Dashboard löschen.
+    </p>
   </main>
   <script src="/assets/login.js"></script>
 </body>

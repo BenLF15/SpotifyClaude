@@ -1,13 +1,21 @@
 // Import der Spotify "Extended Streaming History".
 // Nutzung:
-//   DATABASE_URL=... node scripts/import-history.js <Datei.json | Ordner> [weitere …]
+//   DATABASE_URL=... node scripts/import-history.js [--user <spotify-id>] <Datei.json | Ordner> [weitere …]
+// Ohne --user wird in das Konto des ersten Admins importiert.
 // Es werden alle Streaming_History_Audio_*.json (bzw. alle .json) im Ordner gelesen.
 import fs from 'node:fs';
 import path from 'node:path';
-import { migrate, pool } from '../src/db.js';
+import { migrate, pool, query } from '../src/db.js';
 import { importHistory } from '../src/importer.js';
 
-const inputs = process.argv.slice(2);
+const argv = process.argv.slice(2);
+let userId = null;
+const ui = argv.indexOf('--user');
+if (ui !== -1) {
+  userId = argv[ui + 1];
+  argv.splice(ui, 2);
+}
+const inputs = argv;
 if (!inputs.length) {
   console.error('Nutzung: node scripts/import-history.js <Datei.json | Ordner> [...]');
   process.exit(1);
@@ -25,10 +33,16 @@ const files = inputs.flatMap(collect);
 let exitCode = 0;
 try {
   await migrate();
+  if (!userId) {
+    const { rows } = await query('SELECT id FROM users ORDER BY is_admin DESC, created_at LIMIT 1');
+    if (!rows.length) throw new Error('Noch kein Nutzer vorhanden – erst einmal im Dashboard mit Spotify anmelden.');
+    userId = rows[0].id;
+  }
+  console.log(`Importiere für Nutzer: ${userId}`);
   const total = { inserted: 0, duplicates: 0 };
   for (const file of files) {
     const entries = JSON.parse(fs.readFileSync(file, 'utf8'));
-    const r = await importHistory(entries);
+    const r = await importHistory(userId, entries);
     total.inserted += r.inserted;
     total.duplicates += r.duplicates;
     console.log(

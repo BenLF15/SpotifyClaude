@@ -47,7 +47,8 @@ export function parseHistory(entries, { minPlayMs = config.minPlayMs } = {}) {
 }
 
 /** Schreibt geparste History-Daten in die DB (idempotent, ohne Duplikate). */
-export async function importHistory(entries, opts = {}) {
+export async function importHistory(userId, entries, opts = {}) {
+  if (!userId) throw new Error('importHistory: userId fehlt');
   const { tracks, plays, stats } = parseHistory(entries, opts);
   let inserted = 0;
   await withTransaction(async (db) => {
@@ -64,7 +65,7 @@ export async function importHistory(entries, opts = {}) {
     }
     plays.sort((a, b) => a.playedAt.localeCompare(b.playedAt));
     for (let i = 0; i < plays.length; i += CHUNK) {
-      inserted += await insertPlays(db, plays.slice(i, i + CHUNK), 'import');
+      inserted += await insertPlays(db, userId, plays.slice(i, i + CHUNK), 'import');
     }
   });
   return { ...stats, tracks: tracks.length, candidates: plays.length, inserted, duplicates: plays.length - inserted };

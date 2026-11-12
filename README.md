@@ -17,7 +17,9 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
   - Spotify-Ranking mit Verlauf
   - Zuletzt gehört
 - Dunkles, mobilfreundliches Design mit flüssigen Animationen.
-- **Passwortschutz** über ein signiertes Session-Cookie und eine Brute-Force-Bremse.
+- **Mehrere Nutzer**: Jeder meldet sich mit dem eigenen Spotify-Konto an und sieht nur die eigenen Werte.
+- **Admin-Tab „Nutzer“**: Name, E-Mail, Spotify-ID, letzter Login und Anzahl der Plays aller Konten, dazu die letzten Logins.
+- **Konto löschen**: Jeder kann sein Konto samt aller Hördaten selbst löschen.
 - Alle Secrets kommen aus **Umgebungsvariablen**. Fehlt etwas, zeigt die App eine **Setup-Seite**, die genau sagt, was noch zu tun ist.
 
 ---
@@ -73,7 +75,7 @@ Ohne irgendeine Datenbank geht es nicht: Der kostenlose Render-Web-Service hat k
    | `DATABASE_URL` | die *Internal Database URL* aus Schritt 1 |
    | `SPOTIFY_CLIENT_ID` | aus Schritt 2 |
    | `SPOTIFY_CLIENT_SECRET` | aus Schritt 2 |
-   | `APP_PASSWORD` | ein Passwort deiner Wahl fürs Dashboard |
+   | `ADMIN_SPOTIFY_IDS` | *(optional)* deine Spotify-User-ID, damit nur du den Tab „Nutzer“ siehst; ohne Angabe wird der erste Nutzer Admin |
    | `TIMEZONE` | `Europe/Berlin` *(optional, ist Standard)* |
 
 4. Klicke **Deploy Web Service**.
@@ -92,17 +94,29 @@ Den Platzhalter `https://example.com/callback` kannst du entfernen.
 
 ### 5. Loslegen
 
-1. Öffne deine Render-URL und melde dich mit `APP_PASSWORD` an.
-2. Klicke **Mit Spotify verbinden** und bestätige bei Spotify.
+1. Öffne deine Render-URL und klicke **Mit Spotify anmelden**. Der erste Nutzer wird Admin.
+2. Bestätige bei Spotify den Zugriff.
 3. Danach läuft sofort ein erster Sync inklusive Top-Snapshot. Ab dann synchronisiert die App alle 30 Minuten von selbst.
 
 Siehst du statt des Logins eine Seite **„Einrichtung unvollständig“**, steht dort, welche Variable fehlt oder warum die Datenbank nicht erreichbar ist.
 
 ### Alternativ: Blueprint
 
-Statt Schritt 1 und 3 kannst du auch **New → Blueprint** wählen und dieses Repo verbinden. `render.yaml` legt dann Datenbank und Web Service automatisch an. Render fragt nur noch nach Client ID, Client Secret und Passwort.
+Statt Schritt 1 und 3 kannst du auch **New → Blueprint** wählen und dieses Repo verbinden. `render.yaml` legt dann Datenbank und Web Service automatisch an. Render fragt nur noch nach Client ID und Client Secret.
 
 ---
+
+## Andere Nutzer einladen
+
+Jeder kann sich mit dem eigenen Spotify-Konto anmelden und sieht nur die eigenen Statistiken. Spotify erlaubt im **Development Mode** allerdings nur Konten, die du freigeschaltet hast:
+
+1. Öffne <https://developer.spotify.com/dashboard> → deine App → **User Management**.
+2. Trage Name und **Spotify-E-Mail-Adresse** der Person ein und speichere.
+3. Danach kann sich die Person unter deiner Render-URL anmelden.
+
+Ohne Freischaltung zeigt die Login-Seite „Dein Spotify-Konto ist für diese App noch nicht freigeschaltet“. Im Development Mode ist die Zahl der Nutzer stark begrenzt (aktuell 5). Für mehr Nutzer bräuchte die App eine „Extended Quota“, die Spotify nur Unternehmen gewährt.
+
+**Admin-Tab „Nutzer“**: Wer Admin ist, sieht oben „Meine Statistik | Nutzer“. Dort stehen alle Konten mit Name, E-Mail, Spotify-ID, Land, Abo, Registrierung, letztem Login, Anzahl der Logins und Plays sowie die letzten 50 Anmeldungen mit Browser und Gerät. Admin wird der erste Nutzer, der sich anmeldet, oder wer in `ADMIN_SPOTIFY_IDS` steht. Deine Spotify-User-ID findest du in der Nutzerliste oder unter spotify.com → Konto.
 
 ## Damit der Free-Service nicht einschläft
 
@@ -146,10 +160,10 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | `DATABASE_URL` | ✔ | Postgres-Connection-String |
 | `SPOTIFY_CLIENT_ID` | ✔ | Spotify-App |
 | `SPOTIFY_CLIENT_SECRET` | ✔ | Spotify-App |
-| `APP_PASSWORD` | ✔ | Passwort fürs Dashboard |
+| `ADMIN_SPOTIFY_IDS` | – | Spotify-User-IDs mit Admin-Rechten, Komma-getrennt (Standard: der erste Nutzer) |
 | `SPOTIFY_REDIRECT_URI` | – | Standard: `${RENDER_EXTERNAL_URL}/auth/callback`; bei eigener Domain setzen |
 | `TIMEZONE` | – | Zeitzone für Tage, Heatmap und Snapshots (Standard `Europe/Berlin`) |
-| `SESSION_SECRET` | – | Cookie-Schlüssel; Standard: abgeleitet aus Passwort und Client-Secret |
+| `SESSION_SECRET` | – | Cookie-Schlüssel; Standard: abgeleitet aus dem Client-Secret |
 | `SESSION_DAYS` | – | Gültigkeit des Logins in Tagen (Standard 30) |
 | `INTERNAL_SCHEDULER` | – | Interner Zeitplan an/aus (Standard `true`) |
 | `SYNC_INTERVAL_MINUTES` | – | Sync-Intervall (Standard 30) |
@@ -191,5 +205,5 @@ Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an.
 - **Genres**: Seit den API-Änderungen vom Februar 2026 lädt die App Künstler einzeln über `/artists/{id}`. Liefert Spotify keine Genres, fehlt der Künstler in der Genre-Verteilung. Das Dashboard zeigt, für welchen Anteil der Hörzeit Genres bekannt sind.
 - **Snapshots** entstehen beim ersten Sync eines Tages in `TIMEZONE`. Der Rangverlauf wird also nach einigen Tagen interessant.
 - **Sicherheit**:
-  - Alles außer `/login`, `/healthz` und dem optionalen `/cron/run` ist passwortgeschützt.
+  - Alles außer `/login`, `/auth/*`, `/healthz` und dem optionalen `/cron/run` erfordert eine Anmeldung mit Spotify. Jeder Nutzer sieht nur die eigenen Daten, `/api/admin/*` nur Admins.
   - Eine strenge Content-Security-Policy verhindert externe Skripte.

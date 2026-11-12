@@ -18,12 +18,11 @@ const bool = (name, fallback) => {
   return v === undefined ? fallback : !['false', '0', 'no', 'off'].includes(v.toLowerCase());
 };
 
-// Ohne SESSION_SECRET wird ein stabiler Schlüssel aus Passwort + Client-Secret abgeleitet.
-// (Passwort ändern ⇒ alle Sessions werden ungültig – gewollt.)
+// Ohne SESSION_SECRET wird ein stabiler Schlüssel aus dem Client-Secret abgeleitet.
 const derivedSecret = () =>
   crypto
     .createHash('sha256')
-    .update(`session:${env('APP_PASSWORD', '')}:${env('SPOTIFY_CLIENT_SECRET', '')}`)
+    .update(`session:${env('SPOTIFY_CLIENT_SECRET', '')}`)
     .digest('hex');
 
 export const config = {
@@ -36,9 +35,10 @@ export const config = {
       'SPOTIFY_REDIRECT_URI',
       externalUrl ? `${externalUrl}/auth/callback` : `http://127.0.0.1:${int('PORT', 3000)}/auth/callback`,
     ),
-    scopes: ['user-read-recently-played', 'user-top-read', 'user-read-private'],
+    scopes: ['user-read-recently-played', 'user-top-read', 'user-read-private', 'user-read-email'],
   },
-  appPassword: env('APP_PASSWORD'),
+  // Spotify-User-IDs mit Admin-Rechten (Komma-getrennt). Ohne Angabe wird der erste Nutzer Admin.
+  adminIds: env('ADMIN_SPOTIFY_IDS', '').split(',').map((s) => s.trim()).filter(Boolean),
   sessionSecret: env('SESSION_SECRET') || derivedSecret(),
   sessionDays: int('SESSION_DAYS', 30),
   timezone: env('TIMEZONE', 'Europe/Berlin'),
@@ -51,7 +51,7 @@ export const config = {
   isProduction: env('NODE_ENV') === 'production' || Boolean(externalUrl),
 };
 
-export const REQUIRED_ENV = ['DATABASE_URL', 'SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET', 'APP_PASSWORD'];
+export const REQUIRED_ENV = ['DATABASE_URL', 'SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'];
 export const missingEnv = () => REQUIRED_ENV.filter((n) => !env(n));
 
 export function requireEnv(...names) {

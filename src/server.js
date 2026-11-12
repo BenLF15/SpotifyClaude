@@ -8,7 +8,6 @@ const HINTS = {
   DATABASE_URL: 'Render → deine Postgres-Datenbank → „Internal Database URL“ kopieren',
   SPOTIFY_CLIENT_ID: 'developer.spotify.com/dashboard → deine App → Settings',
   SPOTIFY_CLIENT_SECRET: 'developer.spotify.com/dashboard → deine App → Settings → „View client secret“',
-  APP_PASSWORD: 'Ein frei gewähltes Passwort für dein Dashboard',
 };
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
