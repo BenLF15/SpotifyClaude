@@ -52,8 +52,21 @@ if (missing.length) {
     await import('./app.js');
   } catch (err) {
     console.error('[setup] Start fehlgeschlagen:', err);
-    let msg = err.message || String(err);
-    if (/ECONNREFUSED|ENOTFOUND|getaddrinfo|password authentication|does not exist|timeout/i.test(msg)) {
+    // AggregateError (mehrere fehlgeschlagene Verbindungsversuche) hat keine eigene Message.
+    const parts = Array.isArray(err.errors) && err.errors.length ? err.errors : [err];
+    let msg = [...new Set(parts.map((e) => [e.code, e.message].filter(Boolean).join(': ') || String(e)))].join('\n');
+    let dbHost = '';
+    try {
+      const u = new URL(process.env.DATABASE_URL);
+      dbHost = `${u.hostname}${u.port ? `:${u.port}` : ''}`;
+      msg += `\n\nDATABASE_URL zeigt auf Host: ${dbHost}`;
+    } catch {
+      msg += '\n\nDATABASE_URL ist keine gültige URL (erwartet: postgresql://user:passwort@host/datenbank).';
+    }
+    if (/^(localhost|127\.|::1)/.test(dbHost)) {
+      msg += '\nDas ist „localhost“ – auf Render gibt es dort keine Datenbank. Trage die „Internal Database URL“ deiner Render-Postgres ein.';
+    }
+    if (/ECONNREFUSED|ENOTFOUND|EAI_AGAIN|getaddrinfo|password authentication|does not exist|timeout|ETIMEDOUT/i.test(msg)) {
       msg += '\n\nDie Datenbank ist nicht erreichbar. Prüfe DATABASE_URL (in Render die „Internal Database URL“ verwenden, Datenbank und Web Service in derselben Region).';
     }
     startSetupServer({ error: msg });
