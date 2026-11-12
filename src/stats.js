@@ -27,7 +27,7 @@ const ARTIST_LOOKUP = (nameCol, idCol) => `
 
 export async function overview(userId, days) {
   const tz = config.timezone;
-  const [cur, prev, first] = await Promise.all([
+  const [cur, prev, first, fresh] = await Promise.all([
     query(
       `WITH ${PLAYS_CTE}
        SELECT COALESCE(sum(ms_played), 0) AS ms, count(*) AS plays,
@@ -46,6 +46,15 @@ export async function overview(userId, days) {
         )
       : Promise.resolve({ rows: [null] }),
     query('SELECT min(played_at) AS first, max(played_at) AS last, count(*) AS total FROM plays WHERE user_id = $1', [userId]),
+    // Künstler, die im Zeitraum zum ersten Mal überhaupt gehört wurden
+    query(
+      `SELECT count(*) AS n FROM (
+         SELECT lower(t.artist_names[1]) AS a, min(pl.played_at) AS first
+           FROM plays pl JOIN tracks t ON t.id = pl.track_id
+          WHERE pl.user_id = $1 GROUP BY 1
+       ) x WHERE $2::int > 0 AND first >= now() - make_interval(days => $2::int)`,
+      [userId, days],
+    ),
   ]);
   const c = cur.rows[0];
   const spanDays = days || Math.max(1, Math.ceil((Date.now() - new Date(first.rows[0].first || Date.now())) / 864e5));
@@ -60,6 +69,7 @@ export async function overview(userId, days) {
     firstPlay: first.rows[0].first,
     lastPlay: first.rows[0].last,
     totalPlays: first.rows[0].total,
+    newArtists: days ? fresh.rows[0].n : null,
   };
 }
 
@@ -133,7 +143,10 @@ export async function heatmap(userId, days) {
   return grid;
 }
 
-/** Genre-Verteilung: Hörzeit-Anteil je Genre (über die Genres des Hauptkünstlers). */
+/**
+ * Genre-Verteilung als echte Anteile (summieren sich zu 100 %): Die Hörzeit eines Künstlers wird
+ * gleichmäßig auf seine Genres verteilt. coverage = Anteil der Hörzeit mit bekannten Genres.
+ */
 export async function genres(userId, days, limit = 12) {
   const { rows } = await query(
     `WITH ${PLAYS_CTE},
@@ -142,24 +155,32 @@ export async function genres(userId, days, limit = 12) {
          FROM p GROUP BY lower(artist)
      ),
      tagged AS (
-       SELECT pa.ms, ai.genres FROM per_artist pa ${ARTIST_LOOKUP('pa.name', 'pa.id')}
+       SELECT pa.ms, COALESCE(ai.genres, '{}') AS genres FROM per_artist pa ${ARTIST_LOOKUP('pa.name', 'pa.id')}
+     ),
+     weighted AS (
+       SELECT g.genre, t.ms::float8 / cardinality(t.genres) AS ms
+         FROM tagged t CROSS JOIN LATERAL unnest(t.genres) AS g(genre)
+        WHERE cardinality(t.genres) > 0
      ),
      totals AS (
        SELECT COALESCE(sum(ms), 0) AS all_ms,
               COALESCE(sum(ms) FILTER (WHERE cardinality(genres) > 0), 0) AS tagged_ms FROM tagged
      )
-     SELECT g.genre, round(sum(t.ms) / 60000.0)::int AS minutes,
-            (SELECT tagged_ms FROM totals) AS tagged_ms, (SELECT all_ms FROM totals) AS all_ms
-       FROM tagged t CROSS JOIN LATERAL unnest(t.genres) AS g(genre)
-      GROUP BY g.genre ORDER BY sum(t.ms) DESC LIMIT $4`,
+     SELECT w.genre, round(sum(w.ms) / 60000.0)::int AS minutes, sum(w.ms) AS ms,
+            (SELECT tagged_ms FROM totals) AS tagged_ms, (SELECT all_ms FROM totals) AS all_ms,
+            count(*) OVER () AS total_genres
+       FROM weighted w GROUP BY w.genre ORDER BY sum(w.ms) DESC LIMIT $4`,
     [config.timezone, days, userId, limit],
   );
-  let coverage = 0;
   const tagged = rows[0]?.tagged_ms || 0;
-  if (rows[0]?.all_ms) coverage = tagged / rows[0].all_ms;
+  const all = rows[0]?.all_ms || 0;
+  const items = rows.map((r) => ({ genre: r.genre, minutes: r.minutes, share: tagged ? r.ms / tagged : 0 }));
+  const shown = items.reduce((a, i) => a + i.share, 0);
   return {
-    coverage,
-    items: rows.map((r) => ({ genre: r.genre, minutes: r.minutes, share: tagged ? (r.minutes * 60000) / tagged : 0 })),
+    coverage: all ? tagged / all : 0,
+    totalGenres: rows[0]?.total_genres || 0,
+    other: Math.max(0, 1 - shown),
+    items,
   };
 }
 

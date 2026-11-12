@@ -4,10 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0c0b" />
+  <meta name="color-scheme" content="dark" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Anmelden · Spotlfy</title>
+  <!-- Web-App (Homescreen): Vollbild ohne Browserleiste -->
+  <link rel="manifest" href="/assets/manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Spotlfy" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/assets/styles.css?v=20261112b" />
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="stylesheet" href="/assets/styles.css?v=20261112d" />
 </head>
 <body class="login-body">
   <div class="aurora" aria-hidden="true"></div>
@@ -45,12 +53,7 @@
     </form>
     <p id="error" class="login-error" role="alert" hidden></p>
 
-    <p class="login-note">
-      Nach der Anmeldung verbindest du dein Spotify-Konto. Gespeichert werden dein Benutzername, dein
-      Spotify-Name, deine E-Mail-Adresse und dein Hörverlauf. Der Betreiber dieser Seite kann Benutzername,
-      Name und E-Mail sehen. Du kannst dein Konto samt aller Daten jederzeit im Dashboard löschen.
-    </p>
   </main>
-  <script src="/assets/login.js?v=20261112b"></script>
+  <script src="/assets/login.js?v=20261112d"></script>
 </body>
 </html>

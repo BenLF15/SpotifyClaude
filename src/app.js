@@ -390,7 +390,7 @@ api.get(
       stats.topTracks(uid, days),
       stats.heatmap(uid, days),
       stats.genres(uid, days),
-      stats.recentPlays(uid, 12),
+      stats.recentPlays(uid, 40),
     ]);
     res.json({ range: req.query.range || '30d', overview, timeline, topArtists, topTracks, heatmap, genres, recent });
   }),

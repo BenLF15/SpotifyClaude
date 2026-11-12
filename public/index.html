@@ -4,62 +4,76 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0a0c0b" />
+  <meta name="color-scheme" content="dark" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Spotlfy</title>
+  <!-- Web-App (Homescreen): Vollbild ohne Browserleiste -->
+  <link rel="manifest" href="/assets/manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Spotlfy" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/assets/styles.css?v=20261112b" />
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="stylesheet" href="/assets/styles.css?v=20261112d" />
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261112b" defer></script>
+  <script src="/app.js?v=20261112d" defer></script>
 </head>
 <body>
+  <div class="statusbar-bg" aria-hidden="true"></div>
   <div class="aurora" aria-hidden="true"></div>
 
   <header class="topbar">
     <div class="brand">
-      <img src="/assets/icon.svg" alt="" width="32" height="32" id="brand-img" />
+      <img src="/assets/icon.svg" alt="" width="34" height="34" class="brand-logo" />
       <div>
         <strong>Spotlfy</strong>
         <span id="user-line" class="muted small"></span>
       </div>
     </div>
     <div class="topbar-actions">
-      <button id="sync-btn" class="btn btn-ghost" type="button" title="Jetzt synchronisieren">
+      <button id="sync-btn" class="btn btn-ghost icon-btn" type="button" title="Jetzt synchronisieren" aria-label="Jetzt synchronisieren" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9M18 3v4.5h-4.5M6 21v-4.5h4.5" /></svg>
-        <span class="hide-sm">Sync</span>
       </button>
-      <button id="import-btn" class="btn btn-ghost" type="button" title="Streaming-History importieren">
+      <button id="import-btn" class="btn btn-ghost icon-btn" type="button" title="Streaming-History importieren" aria-label="Streaming-History importieren" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
-        <span class="hide-sm">Import</span>
       </button>
+      <img id="avatar" class="avatar-sm" alt="" hidden referrerpolicy="no-referrer" />
       <form method="post" action="/logout">
-        <button class="btn btn-ghost" type="submit" title="Abmelden">
+        <button class="btn btn-ghost icon-btn" type="submit" title="Abmelden" aria-label="Abmelden">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10" /></svg>
         </button>
       </form>
     </div>
   </header>
 
+  <!-- Ebene 1: Bereiche -->
+  <nav class="subnav" aria-label="Bereiche">
+    <div class="tabs" id="panel-tabs" role="tablist">
+      <button role="tab" data-panel="overview">Übersicht</button>
+      <button role="tab" data-panel="top">Top-Listen</button>
+      <button role="tab" data-panel="times">Hörzeiten</button>
+      <button role="tab" data-panel="genres">Genres</button>
+      <button role="tab" data-panel="trends">Entwicklung</button>
+      <button role="tab" data-panel="history">Verlauf</button>
+      <button role="tab" data-panel="admin" id="admin-tab" hidden>Admin</button>
+    </div>
+  </nav>
+
   <main class="container">
     <section id="auth-banner" class="banner" hidden>
       <div>
         <h2>Spotify-Verbindung abgelaufen</h2>
-        <p class="muted">Melde dich neu mit Spotify an, damit deine Plays wieder gespeichert werden.</p>
+        <p class="muted">Verbinde Spotify neu, damit deine Plays wieder gespeichert werden.</p>
       </div>
-      <a class="btn btn-primary" href="/auth/login">Neu anmelden</a>
+      <a class="btn btn-primary" href="/auth/login">Neu verbinden</a>
     </section>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
-    <nav class="view-tabs" id="view-tabs" aria-label="Bereich" hidden>
-      <div class="segmented" id="view-control" role="tablist">
-        <button role="tab" data-view="stats">Meine Statistik</button>
-        <button role="tab" data-view="admin">Admin</button>
-      </div>
-    </nav>
-
     <div class="view" id="view-connect" hidden>
       <section class="card connect-card">
-        <div class="connect-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M7 9.5c3.5-1 7-.7 10 1M7.8 12.7c2.8-.8 5.7-.5 8.2.9M8.6 15.7c2.2-.6 4.4-.4 6.3.7" /></svg></div>
-        <h2 id="connect-title">Verbinde dein Spotify-Konto</h2>
+        <img src="/assets/icon.svg" alt="" width="72" height="72" class="connect-logo" />
+        <h2>Verbinde dein Spotify-Konto</h2>
         <p>Spotlfy speichert danach alle 30 Minuten automatisch, was du hörst, und berechnet daraus deine Statistik.</p>
         <a class="btn btn-primary" href="/auth/login">Mit Spotify verbinden</a>
         <p class="hint">Im Testbetrieb erlaubt Spotify nur freigeschaltete Konten. Klappt es nicht, bitte den Betreiber, dein Spotify-Konto freizuschalten.</p>
@@ -73,117 +87,159 @@
     </div>
 
     <div class="view" id="view-stats" hidden>
-    <nav class="range-bar" aria-label="Zeitraum">
-      <div class="segmented" id="range-control" role="tablist">
-        <button role="tab" data-range="7d">7 Tage</button>
-        <button role="tab" data-range="30d">30 Tage</button>
-        <button role="tab" data-range="90d">90 Tage</button>
-        <button role="tab" data-range="365d">1 Jahr</button>
-        <button role="tab" data-range="all">Gesamt</button>
+      <!-- Ebene 2: Zeitraum (gilt für Übersicht, Top-Listen, Hörzeiten, Genres) -->
+      <div class="range-bar" id="range-bar">
+        <div class="segmented small" id="range-control" role="tablist" aria-label="Zeitraum">
+          <button role="tab" data-range="7d">7 T</button>
+          <button role="tab" data-range="30d">30 T</button>
+          <button role="tab" data-range="90d">90 T</button>
+          <button role="tab" data-range="365d">1 J</button>
+          <button role="tab" data-range="all">Alles</button>
+        </div>
+        <span id="last-sync" class="muted small"></span>
       </div>
-      <span id="last-sync" class="muted small"></span>
-    </nav>
 
-    <section class="kpis" id="kpis">
-      <article class="card kpi reveal"><span class="kpi-label">Hörminuten</span><strong class="kpi-value" data-kpi="minutes">–</strong><span class="kpi-sub" data-kpi-sub="minutes"></span></article>
-      <article class="card kpi reveal"><span class="kpi-label">Ø pro Tag</span><strong class="kpi-value" data-kpi="avgMinutesPerDay">–</strong><span class="kpi-sub">Minuten</span></article>
-      <article class="card kpi reveal"><span class="kpi-label">Plays</span><strong class="kpi-value" data-kpi="plays">–</strong><span class="kpi-sub" data-kpi-sub="activeDays"></span></article>
-      <article class="card kpi reveal"><span class="kpi-label">Künstler</span><strong class="kpi-value" data-kpi="artists">–</strong><span class="kpi-sub">verschiedene</span></article>
-      <article class="card kpi reveal"><span class="kpi-label">Songs</span><strong class="kpi-value" data-kpi="tracks">–</strong><span class="kpi-sub">verschiedene</span></article>
-    </section>
-
-    <section class="card reveal span-full">
-      <header class="card-head">
-        <div>
-          <h2>Hörminuten</h2>
-          <p class="muted small" id="timeline-caption"></p>
+      <!-- ================================================= Übersicht -->
+      <section class="panel" data-panel="overview">
+        <div class="kpis">
+          <article class="card kpi kpi-hero">
+            <span class="kpi-label">Hörminuten</span>
+            <strong class="kpi-value" data-kpi="minutes">–</strong>
+            <span class="kpi-sub" data-kpi-sub="minutes"></span>
+            <svg class="sparkline" id="sparkline" viewBox="0 0 120 32" preserveAspectRatio="none" aria-hidden="true"></svg>
+          </article>
+          <article class="card kpi"><span class="kpi-label">Ø pro Tag</span><strong class="kpi-value" data-kpi="avgMinutesPerDay">–</strong><span class="kpi-sub">Minuten</span></article>
+          <article class="card kpi"><span class="kpi-label">Plays</span><strong class="kpi-value" data-kpi="plays">–</strong><span class="kpi-sub" data-kpi-sub="activeDays"></span></article>
+          <article class="card kpi"><span class="kpi-label">Künstler</span><strong class="kpi-value" data-kpi="artists">–</strong><span class="kpi-sub" data-kpi-sub="newArtists">verschiedene</span></article>
+          <article class="card kpi"><span class="kpi-label">Songs</span><strong class="kpi-value" data-kpi="tracks">–</strong><span class="kpi-sub">verschiedene</span></article>
         </div>
-        <div class="segmented small" id="timeline-mode">
-          <button data-mode="daily">Tag</button>
-          <button data-mode="weekly">Woche</button>
+
+        <div class="insights" id="insights"></div>
+
+        <section class="card">
+          <header class="card-head">
+            <div><h2>Hörminuten</h2><p class="muted small" id="timeline-caption"></p></div>
+            <div class="segmented small" id="timeline-mode">
+              <button data-mode="daily">Tag</button>
+              <button data-mode="weekly">Woche</button>
+            </div>
+          </header>
+          <div class="chart-wrap"><canvas id="timeline-chart" aria-label="Hörminuten im Zeitverlauf" role="img"></canvas></div>
+        </section>
+
+        <div class="grid-2">
+          <section class="card">
+            <header class="card-head"><h2>Top-Künstler</h2><button class="link-btn" data-goto="top">Alle anzeigen →</button></header>
+            <ol class="rank-bars" id="overview-artists"></ol>
+          </section>
+          <section class="card">
+            <header class="card-head"><h2>Top-Songs</h2><button class="link-btn" data-goto="top">Alle anzeigen →</button></header>
+            <ol class="rank-bars" id="overview-tracks"></ol>
+          </section>
         </div>
-      </header>
-      <div class="chart-wrap tall"><canvas id="timeline-chart" aria-label="Hörminuten im Zeitverlauf" role="img"></canvas></div>
-    </section>
+      </section>
 
-    <div class="grid-2">
-      <section class="card reveal">
-        <header class="card-head"><h2>Top-Künstler</h2><span class="muted small">nach Hörzeit</span></header>
-        <ol class="artist-grid" id="top-artists"></ol>
+      <!-- ================================================= Top-Listen -->
+      <section class="panel" data-panel="top" hidden>
+        <section class="card">
+          <header class="card-head"><div><h2>Deine Top-Künstler</h2><p class="muted small">nach Hörzeit im gewählten Zeitraum</p></div></header>
+          <div class="podium" id="podium"></div>
+          <ol class="rank-bars" id="top-artists" start="4"></ol>
+        </section>
+        <section class="card">
+          <header class="card-head"><div><h2>Deine Top-Songs</h2><p class="muted small">nach Anzahl der Plays</p></div></header>
+          <ol class="rank-bars cols-2" id="top-tracks"></ol>
+        </section>
       </section>
-      <section class="card reveal">
-        <header class="card-head"><h2>Top-Songs</h2><span class="muted small">nach Plays</span></header>
-        <ol class="track-list" id="top-tracks"></ol>
-      </section>
-    </div>
 
-    <div class="grid-2 grid-heat">
-      <section class="card reveal">
-        <header class="card-head">
-          <div><h2>Wann du hörst</h2><p class="muted small">Hörminuten nach Wochentag und Uhrzeit</p></div>
-        </header>
-        <div class="heatmap-wrap"><div class="heatmap" id="heatmap" role="grid" aria-label="Heatmap Uhrzeit × Wochentag"></div></div>
-        <div class="heat-legend"><span class="muted small">weniger</span><span class="heat-scale"></span><span class="muted small">mehr</span></div>
-        <div class="heat-tip" id="heat-tip" hidden></div>
-      </section>
-      <section class="card reveal">
-        <header class="card-head">
-          <div><h2>Genres</h2><p class="muted small" id="genre-caption">Anteil an der Hörzeit</p></div>
-        </header>
-        <ul class="genre-list" id="genres"></ul>
-      </section>
-    </div>
-
-    <section class="card reveal span-full">
-      <header class="card-head">
-        <div><h2>Entwicklung</h2><p class="muted small">Hörminuten pro Monat über deine gesamte Historie</p></div>
-        <div class="segmented small" id="trend-mode">
-          <button data-mode="minutes">Minuten</button>
-          <button data-mode="artists">Künstler</button>
-          <button data-mode="new_artists">Neue Künstler</button>
+      <!-- ================================================= Hörzeiten -->
+      <section class="panel" data-panel="times" hidden>
+        <div class="insights" id="time-insights"></div>
+        <section class="card">
+          <header class="card-head"><div><h2>Wann du hörst</h2><p class="muted small">Hörminuten nach Wochentag und Uhrzeit</p></div></header>
+          <div class="heatmap" id="heatmap" role="grid" aria-label="Heatmap Uhrzeit × Wochentag"></div>
+          <div class="heat-legend"><span class="muted small">weniger</span><span class="heat-scale"></span><span class="muted small">mehr</span></div>
+          <div class="heat-tip" id="heat-tip" hidden></div>
+        </section>
+        <div class="grid-2">
+          <section class="card">
+            <header class="card-head"><div><h2>Nach Uhrzeit</h2><p class="muted small">Hörminuten je Stunde</p></div></header>
+            <div class="chart-wrap short"><canvas id="hours-chart" aria-label="Hörminuten nach Uhrzeit" role="img"></canvas></div>
+          </section>
+          <section class="card">
+            <header class="card-head"><div><h2>Nach Wochentag</h2><p class="muted small">Hörminuten je Wochentag</p></div></header>
+            <div class="chart-wrap short"><canvas id="weekday-chart" aria-label="Hörminuten nach Wochentag" role="img"></canvas></div>
+          </section>
         </div>
-      </header>
-      <div class="chart-wrap"><canvas id="trend-chart" aria-label="Entwicklung pro Monat" role="img"></canvas></div>
-    </section>
+      </section>
 
-    <section class="card reveal span-full">
-      <header class="card-head wrap">
-        <div><h2>Spotify-Ranking</h2><p class="muted small" id="ranking-caption">Tägliche Snapshots deiner Spotify-Top-Listen</p></div>
-        <div class="head-controls">
-          <div class="segmented small" id="rank-kind">
-            <button data-kind="artists">Künstler</button>
-            <button data-kind="tracks">Songs</button>
+      <!-- ================================================= Genres -->
+      <section class="panel" data-panel="genres" hidden>
+        <section class="card">
+          <header class="card-head"><div><h2>Deine Genres</h2><p class="muted small" id="genre-caption">Anteil an deiner Hörzeit</p></div></header>
+          <div class="genre-layout">
+            <div class="donut-wrap"><canvas id="genre-donut" aria-label="Genre-Verteilung" role="img"></canvas>
+              <div class="donut-center" id="donut-center"></div></div>
+            <ul class="genre-list" id="genres"></ul>
           </div>
-          <div class="segmented small" id="rank-range">
-            <button data-range="short_term">4 Wochen</button>
-            <button data-range="medium_term">6 Monate</button>
-            <button data-range="long_term">1 Jahr+</button>
+        </section>
+      </section>
+
+      <!-- ================================================= Entwicklung -->
+      <section class="panel" data-panel="trends" hidden>
+        <section class="card">
+          <header class="card-head">
+            <div><h2>Pro Monat</h2><p class="muted small" id="trend-caption">über deine gesamte Historie</p></div>
+            <div class="segmented small" id="trend-mode">
+              <button data-mode="minutes">Minuten</button>
+              <button data-mode="artists">Künstler</button>
+              <button data-mode="new_artists">Neu entdeckt</button>
+            </div>
+          </header>
+          <div class="chart-wrap"><canvas id="trend-chart" aria-label="Entwicklung pro Monat" role="img"></canvas></div>
+        </section>
+        <section class="card">
+          <header class="card-head wrap">
+            <div><h2>Spotify-Ranking</h2><p class="muted small" id="ranking-caption">Tägliche Snapshots deiner Spotify-Top-Listen</p></div>
+            <div class="head-controls">
+              <div class="segmented small" id="rank-kind">
+                <button data-kind="artists">Künstler</button>
+                <button data-kind="tracks">Songs</button>
+              </div>
+              <div class="segmented small" id="rank-range">
+                <button data-range="short_term">4 Wo.</button>
+                <button data-range="medium_term">6 Mon.</button>
+                <button data-range="long_term">1 J+</button>
+              </div>
+            </div>
+          </header>
+          <div class="ranking">
+            <ol class="rank-list" id="rank-list"></ol>
+            <div class="rank-chart">
+              <h3 class="muted small">Rangverlauf der aktuellen Top 5</h3>
+              <div class="chart-wrap"><canvas id="rank-chart" aria-label="Rangverlauf" role="img"></canvas></div>
+            </div>
           </div>
-        </div>
-      </header>
-      <div class="ranking">
-        <ol class="rank-list" id="rank-list"></ol>
-        <div class="rank-chart">
-          <h3 class="muted small">Rangverlauf der aktuellen Top 5</h3>
-          <div class="chart-wrap"><canvas id="rank-chart" aria-label="Rangverlauf" role="img"></canvas></div>
-        </div>
-      </div>
-    </section>
+        </section>
+      </section>
 
-    <section class="card reveal span-full">
-      <header class="card-head"><h2>Zuletzt gehört</h2></header>
-      <ul class="recent-list" id="recent"></ul>
-    </section>
+      <!-- ================================================= Verlauf -->
+      <section class="panel" data-panel="history" hidden>
+        <section class="card">
+          <header class="card-head"><div><h2>Zuletzt gehört</h2><p class="muted small">Die letzten 40 Songs</p></div></header>
+          <div id="recent"></div>
+        </section>
+      </section>
 
-    <footer class="footer muted small">
-      <div id="footer"></div>
-      <div id="my-id" class="my-id"></div>
-      <div class="footer-actions">
-        <button class="btn btn-ghost" data-action="password" type="button">Passwort ändern</button>
-        <button class="btn btn-ghost" data-action="disconnect" type="button">Spotify trennen</button>
-        <button class="btn btn-ghost btn-danger" data-action="delete" type="button">Konto &amp; Daten löschen</button>
-      </div>
-    </footer>
+      <footer class="footer muted small">
+        <div id="footer"></div>
+        <div id="my-id" class="my-id"></div>
+        <div class="footer-actions">
+          <button class="btn btn-ghost" data-action="password" type="button">Passwort ändern</button>
+          <button class="btn btn-ghost" data-action="disconnect" type="button">Spotify trennen</button>
+          <button class="btn btn-ghost btn-danger" data-action="delete" type="button">Konto &amp; Daten löschen</button>
+        </div>
+      </footer>
     </div><!-- /view-stats -->
 
     <div class="view" id="view-admin" hidden>
