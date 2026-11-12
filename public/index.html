@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c0b" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Hörstatistik</title>
+  <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <script src="/vendor/chart.umd.min.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="/assets/icon.svg" alt="" width="32" height="32" />
+      <div>
+        <strong>Hörstatistik</strong>
+        <span id="user-line" class="muted small"></span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="sync-btn" class="btn btn-ghost" type="button" title="Jetzt synchronisieren">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9M18 3v4.5h-4.5M6 21v-4.5h4.5" /></svg>
+        <span class="hide-sm">Sync</span>
+      </button>
+      <button id="import-btn" class="btn btn-ghost" type="button" title="Streaming-History importieren">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
+        <span class="hide-sm">Import</span>
+      </button>
+      <form method="post" action="/logout">
+        <button class="btn btn-ghost" type="submit" title="Abmelden">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10" /></svg>
+        </button>
+      </form>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="connect-banner" class="banner reveal" hidden>
+      <div>
+        <h2>Verbinde dein Spotify-Konto</h2>
+        <p class="muted">Danach werden deine Plays alle 30 Minuten automatisch gespeichert.</p>
+      </div>
+      <a class="btn btn-primary" href="/auth/login">Mit Spotify verbinden</a>
+    </section>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <nav class="range-bar" aria-label="Zeitraum">
+      <div class="segmented" id="range-control" role="tablist">
+        <button role="tab" data-range="7d">7 Tage</button>
+        <button role="tab" data-range="30d">30 Tage</button>
+        <button role="tab" data-range="90d">90 Tage</button>
+        <button role="tab" data-range="365d">1 Jahr</button>
+        <button role="tab" data-range="all">Gesamt</button>
+      </div>
+      <span id="last-sync" class="muted small"></span>
+    </nav>
+
+    <section class="kpis" id="kpis">
+      <article class="card kpi reveal"><span class="kpi-label">Hörminuten</span><strong class="kpi-value" data-kpi="minutes">–</strong><span class="kpi-sub" data-kpi-sub="minutes"></span></article>
+      <article class="card kpi reveal"><span class="kpi-label">Ø pro Tag</span><strong class="kpi-value" data-kpi="avgMinutesPerDay">–</strong><span class="kpi-sub">Minuten</span></article>
+      <article class="card kpi reveal"><span class="kpi-label">Plays</span><strong class="kpi-value" data-kpi="plays">–</strong><span class="kpi-sub" data-kpi-sub="activeDays"></span></article>
+      <article class="card kpi reveal"><span class="kpi-label">Künstler</span><strong class="kpi-value" data-kpi="artists">–</strong><span class="kpi-sub">verschiedene</span></article>
+      <article class="card kpi reveal"><span class="kpi-label">Songs</span><strong class="kpi-value" data-kpi="tracks">–</strong><span class="kpi-sub">verschiedene</span></article>
+    </section>
+
+    <section class="card reveal span-full">
+      <header class="card-head">
+        <div>
+          <h2>Hörminuten</h2>
+          <p class="muted small" id="timeline-caption"></p>
+        </div>
+        <div class="segmented small" id="timeline-mode">
+          <button data-mode="daily">Tag</button>
+          <button data-mode="weekly">Woche</button>
+        </div>
+      </header>
+      <div class="chart-wrap tall"><canvas id="timeline-chart" aria-label="Hörminuten im Zeitverlauf" role="img"></canvas></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="card reveal">
+        <header class="card-head"><h2>Top-Künstler</h2><span class="muted small">nach Hörzeit</span></header>
+        <ol class="artist-grid" id="top-artists"></ol>
+      </section>
+      <section class="card reveal">
+        <header class="card-head"><h2>Top-Songs</h2><span class="muted small">nach Plays</span></header>
+        <ol class="track-list" id="top-tracks"></ol>
+      </section>
+    </div>
+
+    <div class="grid-2 grid-heat">
+      <section class="card reveal">
+        <header class="card-head">
+          <div><h2>Wann du hörst</h2><p class="muted small">Hörminuten nach Wochentag und Uhrzeit</p></div>
+        </header>
+        <div class="heatmap-wrap"><div class="heatmap" id="heatmap" role="grid" aria-label="Heatmap Uhrzeit × Wochentag"></div></div>
+        <div class="heat-legend"><span class="muted small">weniger</span><span class="heat-scale"></span><span class="muted small">mehr</span></div>
+        <div class="heat-tip" id="heat-tip" hidden></div>
+      </section>
+      <section class="card reveal">
+        <header class="card-head">
+          <div><h2>Genres</h2><p class="muted small" id="genre-caption">Anteil an der Hörzeit</p></div>
+        </header>
+        <ul class="genre-list" id="genres"></ul>
+      </section>
+    </div>
+
+    <section class="card reveal span-full">
+      <header class="card-head">
+        <div><h2>Entwicklung</h2><p class="muted small">Hörminuten pro Monat über deine gesamte Historie</p></div>
+        <div class="segmented small" id="trend-mode">
+          <button data-mode="minutes">Minuten</button>
+          <button data-mode="artists">Künstler</button>
+          <button data-mode="new_artists">Neue Künstler</button>
+        </div>
+      </header>
+      <div class="chart-wrap"><canvas id="trend-chart" aria-label="Entwicklung pro Monat" role="img"></canvas></div>
+    </section>
+
+    <section class="card reveal span-full">
+      <header class="card-head wrap">
+        <div><h2>Spotify-Ranking</h2><p class="muted small" id="ranking-caption">Tägliche Snapshots deiner Spotify-Top-Listen</p></div>
+        <div class="head-controls">
+          <div class="segmented small" id="rank-kind">
+            <button data-kind="artists">Künstler</button>
+            <button data-kind="tracks">Songs</button>
+          </div>
+          <div class="segmented small" id="rank-range">
+            <button data-range="short_term">4 Wochen</button>
+            <button data-range="medium_term">6 Monate</button>
+            <button data-range="long_term">1 Jahr+</button>
+          </div>
+        </div>
+      </header>
+      <div class="ranking">
+        <ol class="rank-list" id="rank-list"></ol>
+        <div class="rank-chart">
+          <h3 class="muted small">Rangverlauf der aktuellen Top 5</h3>
+          <div class="chart-wrap"><canvas id="rank-chart" aria-label="Rangverlauf" role="img"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card reveal span-full">
+      <header class="card-head"><h2>Zuletzt gehört</h2></header>
+      <ul class="recent-list" id="recent"></ul>
+    </section>
+
+    <footer class="footer muted small" id="footer"></footer>
+  </main>
+
+  <dialog id="import-dialog" class="dialog">
+    <form method="dialog" class="dialog-inner">
+      <header class="card-head">
+        <h2>Streaming-History importieren</h2>
+        <button class="btn btn-ghost icon" value="close" aria-label="Schließen">✕</button>
+      </header>
+      <p class="muted small">
+        Fordere unter <em>spotify.com → Konto → Datenschutz</em> die <strong>„Extended streaming history“</strong> an.
+        Wähle anschließend die Dateien <code>Streaming_History_Audio_*.json</code> aus. Duplikate werden automatisch übersprungen.
+      </p>
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="import-files" accept=".json,application/json" multiple />
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
+        <span>JSON-Dateien hierher ziehen oder <u>auswählen</u></span>
+      </label>
+      <ul class="import-log" id="import-log"></ul>
+    </form>
+  </dialog>
+</body>
+</html>

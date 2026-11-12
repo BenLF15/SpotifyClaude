@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.log
+data/
+my_spotify_data/
+Spotify Extended Streaming History/

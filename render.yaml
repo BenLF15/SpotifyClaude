@@ -1,0 +1,68 @@
+# Render Blueprint – Web Service + Cron Job + Postgres
+# Deploy: Render Dashboard → "New" → "Blueprint" → dieses Repo auswählen.
+# Werte mit `sync: false` fragt Render beim ersten Deploy ab (sie landen nie im Repo).
+
+databases:
+  - name: spotify-stats-db
+    # Hinweis: Free-Postgres wird bei Render nach 30 Tagen gelöscht – für eine
+    # dauerhafte Hörhistorie daher ein bezahlter Plan.
+    plan: basic-256mb
+    region: frankfurt
+    databaseName: spotify_stats
+    user: spotify_stats
+    postgresMajorVersion: "16"
+
+services:
+  # Dashboard + Spotify-OAuth
+  - type: web
+    name: spotify-stats
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spotify-stats-db
+          property: connectionString
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: TIMEZONE
+        value: Europe/Berlin
+      # SPOTIFY_REDIRECT_URI ist optional – Standard: ${RENDER_EXTERNAL_URL}/auth/callback
+
+  # Alle 30 Minuten: Recently Played speichern; 1× täglich Top-Snapshot; Cover/Genres nachladen
+  - type: cron
+    name: spotify-stats-sync
+    runtime: node
+    plan: starter
+    region: frankfurt
+    schedule: "*/30 * * * *"
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run cron
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spotify-stats-db
+          property: connectionString
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: TIMEZONE
+        value: Europe/Berlin
