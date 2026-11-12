@@ -133,7 +133,10 @@ function fail(...keys) {
 // ---------------------------------------------------------------- Öffentliche Routen
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
-app.use('/assets', express.static(path.join(publicDir, 'assets'), { maxAge: '1h' }));
+// Eigene JS/CSS-Dateien: Browser fragt bei jedem Laden per ETag nach, ob es eine neue Version gibt
+// (verhindert, dass nach einem Update veraltete Skripte aus dem Cache laufen).
+const revalidate = { maxAge: 0, setHeaders: (res) => res.set('Cache-Control', 'no-cache') };
+app.use('/assets', express.static(path.join(publicDir, 'assets'), revalidate));
 app.get('/vendor/chart.umd.min.js', (_req, res) =>
   res.sendFile(path.join(root, 'node_modules/chart.js/dist/chart.umd.min.js'), { maxAge: '7d' }),
 );
@@ -222,7 +225,7 @@ app.get('/', (_req, res) => {
   res.set('Cache-Control', 'no-store');
   res.sendFile(path.join(publicDir, 'index.html'));
 });
-app.use(express.static(publicDir, { index: false, maxAge: '1h' }));
+app.use(express.static(publicDir, { index: false, ...revalidate }));
 
 // Spotify verbinden (nur für eingeloggte Spotlfy-Konten)
 app.get('/auth/login', (_req, res) => {
