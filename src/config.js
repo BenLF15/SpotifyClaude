@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 // Zentrale Konfiguration – alle Secrets kommen ausschließlich aus Umgebungsvariablen.
 
 function env(name, fallback = undefined) {
@@ -11,6 +13,18 @@ function int(name, fallback) {
 }
 
 const externalUrl = env('RENDER_EXTERNAL_URL', '').replace(/\/$/, '');
+const bool = (name, fallback) => {
+  const v = env(name);
+  return v === undefined ? fallback : !['false', '0', 'no', 'off'].includes(v.toLowerCase());
+};
+
+// Ohne SESSION_SECRET wird ein stabiler Schlüssel aus Passwort + Client-Secret abgeleitet.
+// (Passwort ändern ⇒ alle Sessions werden ungültig – gewollt.)
+const derivedSecret = () =>
+  crypto
+    .createHash('sha256')
+    .update(`session:${env('APP_PASSWORD', '')}:${env('SPOTIFY_CLIENT_SECRET', '')}`)
+    .digest('hex');
 
 export const config = {
   port: int('PORT', 3000),
@@ -25,13 +39,20 @@ export const config = {
     scopes: ['user-read-recently-played', 'user-top-read', 'user-read-private'],
   },
   appPassword: env('APP_PASSWORD'),
-  sessionSecret: env('SESSION_SECRET'),
+  sessionSecret: env('SESSION_SECRET') || derivedSecret(),
   sessionDays: int('SESSION_DAYS', 30),
   timezone: env('TIMEZONE', 'Europe/Berlin'),
   enrichLimit: int('ENRICH_LIMIT', 150),
   minPlayMs: int('MIN_PLAY_MS', 30000),
+  internalScheduler: bool('INTERNAL_SCHEDULER', true),
+  syncIntervalMinutes: Math.max(5, int('SYNC_INTERVAL_MINUTES', 30)),
+  keepAliveUrl: bool('KEEP_ALIVE', Boolean(externalUrl)) && externalUrl ? `${externalUrl}/healthz` : null,
+  cronSecret: env('CRON_SECRET'),
   isProduction: env('NODE_ENV') === 'production' || Boolean(externalUrl),
 };
+
+export const REQUIRED_ENV = ['DATABASE_URL', 'SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET', 'APP_PASSWORD'];
+export const missingEnv = () => REQUIRED_ENV.filter((n) => !env(n));
 
 export function requireEnv(...names) {
   const missing = names.filter((n) => !env(n));

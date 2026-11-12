@@ -1,117 +1,133 @@
 # Hörstatistik – persönliches Spotify-Dashboard
 
-Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert jeden Play dauerhaft in Postgres und zeigt dir Auswertungen, die Spotify selbst nicht bietet. Deploybar mit einem Klick auf [Render](https://render.com) per `render.yaml`.
+Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert jeden Play dauerhaft in Postgres und zeigt dir Auswertungen, die Spotify selbst nicht bietet. Auf [Render](https://render.com) läuft alles in **einem einzigen Node-Web-Service** (Build `npm install`, Start `npm start`) mit einer Postgres-Datenbank.
 
 **Features**
 
-- Spotify-Login per **Authorization Code Flow**. Das Refresh-Token liegt in der DB und das Access-Token wird automatisch erneuert, auch wenn Spotify das Refresh-Token rotiert.
-- **Cron alle 30 Minuten**: `/me/player/recently-played` abrufen und neue Plays **ohne Duplikate** speichern.
+- Spotify-Login per **Authorization Code Flow**. Das Refresh-Token liegt in der DB und das Access-Token wird automatisch erneuert.
+- **Alle 30 Minuten**: `/me/player/recently-played` abrufen und neue Plays **ohne Duplikate** speichern. Das macht ein Zeitplan in der App selbst, ein separater Cron Job ist nicht nötig.
 - **Täglicher Snapshot** der Top-Artists und -Tracks (`short_term`, `medium_term`, `long_term`). Daraus entstehen Rangverlauf und „▲/▼ zur Vorwoche“.
-- **Import der „Extended Streaming History“** (JSON) per Kommandozeile oder per Drag & Drop im Dashboard.
+- **Import der „Extended Streaming History“** (JSON) per Drag & Drop im Dashboard oder per Kommandozeile.
 - **Dashboard**:
   - Hörminuten pro Tag und Woche
   - Top-Künstler und Top-Songs mit Covern
   - Heatmap nach Uhrzeit und Wochentag
   - Genre-Verteilung
-  - Entwicklung pro Monat (Minuten, Künstlervielfalt, neue Künstler)
+  - Entwicklung pro Monat
   - Spotify-Ranking mit Verlauf
   - Zuletzt gehört
-- Dunkles, mobilfreundliches Design mit flüssigen Animationen (respektiert `prefers-reduced-motion`).
-- **Passwortschutz** über ein signiertes Session-Cookie (HttpOnly, SameSite, Secure) und eine Brute-Force-Bremse.
-- Alle Secrets kommen **ausschließlich aus Umgebungsvariablen**.
+- Dunkles, mobilfreundliches Design mit flüssigen Animationen.
+- **Passwortschutz** über ein signiertes Session-Cookie und eine Brute-Force-Bremse.
+- Alle Secrets kommen aus **Umgebungsvariablen**. Fehlt etwas, zeigt die App eine **Setup-Seite**, die genau sagt, was noch zu tun ist.
 
-## Architektur
+---
+
+## Einrichtung auf Render (Schritt für Schritt)
+
+### 1. Postgres-Datenbank anlegen
+
+1. Wähle im Render-Dashboard **New → Postgres**.
+2. Gib einen beliebigen Namen ein, z. B. `spotify-db`. Wähle als **Region** dieselbe, die du gleich für den Web Service nimmst (z. B. Frankfurt).
+3. Wähle den Plan und klicke **Create Database**.
+   > Die kostenlose Render-Datenbank wird nach 30 Tagen gelöscht. Für eine dauerhafte Hörhistorie brauchst du einen bezahlten Plan (z. B. *Basic 256 MB*).
+4. Kopiere danach auf der Seite der Datenbank die **Internal Database URL**.
+
+### 2. Spotify-App anlegen
+
+1. Öffne <https://developer.spotify.com/dashboard> und klicke **Create app**.
+2. Name und Beschreibung sind beliebig. Wähle bei den APIs **Web API**.
+3. Trage als **Redirect URI** vorerst `https://example.com/callback` ein. Die richtige URL ergänzt du in Schritt 4.
+4. Notiere dir unter **Settings** die **Client ID** und das **Client Secret** („View client secret“).
+
+> Seit Februar 2026 braucht der Entwickler-Account für Apps im *Development Mode* Spotify Premium. Falls der Login später mit „user not registered“ scheitert, trage deine Spotify-E-Mail unter **User Management** der App ein.
+
+### 3. Web Service anlegen
+
+1. Wähle **New → Web Service** und verbinde dieses GitHub-Repository.
+2. Fülle die Felder so aus:
+
+   | Feld | Wert |
+   |---|---|
+   | **Language** | **Node** (nicht Docker!) |
+   | **Branch** | der Branch mit diesem Code (z. B. `main`) |
+   | **Region** | dieselbe wie die Datenbank |
+   | **Root Directory** | *leer lassen* |
+   | **Build Command** | `npm install` |
+   | **Start Command** | `npm start` |
+   | **Instance Type** | Free reicht |
+
+3. Lege unter **Environment Variables** diese Werte an:
+
+   | Key | Value |
+   |---|---|
+   | `DATABASE_URL` | die *Internal Database URL* aus Schritt 1 |
+   | `SPOTIFY_CLIENT_ID` | aus Schritt 2 |
+   | `SPOTIFY_CLIENT_SECRET` | aus Schritt 2 |
+   | `APP_PASSWORD` | ein Passwort deiner Wahl fürs Dashboard |
+   | `TIMEZONE` | `Europe/Berlin` *(optional, ist Standard)* |
+
+4. Klicke **Deploy Web Service**.
+
+Unter **Settings** bleiben *Pre-Deploy Command* und *Docker Command* leer.
+
+### 4. Redirect URI bei Spotify eintragen
+
+Nach dem Deploy hat dein Service eine URL wie `https://spotify-xyz.onrender.com`. Trage in der Spotify-App unter **Settings → Redirect URIs** genau diese Adresse ein und speichere:
 
 ```
-┌────────────────────┐     ┌─────────────────────────┐
-│  Web Service       │     │  Cron Job (*/30 * * * *) │
-│  src/server.js     │     │  scripts/cron.js         │
-│  Dashboard + API   │     │  ├ recently-played       │
-│  Spotify-OAuth     │     │  ├ Top-Snapshot (1×/Tag) │
-│  History-Upload    │     │  └ Cover/Genres nachladen│
-└─────────┬──────────┘     └────────────┬─────────────┘
-          └──────────────┬──────────────┘
-                   ┌─────┴─────┐
-                   │  Postgres │  plays · tracks · artists · top_snapshots · spotify_auth
-                   └───────────┘
+https://spotify-xyz.onrender.com/auth/callback
 ```
 
-| Datei | Zweck |
-|---|---|
-| `src/server.js` | Express-Server: Login, OAuth, JSON-API, statische Dateien |
-| `src/spotify.js` | OAuth, Token-Refresh, API-Client mit Retry (401/429/5xx) |
-| `src/sync.js` | Recently Played, Snapshots, Anreicherung, Duplikat-Schutz |
-| `src/importer.js` | Parser für `Streaming_History_Audio_*.json` |
-| `src/stats.js` | Alle SQL-Auswertungen |
-| `src/schema.sql` | Idempotentes Schema (wird bei jedem Start angewendet) |
-| `scripts/cron.js` | Einstiegspunkt des Cron-Jobs |
-| `scripts/import-history.js` | CLI-Import der Streaming-History |
-| `public/` | Frontend (Vanilla JS + Chart.js, ohne Build-Schritt) |
+Den Platzhalter `https://example.com/callback` kannst du entfernen.
 
-## Setup
+### 5. Loslegen
 
-### 1. Spotify-App anlegen
+1. Öffne deine Render-URL und melde dich mit `APP_PASSWORD` an.
+2. Klicke **Mit Spotify verbinden** und bestätige bei Spotify.
+3. Danach läuft sofort ein erster Sync inklusive Top-Snapshot. Ab dann synchronisiert die App alle 30 Minuten von selbst.
 
-1. Öffne das [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) und klicke **Create app**.
-2. Wähle bei *Which API/SDKs are you planning to use?* die **Web API**.
-3. Trage unter **Redirect URIs** ein:
-   - `https://<dein-service>.onrender.com/auth/callback` (die URL bekommst du nach dem ersten Deploy, siehe Schritt 3)
-   - für lokale Entwicklung zusätzlich `http://127.0.0.1:3000/auth/callback`. Spotify akzeptiert dafür kein `localhost`, nur die Loopback-IP.
-4. Notiere dir **Client ID** und **Client Secret**.
+Siehst du statt des Logins eine Seite **„Einrichtung unvollständig“**, steht dort, welche Variable fehlt oder warum die Datenbank nicht erreichbar ist.
 
-> Seit Februar 2026 gelten für Apps im *Development Mode* strengere Regeln: Der Entwickler-Account braucht Spotify Premium, und es sind nur wenige freigeschaltete Nutzer erlaubt. Für ein persönliches Dashboard reicht das. Falls Spotify deine E-Mail nicht automatisch freischaltet, trage sie unter **User Management** der App ein.
+### Alternativ: Blueprint
 
-### 2. Auf Render deployen
+Statt Schritt 1 und 3 kannst du auch **New → Blueprint** wählen und dieses Repo verbinden. `render.yaml` legt dann Datenbank und Web Service automatisch an. Render fragt nur noch nach Client ID, Client Secret und Passwort.
 
-1. Forke bzw. pushe dieses Repo zu GitHub.
-2. Wähle im Render-Dashboard **New → Blueprint** und dann dieses Repository.
-3. Render liest `render.yaml` und legt Folgendes an:
-   - `spotify-stats` als Web Service
-   - `spotify-stats-sync` als Cron Job, alle 30 Minuten
-   - `spotify-stats-db` als Postgres-Datenbank
-4. Render fragt die geheimen Werte ab:
+---
 
-   | Variable | Service | Wert |
-   |---|---|---|
-   | `SPOTIFY_CLIENT_ID` | Web und Cron | aus Schritt 1 |
-   | `SPOTIFY_CLIENT_SECRET` | Web und Cron | aus Schritt 1 |
-   | `APP_PASSWORD` | Web | dein Dashboard-Passwort |
+## Damit der Free-Service nicht einschläft
 
-   `SESSION_SECRET` erzeugt Render automatisch, `DATABASE_URL` wird automatisch verknüpft.
+Render legt kostenlose Web Services nach ca. 15 Minuten ohne Aufrufe schlafen, und dann läuft auch der Sync nicht. Die App sorgt auf zwei Wegen dafür, dass trotzdem nichts verloren geht:
 
-### 3. Redirect-URI prüfen
+- **Keep-Alive**: Die App ruft alle 10 Minuten ihre eigene öffentliche URL auf (`/healthz`). Auf Render ist das automatisch aktiv, abschaltbar mit `KEEP_ALIVE=false`. Ein einzelner Service bleibt damit innerhalb der 750 freien Stunden pro Monat.
+- **Nachholen**: Wann zuletzt synchronisiert wurde, steht in der Datenbank. Wacht der Service auf (oder startet neu), holt er den Sync sofort nach. Spotify liefert die letzten 50 Songs, kurze Pausen sind also kein Problem.
 
-Die Redirect-URI ist automatisch `${RENDER_EXTERNAL_URL}/auth/callback`, also z. B. `https://spotify-stats.onrender.com/auth/callback`. Genau diese URL muss in der Spotify-App eingetragen sein. Nutzt du eine eigene Domain, setze `SPOTIFY_REDIRECT_URI` im Web Service passend.
+Zusätzlich kannst du einen **externen Pinger** nutzen, z. B. cron-job.org oder UptimeRobot:
 
-### 4. Verbinden
+1. Setze `CRON_SECRET` auf einen langen Zufallswert.
+2. Lass den Pinger alle 30 Minuten `https://<deine-url>/cron/run?key=<CRON_SECRET>` aufrufen.
 
-Öffne die URL, melde dich mit `APP_PASSWORD` an und klicke **Mit Spotify verbinden**. Danach passiert Folgendes automatisch:
+---
 
-1. Direkt nach dem Verbinden laufen ein erster Sync und ein erster Snapshot.
-2. Ab dann übernimmt der Cron-Job alle 30 Minuten, auch wenn der (kostenlose) Web Service schläft.
-
-### 5. Alte Daten importieren (optional, sehr empfehlenswert)
+## Alte Daten importieren (empfohlen)
 
 `recently-played` liefert nur die letzten 50 Songs. Deine komplette Historie bekommst du so:
 
 1. Gehe auf spotify.com zu **Konto → Datenschutzeinstellungen** und fordere **„Extended streaming history“** an. Die Daten kommen nach einigen Tagen per Mail.
-2. Entpacke das ZIP. Relevant sind die Dateien `Streaming_History_Audio_*.json`.
-3. Import auf einem von zwei Wegen:
-   - **Im Dashboard**: Klicke **Import** und ziehe die JSON-Dateien hinein.
-   - **Per CLI**: Kopiere in Render bei der Datenbank die **External Database URL** und führe lokal aus:
-     ```bash
-     npm install
-     DATABASE_URL="postgres://…render.com/spotify_stats" npm run import -- "./Spotify Extended Streaming History"
-     ```
-     Akzeptiert werden einzelne Dateien oder ein Ordner. Bei externen Render-URLs wird TLS automatisch aktiviert.
+2. Entpacke das ZIP und öffne das Dashboard.
+3. Klicke **Import** und ziehe alle `Streaming_History_Audio_*.json` hinein.
 
-Der Import ist **idempotent**. Doppelte Plays werden übersprungen, auch wenn sie sich mit schon per API gespeicherten Plays überschneiden: Derselbe Track innerhalb von ±90 s gilt als derselbe Play. Podcasts, Hörbücher und Plays unter 30 s (`MIN_PLAY_MS`) werden ignoriert.
-
-Importierte Tracks haben zunächst kein Cover und keine Künstler-ID. Der Cron-Job lädt pro Lauf bis zu `ENRICH_LIMIT` Tracks und Künstler nach, die meistgehörten zuerst. Schneller geht es mit:
+Alternativ per Kommandozeile mit der **External Database URL**:
 
 ```bash
-DATABASE_URL=… SPOTIFY_CLIENT_ID=… SPOTIFY_CLIENT_SECRET=… npm run cron -- --enrich-only
+npm install
+DATABASE_URL="postgres://…render.com/…" npm run import -- "./Spotify Extended Streaming History"
 ```
+
+Der Import ist **idempotent**. Doppelte Plays werden übersprungen, auch wenn sie sich mit schon per API gespeicherten Plays überschneiden: Derselbe Track innerhalb von ±90 s gilt als derselbe Play. Podcasts und Plays unter 30 s werden ignoriert.
+
+Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweise nach (`ENRICH_LIMIT` pro Lauf), die meistgehörten zuerst.
+
+---
 
 ## Umgebungsvariablen
 
@@ -120,36 +136,50 @@ DATABASE_URL=… SPOTIFY_CLIENT_ID=… SPOTIFY_CLIENT_SECRET=… npm run cron --
 | `DATABASE_URL` | ✔ | Postgres-Connection-String |
 | `SPOTIFY_CLIENT_ID` | ✔ | Spotify-App |
 | `SPOTIFY_CLIENT_SECRET` | ✔ | Spotify-App |
-| `APP_PASSWORD` | ✔ (Web) | Passwort fürs Dashboard |
-| `SESSION_SECRET` | ✔ (Web) | Zufallswert zum Signieren der Cookies (`openssl rand -hex 32`) |
-| `SPOTIFY_REDIRECT_URI` | – | Standard: `${RENDER_EXTERNAL_URL}/auth/callback` bzw. `http://127.0.0.1:$PORT/auth/callback` |
+| `APP_PASSWORD` | ✔ | Passwort fürs Dashboard |
+| `SPOTIFY_REDIRECT_URI` | – | Standard: `${RENDER_EXTERNAL_URL}/auth/callback`; bei eigener Domain setzen |
 | `TIMEZONE` | – | Zeitzone für Tage, Heatmap und Snapshots (Standard `Europe/Berlin`) |
-| `ENRICH_LIMIT` | – | Tracks bzw. Künstler, die pro Cron-Lauf angereichert werden (Standard 150) |
-| `MIN_PLAY_MS` | – | Mindestdauer für importierte Plays (Standard 30000) |
+| `SESSION_SECRET` | – | Cookie-Schlüssel; Standard: abgeleitet aus Passwort und Client-Secret |
 | `SESSION_DAYS` | – | Gültigkeit des Logins in Tagen (Standard 30) |
+| `INTERNAL_SCHEDULER` | – | Interner Zeitplan an/aus (Standard `true`) |
+| `SYNC_INTERVAL_MINUTES` | – | Sync-Intervall (Standard 30) |
+| `KEEP_ALIVE` | – | Selbst-Ping gegen Einschlafen (Standard: an auf Render) |
+| `CRON_SECRET` | – | Aktiviert `/cron/run?key=…` für externe Trigger |
+| `ENRICH_LIMIT` | – | Tracks bzw. Künstler, die pro Lauf angereichert werden (Standard 150) |
+| `MIN_PLAY_MS` | – | Mindestdauer für importierte Plays (Standard 30000) |
 | `PGSSL` | – | `true`/`false` erzwingt TLS für Postgres (sonst automatisch) |
-| `PORT` | – | Port des Web Service (Render setzt ihn selbst) |
 
 ## Lokale Entwicklung
 
 ```bash
-cp .env.example .env          # Werte eintragen
+cp .env.example .env    # Werte eintragen
 npm install
-npm run dev                   # http://127.0.0.1:3000
-npm run cron                  # einen Sync-Lauf manuell ausführen
-npm run snapshot              # Top-Snapshot erzwingen
+npm run dev             # http://127.0.0.1:3000
+npm run cron            # einen Sync-Lauf manuell ausführen
+npm run snapshot        # Top-Snapshot erzwingen
 ```
 
-Du brauchst Node ≥ 20 und eine Postgres-Datenbank. Das Schema legt sich beim Start selbst an (`npm run migrate` geht auch einzeln).
+Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an. Lokal muss in der Spotify-App die Redirect URI `http://127.0.0.1:3000/auth/callback` eingetragen sein; Spotify akzeptiert dafür kein `localhost`.
+
+## Aufbau
+
+| Datei | Zweck |
+|---|---|
+| `src/server.js` | Einstieg: prüft die Konfiguration, zeigt sonst die Setup-Seite |
+| `src/app.js` | Express: Login, OAuth, JSON-API, statische Dateien |
+| `src/scheduler.js` | Interner Zeitplan, Keep-Alive |
+| `src/spotify.js` | OAuth, Token-Refresh, API-Client mit Retry (401/429/5xx) |
+| `src/sync.js` | Recently Played, Snapshots, Anreicherung, Duplikat-Schutz |
+| `src/importer.js` | Parser für `Streaming_History_Audio_*.json` |
+| `src/stats.js` | SQL-Auswertungen |
+| `src/schema.sql` | Idempotentes Schema |
+| `public/` | Frontend (Vanilla JS + Chart.js, ohne Build-Schritt) |
 
 ## Gut zu wissen
 
-- **Hördauer bei API-Plays**: `recently-played` liefert keine tatsächliche Hördauer. Für diese Plays zählt die volle Track-Länge. Importierte Plays nutzen das exakte `ms_played`.
-- **Lücken**: Hörst du mehr als 50 Songs in 30 Minuten, fehlen einzelne Plays. Das ist praktisch ausgeschlossen. Bei längeren Ausfällen des Cron-Jobs schließt der nächste History-Import die Lücke.
-- **Genres**: Seit den API-Änderungen vom Februar 2026 gibt es keine Batch-Endpunkte mehr, und Genres fehlen teils in Top-Listen. Das Dashboard lädt Künstler deshalb einzeln über `/artists/{id}` nach und zeigt an, für welchen Anteil der Hörzeit Genres bekannt sind. Liefert Spotify für einen Künstler keine Genres, fehlt er in der Genre-Verteilung.
-- **Snapshots** entstehen beim ersten Cron-Lauf eines Tages in `TIMEZONE`. Der Rangverlauf wird also erst nach einigen Tagen interessant.
-- **Kosten auf Render**: Der Web Service läuft im Free-Plan. Cron Jobs und dauerhafte Postgres-Instanzen sind kostenpflichtig (aktuelle Preise siehe render.com/pricing). Free-Postgres wird nach 30 Tagen gelöscht und eignet sich daher nicht für eine dauerhafte Historie.
+- **Hördauer**: Für per API erfasste Plays liefert Spotify keine echte Hördauer, daher zählt die volle Track-Länge. Importierte Plays nutzen das exakte `ms_played`.
+- **Genres**: Seit den API-Änderungen vom Februar 2026 lädt die App Künstler einzeln über `/artists/{id}`. Liefert Spotify keine Genres, fehlt der Künstler in der Genre-Verteilung. Das Dashboard zeigt, für welchen Anteil der Hörzeit Genres bekannt sind.
+- **Snapshots** entstehen beim ersten Sync eines Tages in `TIMEZONE`. Der Rangverlauf wird also nach einigen Tagen interessant.
 - **Sicherheit**:
-  - Alle Seiten und API-Routen außer `/login` und `/healthz` sind passwortgeschützt.
-  - Auch die Spotify-Verknüpfung ist nur nach Login möglich.
-  - Eine strenge Content-Security-Policy verhindert externe Skripte. Chart.js und die Schrift werden selbst ausgeliefert.
+  - Alles außer `/login`, `/healthz` und dem optionalen `/cron/run` ist passwortgeschützt.
+  - Eine strenge Content-Security-Policy verhindert externe Skripte.
