@@ -31,7 +31,7 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
 - **System**: Datenbankgröße, Katalog (Songs und Künstler, fehlende Cover und Genres), Sync-Läufe und Fehler der letzten 24 h, Zeitplan, Zeitzone.
 - **Sync-Fehler**: die letzten fehlgeschlagenen Läufe mit Fehlermeldung.
 
-**Admin-Konto**: Der Benutzername **Nebs** (`ADMIN_USERNAME`) ist das Admin-Konto. Sein Passwort steht ausschließlich in der Umgebungsvariable `ADMIN_PASSWORD`, nie im Code. Beim Start legt die App das Konto an bzw. übernimmt ein geändertes Passwort. Weitere Admins kannst du im Admin-Tab ernennen.
+**Admin-Konto**: Der Benutzername **Nebs** (`ADMIN_USERNAME`) ist das Admin-Konto. Sein Passwort steht ausschließlich in der Umgebungsvariable `ADMIN_PASSWORD`, nie im Code. Beim Start legt die App das Konto an bzw. übernimmt ein geändertes Passwort. Außerdem wird das Admin-Konto automatisch mit dem Spotify-Konto verknüpft, dessen Anzeigename dem Benutzernamen entspricht (z. B. „Nebs“), sobald sich dieses Spotify-Konto einmal mit der App verbunden hat. Weitere Admins kannst du im Admin-Tab ernennen.
 
 ---
 
