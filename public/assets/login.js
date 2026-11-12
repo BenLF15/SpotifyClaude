@@ -1,46 +1,67 @@
 (() => {
   const $ = (s) => document.querySelector(s);
+  const choice = $('#auth-choice');
   const form = $('#auth-form');
   const err = $('#error');
   const btn = $('#submit-btn');
-  let mode = 'login';
+  let mode = null;
+  let allowRegistration = true;
 
   function showError(msg) {
-    err.textContent = msg;
+    err.textContent = msg || '';
     err.hidden = !msg;
   }
 
-  // Segment-Control mit gleitender Markierung
-  const tabs = $('#auth-tabs');
-  const pill = document.createElement('span');
-  pill.className = 'seg-pill';
-  tabs.prepend(pill);
-  const buttons = [...tabs.querySelectorAll('button')];
-
-  function setMode(next, animate = true) {
+  // Schritt 1 (Auswahl) ↔ Schritt 2 (Formular)
+  function show(next) {
     mode = next;
-    const b = buttons.find((x) => x.dataset.mode === next);
-    buttons.forEach((x) => x.setAttribute('aria-selected', String(x === b)));
-    pill.style.transition = animate ? '' : 'none';
-    pill.style.width = `${b.offsetWidth}px`;
-    pill.style.transform = `translateX(${b.offsetLeft}px)`;
+    showError('');
+    if (!next) {
+      form.hidden = true;
+      choice.hidden = false;
+      choice.classList.remove('step-in');
+      void choice.offsetWidth;
+      choice.classList.add('step-in');
+      try { history.replaceState(null, '', '/login'); } catch { /* egal */ }
+      return;
+    }
     const reg = next === 'register';
+    choice.hidden = true;
+    form.hidden = false;
+    form.classList.remove('step-in');
+    void form.offsetWidth;
+    form.classList.add('step-in');
+    $('#auth-title').textContent = reg ? 'Konto erstellen' : 'Anmelden';
     $('#register-extra').hidden = !reg;
     $('#password').autocomplete = reg ? 'new-password' : 'current-password';
     btn.textContent = reg ? 'Konto erstellen' : 'Anmelden';
-    showError('');
-    try { history.replaceState(null, '', reg ? '/login#registrieren' : '/login'); } catch { /* egal */ }
+    btn.disabled = false;
+    $('#auth-switch').innerHTML = reg
+      ? 'Schon ein Konto? <button type="button" data-mode="login">Anmelden</button>'
+      : allowRegistration
+        ? 'Noch kein Konto? <button type="button" data-mode="register">Registrieren</button>'
+        : '';
+    $('#username').focus();
+    try { history.replaceState(null, '', reg ? '/login#registrieren' : '/login#anmelden'); } catch { /* egal */ }
   }
-  buttons.forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
-  requestAnimationFrame(() => setMode(location.hash === '#registrieren' ? 'register' : 'login', false));
-  window.addEventListener('resize', () => setMode(mode, false));
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mode]');
+    if (b) show(b.dataset.mode);
+  });
+  $('#auth-back').addEventListener('click', () => show(null));
+
+  if (location.hash === '#registrieren') show('register');
+  else if (location.hash === '#anmelden') show('login');
 
   fetch('/api/auth/config')
     .then((r) => r.json())
     .then((c) => {
-      if (!c.allowRegistration) {
-        buttons.find((b) => b.dataset.mode === 'register').hidden = true;
-        setMode('login', false);
+      allowRegistration = c.allowRegistration !== false;
+      if (!allowRegistration) {
+        $('#choice-register').hidden = true;
+        if (mode === 'register') show('login');
+        else if (mode === 'login') show('login');
       }
     })
     .catch(() => {});

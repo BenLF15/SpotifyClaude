@@ -178,6 +178,8 @@ app.post(
         fail(...keys);
         return res.status(401).json({ error: 'Benutzername oder Passwort ist falsch.' });
       }
+      // Admin-Konto: Spotify-Konto mit gleichem Anzeigenamen automatisch verknüpfen
+      if (account.username.toLowerCase() === config.adminUsername.toLowerCase()) await users.linkAdminSpotify();
       await users.recordLogin(account.id, req.get('user-agent'));
       startSession(res, account.id);
       res.json({ ok: true });

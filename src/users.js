@@ -80,6 +80,29 @@ export async function ensureAdminAccount() {
     );
     if (!same) console.log(`[admin] Passwort für „${config.adminUsername}“ aus ADMIN_PASSWORD übernommen.`);
   }
+  await linkAdminSpotify();
+}
+
+/**
+ * Verknüpft das Admin-Konto automatisch mit dem Spotify-Konto, dessen Anzeigename dem
+ * Admin-Benutzernamen entspricht (z. B. „Nebs“) – sofern noch keins verbunden ist.
+ * Bewusst nur für das Admin-Konto: bei normalen Konten wäre ein Abgleich per Name unsicher.
+ */
+export async function linkAdminSpotify() {
+  const { rows } = await query(
+    `UPDATE accounts a SET spotify_user_id = m.id, updated_at = now()
+       FROM (
+         SELECT u.id FROM users u
+          WHERE lower(u.display_name) = lower($1)
+            AND NOT EXISTS (SELECT 1 FROM accounts x WHERE x.spotify_user_id = u.id)
+          ORDER BY u.last_login_at DESC NULLS LAST LIMIT 1
+       ) m
+      WHERE lower(a.username) = lower($1) AND a.spotify_user_id IS NULL
+      RETURNING a.spotify_user_id`,
+    [config.adminUsername],
+  );
+  if (rows.length) console.log(`[admin] „${config.adminUsername}“ mit Spotify-Konto ${rows[0].spotify_user_id} verknüpft.`);
+  return rows[0]?.spotify_user_id || null;
 }
 
 export async function registerAccount(username, password) {

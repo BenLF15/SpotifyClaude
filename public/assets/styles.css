@@ -431,3 +431,21 @@ code { background: var(--surface-3); padding: 1px 6px; border-radius: 6px; font-
 .connect-card .hint { font-size: 0.8rem; color: var(--text-3); margin-top: 16px; margin-bottom: 0; }
 .connect-icon { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); }
 .connect-icon svg { width: 32px; height: 32px; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+
+/* ------------------------------------------------------------------ Login: Auswahl → Formular */
+.auth-choice { display: flex; flex-direction: column; gap: 12px; }
+.auth-choice-btn { height: 50px; border-radius: 14px; font-size: 1rem; }
+.auth-form-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.auth-form-head h2 { font-size: 1.1rem; flex: 1; text-align: left; }
+.auth-back {
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; cursor: pointer;
+  background: transparent; border: 1px solid var(--border); color: var(--text-2);
+}
+.auth-back:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
+.auth-back svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.auth-switch { font-size: 0.85rem; color: var(--text-3); margin: 4px 0 0; }
+.auth-switch button { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
+.auth-switch button:hover { text-decoration: underline; }
+.step-in { animation: step-in 0.35s var(--ease); }
+@keyframes step-in { from { opacity: 0; transform: translateX(12px); } }
+.login-form[hidden], .auth-choice[hidden] { display: none !important; }
