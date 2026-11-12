@@ -54,69 +54,26 @@ function validateCredentials(username, password) {
 
 // ---------------------------------------------------------------- Konten
 
-/** Legt das Admin-Konto aus ADMIN_USERNAME/ADMIN_PASSWORD an bzw. hält dessen Passwort aktuell. */
-export async function ensureAdminAccount() {
-  if (!config.adminPassword) {
-    console.warn(
-      `[admin] ADMIN_PASSWORD ist nicht gesetzt – der Benutzername „${config.adminUsername}“ ist reserviert, ` +
-        'aber noch nicht nutzbar. Setze ADMIN_PASSWORD in den Umgebungsvariablen.',
-    );
-    return;
-  }
-  const { rows } = await query('SELECT id, password_hash FROM accounts WHERE lower(username) = lower($1)', [
-    config.adminUsername,
-  ]);
-  if (!rows.length) {
-    await query('INSERT INTO accounts (username, password_hash, is_admin) VALUES ($1, $2, true)', [
-      config.adminUsername,
-      await hashPassword(config.adminPassword),
-    ]);
-    console.log(`[admin] Admin-Konto „${config.adminUsername}“ angelegt.`);
-  } else {
-    const same = await verifyPassword(config.adminPassword, rows[0].password_hash);
-    await query(
-      `UPDATE accounts SET is_admin = true, password_hash = COALESCE($2, password_hash), updated_at = now() WHERE id = $1`,
-      [rows[0].id, same ? null : await hashPassword(config.adminPassword)],
-    );
-    if (!same) console.log(`[admin] Passwort für „${config.adminUsername}“ aus ADMIN_PASSWORD übernommen.`);
-  }
-  await linkAdminSpotify();
-}
-
 /**
- * Verknüpft das Admin-Konto automatisch mit dem Spotify-Konto, dessen Anzeigename dem
- * Admin-Benutzernamen entspricht (z. B. „Nebs“) – sofern noch keins verbunden ist.
- * Bewusst nur für das Admin-Konto: bei normalen Konten wäre ein Abgleich per Name unsicher.
+ * Registriert ein neues Konto. Gibt es noch keinen Admin (frische Installation oder nach dem
+ * Admin-Reset), wird das neue Konto automatisch Admin mit allen Funktionen.
  */
-export async function linkAdminSpotify() {
-  const { rows } = await query(
-    `UPDATE accounts a SET spotify_user_id = m.id, updated_at = now()
-       FROM (
-         SELECT u.id FROM users u
-          WHERE lower(u.display_name) = lower($1)
-            AND NOT EXISTS (SELECT 1 FROM accounts x WHERE x.spotify_user_id = u.id)
-          ORDER BY u.last_login_at DESC NULLS LAST LIMIT 1
-       ) m
-      WHERE lower(a.username) = lower($1) AND a.spotify_user_id IS NULL
-      RETURNING a.spotify_user_id`,
-    [config.adminUsername],
-  );
-  if (rows.length) console.log(`[admin] „${config.adminUsername}“ mit Spotify-Konto ${rows[0].spotify_user_id} verknüpft.`);
-  return rows[0]?.spotify_user_id || null;
-}
-
 export async function registerAccount(username, password) {
   if (!config.allowRegistration) throw new UserError('Neue Registrierungen sind derzeit deaktiviert.', 403);
   const u = validateCredentials(username, password);
-  if (u.toLowerCase() === config.adminUsername.toLowerCase()) {
-    throw new UserError('Dieser Benutzername ist bereits vergeben.', 409);
-  }
+  const passwordHash = await hashPassword(password);
   try {
-    const { rows } = await query(
-      'INSERT INTO accounts (username, password_hash) VALUES ($1, $2) RETURNING id, username, is_admin',
-      [u, await hashPassword(password)],
-    );
-    return rows[0];
+    return await withTransaction(async (db) => {
+      // Sperre, damit bei gleichzeitigen Registrierungen nur einer Admin wird.
+      await db.query('SELECT pg_advisory_xact_lock(424242)');
+      const { rows: admins } = await db.query('SELECT 1 FROM accounts WHERE is_admin LIMIT 1');
+      const { rows } = await db.query(
+        'INSERT INTO accounts (username, password_hash, is_admin) VALUES ($1, $2, $3) RETURNING id, username, is_admin',
+        [u, passwordHash, admins.length === 0],
+      );
+      if (rows[0].is_admin) console.log(`[admin] „${rows[0].username}“ ist als erster Nutzer Admin geworden.`);
+      return rows[0];
+    });
   } catch (err) {
     if (err.code === '23505') throw new UserError('Dieser Benutzername ist bereits vergeben.', 409);
     throw err;
@@ -167,9 +124,6 @@ export function touchAccount(id) {
 export async function changePassword(accountId, currentPassword, newPassword) {
   const { rows } = await query('SELECT username, password_hash FROM accounts WHERE id = $1', [accountId]);
   if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
-  if (rows[0].username.toLowerCase() === config.adminUsername.toLowerCase() && config.adminPassword) {
-    throw new UserError('Das Admin-Passwort wird über die Umgebungsvariable ADMIN_PASSWORD verwaltet.');
-  }
   if (!(await verifyPassword(currentPassword, rows[0].password_hash))) throw new UserError('Das aktuelle Passwort stimmt nicht.');
   validateCredentials(rows[0].username, newPassword);
   await query('UPDATE accounts SET password_hash = $2, updated_at = now() WHERE id = $1', [accountId, await hashPassword(newPassword)]);
@@ -270,15 +224,12 @@ export async function adminOverview() {
   return { accounts: accounts.rows, logins: logins.rows };
 }
 
-/** Admin-Rechte setzen/entziehen. Das Admin-Konto aus ADMIN_USERNAME und der letzte Admin bleiben geschützt. */
+/** Admin-Rechte setzen/entziehen. Der letzte Admin bleibt geschützt. */
 export async function setAdmin(accountId, isAdmin) {
   return withTransaction(async (db) => {
     const { rows } = await db.query('SELECT username FROM accounts WHERE id = $1', [accountId]);
     if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
     if (!isAdmin) {
-      if (rows[0].username.toLowerCase() === config.adminUsername.toLowerCase()) {
-        throw new UserError(`„${config.adminUsername}“ ist der Haupt-Admin und bleibt Admin.`);
-      }
       const { rows: others } = await db.query('SELECT count(*) AS n FROM accounts WHERE is_admin AND id <> $1', [accountId]);
       if (others[0].n === 0) throw new UserError('Der letzte Admin kann nicht entfernt werden.');
     }
@@ -290,9 +241,6 @@ export async function setAdmin(accountId, isAdmin) {
 export async function resetPassword(accountId) {
   const { rows } = await query('SELECT username FROM accounts WHERE id = $1', [accountId]);
   if (!rows.length) throw new UserError('Konto nicht gefunden.', 404);
-  if (rows[0].username.toLowerCase() === config.adminUsername.toLowerCase()) {
-    throw new UserError('Das Admin-Passwort wird über ADMIN_PASSWORD verwaltet.');
-  }
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
   const password = Array.from(crypto.randomBytes(12), (b) => alphabet[b % alphabet.length]).join('');
   await query('UPDATE accounts SET password_hash = $2, updated_at = now() WHERE id = $1', [accountId, await hashPassword(password)]);
@@ -302,10 +250,11 @@ export async function resetPassword(accountId) {
 /** Löscht ein Spotlfy-Konto samt aller Hördaten des verbundenen Spotify-Kontos. */
 export async function deleteAccount(accountId) {
   await withTransaction(async (db) => {
-    const { rows } = await db.query('SELECT username, spotify_user_id FROM accounts WHERE id = $1', [accountId]);
+    const { rows } = await db.query('SELECT username, spotify_user_id, is_admin FROM accounts WHERE id = $1', [accountId]);
     if (!rows.length) return;
-    if (rows[0].username.toLowerCase() === config.adminUsername.toLowerCase() && config.adminPassword) {
-      throw new UserError(`Das Admin-Konto „${config.adminUsername}“ kann nicht gelöscht werden.`);
+    if (rows[0].is_admin) {
+      const { rows: others } = await db.query('SELECT count(*) AS n FROM accounts WHERE is_admin AND id <> $1', [accountId]);
+      if (others[0].n === 0) throw new UserError('Der letzte Admin kann nicht gelöscht werden. Ernenne vorher einen anderen Admin.');
     }
     const sid = rows[0].spotify_user_id;
     await db.query('DELETE FROM accounts WHERE id = $1', [accountId]);
@@ -355,8 +304,6 @@ export async function adminSystem() {
       internalScheduler: config.internalScheduler,
       keepAlive: Boolean(config.keepAliveUrl),
       allowRegistration: config.allowRegistration,
-      adminUsername: config.adminUsername,
-      adminPasswordSet: Boolean(config.adminPassword),
     },
   };
 }

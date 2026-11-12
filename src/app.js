@@ -181,8 +181,6 @@ app.post(
         fail(...keys);
         return res.status(401).json({ error: 'Benutzername oder Passwort ist falsch.' });
       }
-      // Admin-Konto: Spotify-Konto mit gleichem Anzeigenamen automatisch verknüpfen
-      if (account.username.toLowerCase() === config.adminUsername.toLowerCase()) await users.linkAdminSpotify();
       await users.recordLogin(account.id, req.get('user-agent'));
       startSession(res, account.id);
       res.json({ ok: true });
@@ -204,7 +202,7 @@ app.post(
       fail(`reg:${req.ip}`); // zählt Registrierungen pro IP (max. 10 / 15 Min.)
       await users.recordLogin(account.id, req.get('user-agent'));
       startSession(res, account.id);
-      res.status(201).json({ ok: true });
+      res.status(201).json({ ok: true, isAdmin: account.is_admin });
     } catch (err) {
       if (err instanceof users.UserError) return res.status(err.status).json({ error: err.message });
       next(err);
@@ -433,7 +431,6 @@ app.use('/api', api);
 // ---------------------------------------------------------------- Start
 
 await migrate();
-await users.ensureAdminAccount();
 app.listen(config.port, () => {
   console.log(`Spotlfy läuft auf Port ${config.port} (Redirect URI: ${config.spotify.redirectUri})`);
   startScheduler();

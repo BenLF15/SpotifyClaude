@@ -643,7 +643,11 @@
 
   function handleQueryFlags() {
     const q = new URLSearchParams(location.search);
-    if (q.has('welcome')) toast('Willkommen bei Spotlfy! Verbinde jetzt dein Spotify-Konto.');
+    if (q.has('welcome')) {
+      toast(q.has('admin')
+        ? 'Willkommen! Du bist als erster Nutzer Admin – den Admin-Tab findest du oben.'
+        : 'Willkommen bei Spotlfy! Verbinde jetzt dein Spotify-Konto.');
+    }
     if (q.has('connected')) toast('Spotify verbunden – deine ersten Daten werden geladen …');
     if (q.has('spotify_error')) {
       const e = q.get('spotify_error');
@@ -801,7 +805,6 @@
       ['Keep-Alive', sys.config.keepAlive ? 'an' : 'aus'],
       ['Zeitzone', sys.config.timezone],
       ['Registrierung', sys.config.allowRegistration ? 'offen' : 'geschlossen'],
-      ['Admin-Konto', `${sys.config.adminUsername}${sys.config.adminPasswordSet ? '' : ' (ADMIN_PASSWORD fehlt!)'}`],
     ];
     $('#admin-system').innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
     $('#admin-errors').innerHTML = sys.errors.length

@@ -89,7 +89,7 @@
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Fehler ${res.status}`);
-      location.href = mode === 'register' ? '/?welcome=1' : '/';
+      location.href = mode === 'register' ? (data.isAdmin ? '/?welcome=1&admin=1' : '/?welcome=1') : '/';
     } catch (ex) {
       showError(ex.message);
       btn.disabled = false;

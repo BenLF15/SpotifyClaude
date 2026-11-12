@@ -143,3 +143,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS accounts_username_uq ON accounts (lower(userna
 
 ALTER TABLE login_events ADD COLUMN IF NOT EXISTS account_id bigint REFERENCES accounts(id) ON DELETE CASCADE;
 ALTER TABLE login_events ALTER COLUMN user_id DROP NOT NULL;
+
+-- ---------------------------------------------------------------- Einmaliger Admin-Reset (Nov. 2026)
+-- Entfernt das früher automatisch angelegte Konto „Nebs“ und alle Admin-Rechte. Danach wird der
+-- erste Nutzer, der sich registriert, automatisch Admin (siehe users.registerAccount).
+-- Hördaten bleiben erhalten (sie hängen am Spotify-Konto und kommen beim Verbinden zurück).
+CREATE TABLE IF NOT EXISTS app_meta (
+  key         text PRIMARY KEY,
+  value       text,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM app_meta WHERE key = 'admin_reset_2026_11') THEN
+    DELETE FROM accounts WHERE lower(username) = 'nebs';
+    UPDATE accounts SET is_admin = false WHERE is_admin;
+    INSERT INTO app_meta (key, value) VALUES ('admin_reset_2026_11', now()::text);
+  END IF;
+END $$;

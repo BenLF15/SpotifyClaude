@@ -31,7 +31,7 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
 - **System**: Datenbankgröße, Katalog (Songs und Künstler, fehlende Cover und Genres), Sync-Läufe und Fehler der letzten 24 h, Zeitplan, Zeitzone.
 - **Sync-Fehler**: die letzten fehlgeschlagenen Läufe mit Fehlermeldung.
 
-**Admin-Konto**: Der Benutzername **Nebs** (`ADMIN_USERNAME`) ist das Admin-Konto. Sein Passwort steht ausschließlich in der Umgebungsvariable `ADMIN_PASSWORD`, nie im Code. Beim Start legt die App das Konto an bzw. übernimmt ein geändertes Passwort. Außerdem wird das Admin-Konto automatisch mit dem Spotify-Konto verknüpft, dessen Anzeigename dem Benutzernamen entspricht (z. B. „Nebs“), sobald sich dieses Spotify-Konto einmal mit der App verbunden hat. Weitere Admins kannst du im Admin-Tab ernennen.
+**Wer ist Admin?** Der erste Nutzer, der sich registriert, wird automatisch Admin mit allen Funktionen. Weitere Admins ernennst du im Admin-Tab. Der letzte Admin kann weder entfernt noch gelöscht werden.
 
 ---
 
@@ -86,7 +86,6 @@ Ohne irgendeine Datenbank geht es nicht: Der kostenlose Render-Web-Service hat k
    | `DATABASE_URL` | die *Internal Database URL* aus Schritt 1 |
    | `SPOTIFY_CLIENT_ID` | aus Schritt 2 |
    | `SPOTIFY_CLIENT_SECRET` | aus Schritt 2 |
-   | `ADMIN_PASSWORD` | das Passwort für das Admin-Konto **Nebs** |
    | `TIMEZONE` | `Europe/Berlin` *(optional, ist Standard)* |
 
 4. Klicke **Deploy Web Service**.
@@ -105,7 +104,7 @@ Den Platzhalter `https://example.com/callback` kannst du entfernen.
 
 ### 5. Loslegen
 
-1. Öffne deine Render-URL und melde dich mit Benutzername **Nebs** und deinem `ADMIN_PASSWORD` an.
+1. Öffne deine Render-URL, klicke **Registrieren** und lege dein Konto an. Als erster Nutzer wirst du automatisch Admin.
 2. Klicke **Mit Spotify verbinden** und bestätige bei Spotify.
 3. Danach läuft sofort ein erster Sync inklusive Top-Snapshot. Ab dann synchronisiert die App alle 30 Minuten von selbst.
 4. Andere registrieren sich auf der Login-Seite unter **Registrieren** mit eigenem Benutzernamen und Passwort und verbinden danach ihr Spotify.
@@ -172,8 +171,6 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | `DATABASE_URL` | ✔ | Postgres-Connection-String |
 | `SPOTIFY_CLIENT_ID` | ✔ | Spotify-App |
 | `SPOTIFY_CLIENT_SECRET` | ✔ | Spotify-App |
-| `ADMIN_PASSWORD` | ✔ (für Admin) | Passwort des Admin-Kontos |
-| `ADMIN_USERNAME` | – | Benutzername des Admin-Kontos (Standard `Nebs`) |
 | `ALLOW_REGISTRATION` | – | Neue Registrierungen erlauben (Standard `true`) |
 | `SPOTIFY_REDIRECT_URI` | – | Standard: `${RENDER_EXTERNAL_URL}/auth/callback`; bei eigener Domain setzen |
 | `TIMEZONE` | – | Zeitzone für Tage, Heatmap und Snapshots (Standard `Europe/Berlin`) |

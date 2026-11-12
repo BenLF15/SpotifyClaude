@@ -33,8 +33,5 @@ services:
         sync: false
       - key: SPOTIFY_CLIENT_SECRET
         sync: false
-      # Passwort des Admin-Kontos (Benutzername: ADMIN_USERNAME, Standard "Nebs")
-      - key: ADMIN_PASSWORD
-        sync: false
       - key: TIMEZONE
         value: Europe/Berlin

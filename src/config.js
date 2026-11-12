@@ -37,10 +37,6 @@ export const config = {
     ),
     scopes: ['user-read-recently-played', 'user-top-read', 'user-read-private', 'user-read-email'],
   },
-  // Admin-Konto: wird beim Start mit diesem Benutzernamen/Passwort angelegt bzw. aktualisiert.
-  // Das Passwort kommt NUR aus der Umgebungsvariable ADMIN_PASSWORD (nie aus dem Code).
-  adminUsername: env('ADMIN_USERNAME', 'Nebs'),
-  adminPassword: env('ADMIN_PASSWORD'),
   // Neue Registrierungen erlauben (true/false)
   allowRegistration: bool('ALLOW_REGISTRATION', true),
   sessionSecret: env('SESSION_SECRET') || derivedSecret(),
