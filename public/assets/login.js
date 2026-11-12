@@ -1,4 +1,8 @@
 (() => {
+  // Als App installierbar machen (Android/Chrome: Vollbild ohne Browserleiste)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  }
   const $ = (s) => document.querySelector(s);
   const choice = $('#auth-choice');
   const form = $('#auth-form');

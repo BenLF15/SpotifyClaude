@@ -133,6 +133,11 @@ function fail(...keys) {
 // ---------------------------------------------------------------- Öffentliche Routen
 
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
+// Service Worker muss öffentlich und unter "/" liegen, damit er die ganze App steuert (Installierbarkeit).
+app.get('/sw.js', (_req, res) => {
+  res.set({ 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/' });
+  res.sendFile(path.join(publicDir, 'sw.js'));
+});
 // Eigene JS/CSS-Dateien: Browser fragt bei jedem Laden per ETag nach, ob es eine neue Version gibt
 // (verhindert, dass nach einem Update veraltete Skripte aus dem Cache laufen).
 const revalidate = { maxAge: 0, setHeaders: (res) => res.set('Cache-Control', 'no-cache') };

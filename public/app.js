@@ -2,6 +2,11 @@
 (() => {
   'use strict';
 
+  // Als App installierbar machen (Android/Chrome: Vollbild ohne Browserleiste)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  }
+
   // ================================================================ Helpers
   const $ = (sel, el = document) => el.querySelector(sel);
   const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
