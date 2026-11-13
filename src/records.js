@@ -53,11 +53,13 @@ const EXCHANGE_RATE = 4; // 4 × niedrigere Stufe = 1 × nächste Stufe
 // Preise je Seltenheit (Noten-Stufe + Spanne)
 const PRICE = { common: ['bronze', 2, 4], rare: ['silver', 1, 2], epic: ['gold', 1, 2], legendary: ['platinum', 1, 1] };
 // Wie viele Alben es in welcher Seltenheit überhaupt gibt (Prozent)
-const PRESENCE = { common: 100, rare: 60, epic: 30, legendary: 12 };
+const PRESENCE = { common: 100, rare: 100, epic: 100, legendary: 100 };
+// Wöchentlich neu gewürfelte Seltenheit je Platz (Prozent)
+const RARITY_ODDS = { record: { common: 55, rare: 28, epic: 12, legendary: 5 }, cd: { common: 58, rare: 27, epic: 11, legendary: 4 } };
 const SHOP_SIZE = 16;
 // CD-Singles: günstiger als Schallplatten (legendär kostet Gold statt Platin)
 const CD_PRICE = { common: ['bronze', 1, 2], rare: ['silver', 1, 1], epic: ['gold', 1, 1], legendary: ['gold', 3, 3] };
-const CD_PRESENCE = { common: 100, rare: 50, epic: 25, legendary: 8 };
+const CD_PRESENCE = { common: 100, rare: 100, epic: 100, legendary: 100 };
 const CD_SHOP_SIZE = 30;
 
 // ================================================================ Hilfen
@@ -88,23 +90,16 @@ function nextMonday(day) {
 }
 
 
-// ================================================================ Platten-Pool (Alben der Lieblingskünstler)
+// ================================================================ Platten-Pool (alle gehörten Alben)
 async function albumPool(userId) {
   const { rows } = await query(
-    `WITH fav AS (
-       SELECT lower(t.artist_names[1]) AS k
-         FROM plays pl JOIN tracks t ON t.id = pl.track_id
-        WHERE pl.user_id = $1 AND t.artist_names[1] IS NOT NULL
-        GROUP BY 1 ORDER BY sum(pl.ms_played) DESC LIMIT 25
-     )
-     SELECT lower(t.artist_names[1]) || '|' || lower(t.album_name) AS key,
+    `SELECT lower(t.artist_names[1]) || '|' || lower(t.album_name) AS key,
             min(t.artist_names[1]) AS artist, min(t.album_name) AS album,
             (array_agg(t.album_id) FILTER (WHERE t.album_id IS NOT NULL))[1] AS album_id,
             (array_agg(t.album_image) FILTER (WHERE t.album_image IS NOT NULL))[1] AS image,
             count(*) AS plays
        FROM plays pl JOIN tracks t ON t.id = pl.track_id
-      WHERE pl.user_id = $1 AND t.album_name IS NOT NULL AND t.album_name <> ''
-        AND lower(t.artist_names[1]) IN (SELECT k FROM fav)
+      WHERE pl.user_id = $1 AND t.album_name IS NOT NULL AND t.album_name <> '' AND t.artist_names[1] IS NOT NULL
       GROUP BY 1`,
     [userId],
   );
@@ -132,19 +127,13 @@ async function albumPool(userId) {
   return items;
 }
 
-/** CD-Singles: meistgehörte Songs (≥ 2 Plays) der Lieblingskünstler. */
+/** CD-Singles: alle gehörten Songs. */
 async function trackPool(userId) {
   const { rows } = await query(
-    `WITH fav AS (
-       SELECT lower(t.artist_names[1]) AS k
-         FROM plays pl JOIN tracks t ON t.id = pl.track_id
-        WHERE pl.user_id = $1 AND t.artist_names[1] IS NOT NULL
-        GROUP BY 1 ORDER BY sum(pl.ms_played) DESC LIMIT 25
-     )
-     SELECT t.id, t.name, t.artist_names[1] AS artist, t.album_image AS image, count(*) AS plays
+    `SELECT t.id, t.name, t.artist_names[1] AS artist, t.album_image AS image, count(*) AS plays
        FROM plays pl JOIN tracks t ON t.id = pl.track_id
-      WHERE pl.user_id = $1 AND lower(t.artist_names[1]) IN (SELECT k FROM fav)
-      GROUP BY t.id HAVING count(*) >= 2`,
+      WHERE pl.user_id = $1 AND t.artist_names[1] IS NOT NULL
+      GROUP BY t.id`,
     [userId],
   );
   const items = [];
@@ -173,17 +162,23 @@ async function trackPool(userId) {
 
 /** Angebot der Woche: Platten dieser Kalenderwoche, bei kleiner Sammlung ergänzt aus den nächstgelegenen Wochen. */
 function weeklyShop(pool, seed, size = SHOP_SIZE) {
-  // Jede Woche eine neue Zufallsauswahl (fest innerhalb der Woche), jedes Album/jeder Song höchstens einmal
-  const shuffled = [...pool].sort((a, b) => hashInt(`${seed}#${a.id}`) - hashInt(`${seed}#${b.id}`));
-  const seen = new Set();
-  const picked = [];
-  for (const it of shuffled) {
+  // Für jeden Nutzer jede Woche komplett zufällig (fest innerhalb der Woche): zufällige Alben/Songs,
+  // Seltenheit je Platz neu gewürfelt; jedes Album/jeder Song höchstens einmal.
+  const byBase = new Map();
+  for (const it of pool) {
     const base = it.id.replace(/-(cd-)?(common|rare|epic|legendary)$/, '');
-    if (seen.has(base)) continue;
-    seen.add(base);
-    picked.push(it);
-    if (picked.length >= size) break;
+    if (!byBase.has(base)) byBase.set(base, {});
+    byBase.get(base)[it.rarity] = it;
   }
+  const bases = [...byBase.keys()].sort((a, b) => hashInt(`${seed}#${a}`) - hashInt(`${seed}#${b}`)).slice(0, size);
+  const picked = bases.map((base) => {
+    const variants = byBase.get(base);
+    const kind = Object.values(variants)[0].kind === 'cd' ? 'cd' : 'record';
+    let roll = hashInt(`${seed}#${base}#rarity`) % 100;
+    let rarity = 'common';
+    for (const r of RARITIES) { if (roll < RARITY_ODDS[kind][r]) { rarity = r; break; } roll -= RARITY_ODDS[kind][r]; }
+    return variants[rarity] || variants.common || Object.values(variants)[0];
+  });
   return picked.sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || a.artist.localeCompare(b.artist));
 }
 const shopSeed = (account, year, week) => `${account.id}#${year}-W${week}`;

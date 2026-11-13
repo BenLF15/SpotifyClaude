@@ -51,8 +51,8 @@
       ${L('Den Zugriff kannst du jederzeit unter', 'You can revoke access at any time at')} <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener">spotify.com/account/apps</a>${L(' widerrufen.', '.')}</p>
       <h3>${L('Freunde', 'Friends')}</h3>
       <p>${L(
-        'Wen du als Freund hinzufügst oder wer dich anfragt. Bestätigte Freunde sehen im Vergleich nur zusammengefasste Werte: Hörminuten, Plays, Anzahl Künstler und Songs, Top-Künstler, Top-Songs und Genre-Anteile – keinen Verlauf, keine Zeitpunkte und keine E-Mail-Adresse. Eine Freundschaft kannst du jederzeit beenden.',
-        'Who you add as a friend or who sends you a request. Confirmed friends only see aggregated values in the comparison: listening minutes, plays, number of artists and songs, top artists, top songs and genre shares – no history, no timestamps and no email address. You can end a friendship at any time.',
+        'Wen du als Freund hinzufügst oder wer dich anfragt. Bestätigte Freunde sehen im Vergleich nur zusammengefasste Werte: Hörminuten, Plays, Anzahl Künstler und Songs, deine Top 5 Künstler, Songs, Alben, Genres und Hörzeiten sowie deine Plattensammlung und CD-Singles – keinen Verlauf, keine Zeitpunkte einzelner Plays und keine E-Mail-Adresse. Eine Freundschaft kannst du jederzeit beenden.',
+        'Who you add as a friend or who sends you a request. Confirmed friends only see aggregated values in the comparison: listening minutes, plays, number of artists and songs, your top 5 artists, songs, albums, genres and listening hours, and your record and CD collection – no history, no timestamps of single plays and no email address. You can end a friendship at any time.',
       )}</p>
 
       <h2>4. ${L('Zwecke und Rechtsgrundlagen', 'Purposes and legal bases')}</h2>

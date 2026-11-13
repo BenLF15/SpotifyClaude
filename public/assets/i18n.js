@@ -656,7 +656,7 @@
 
     // Freunde & Vergleich
     'friends.title': ['Freunde', 'Friends', 'Amis', 'Amigos', 'Amici', 'Vänner', 'Venner'],
-    'friends.sub': ['Vergleicht euren Musikgeschmack. Freunde sehen nur Top-Listen, Genres und Summen – keinen Verlauf.', 'Compare your music taste. Friends only see top lists, genres and totals – no history.', 'Comparez vos goûts musicaux. Les amis ne voient que les tops, genres et totaux – pas l’historique.', 'Comparad vuestros gustos. Los amigos solo ven tops, géneros y totales, no el historial.', 'Confrontate i vostri gusti. Gli amici vedono solo classifiche, generi e totali – non la cronologia.', 'Jämför er musiksmak. Vänner ser bara topplistor, genrer och summor – ingen historik.', 'Sammenlign jeres musiksmag. Venner ser kun toplister, genrer og summer – ingen historik.'],
+    'friends.sub': ['Vergleicht euren Musikgeschmack und schaut euch eure Sammlungen an. Freunde sehen Top-Listen, Genres, Summen und deine Sammlung – keinen Verlauf.', 'Compare your music taste and browse each other’s collections. Friends see top lists, genres, totals and your collection – no history.', 'Comparez vos goûts et regardez vos collections. Les amis voient les tops, genres, totaux et ta collection – pas l’historique.', 'Comparad vuestros gustos y mirad vuestras colecciones. Los amigos ven tops, géneros, totales y tu colección, no el historial.', 'Confrontate i vostri gusti e guardate le vostre collezioni. Gli amici vedono classifiche, generi, totali e la tua collezione – non la cronologia.', 'Jämför er musiksmak och titta på varandras samlingar. Vänner ser topplistor, genrer, summor och din samling – ingen historik.', 'Sammenlign jeres musiksmag og se hinandens samlinger. Venner ser toplister, genrer, summer og din samling – ingen historik.'],
     'friends.placeholder': ['Benutzername deines Freundes', 'Your friend’s username', 'Nom d’utilisateur de ton ami', 'Nombre de usuario de tu amigo', 'Nome utente del tuo amico', 'Din väns användarnamn', 'Din vens brugernavn'],
     'friends.add': ['Anfrage senden', 'Send request', 'Envoyer', 'Enviar solicitud', 'Invia richiesta', 'Skicka förfrågan', 'Send anmodning'],
     'friends.sent': ['Anfrage an {n} gesendet.', 'Request sent to {n}.', 'Demande envoyée à {n}.', 'Solicitud enviada a {n}.', 'Richiesta inviata a {n}.', 'Förfrågan skickad till {n}.', 'Anmodning sendt til {n}.'],
@@ -681,6 +681,19 @@
     'err.notFriends': ['Ihr seid (noch) keine Freunde.', 'You are not friends (yet).', 'Vous n’êtes pas (encore) amis.', 'No sois amigos (todavía).', 'Non siete (ancora) amici.', 'Ni är inte vänner (än).', 'I er ikke venner (endnu).'],
     'err.friendNoSpotify': ['Dein Freund hat Spotify noch nicht verbunden.', 'Your friend hasn’t connected Spotify yet.', 'Ton ami n’a pas encore connecté Spotify.', 'Tu amigo aún no ha conectado Spotify.', 'Il tuo amico non ha ancora collegato Spotify.', 'Din vän har inte anslutit Spotify än.', 'Din ven har ikke forbundet Spotify endnu.'],
     'err.notFound': ['Nicht gefunden.', 'Not found.', 'Introuvable.', 'No encontrado.', 'Non trovato.', 'Hittades inte.', 'Ikke fundet.'],
+    'cmp.top5': ['Top 5 im Vergleich', 'Top 5 compared', 'Top 5 comparés', 'Top 5 comparados', 'Top 5 a confronto', 'Topp 5 jämförda', 'Top 5 sammenlignet'],
+    'cmp.top5Sub': ['{n} gemeinsame Einträge · 🔗 = habt ihr beide', '{n} shared entries · 🔗 = you both have it', '{n} entrées en commun · 🔗 = vous l’avez tous les deux', '{n} entradas en común · 🔗 = lo tenéis los dos', '{n} voci in comune · 🔗 = ce l’avete entrambi', '{n} gemensamma · 🔗 = ni har båda', '{n} fælles · 🔗 = I har den begge'],
+    'cmp.both': ['Habt ihr beide in den Top 5', 'You both have this in your top 5', 'Dans vos deux top 5', 'Está en el top 5 de ambos', 'È nella top 5 di entrambi', 'Finns i båda era topp 5', 'Er i begges top 5'],
+    'cmp.t.artists': ['Künstler', 'Artists', 'Artistes', 'Artistas', 'Artisti', 'Artister', 'Kunstnere'],
+    'cmp.t.songs': ['Songs', 'Songs', 'Titres', 'Canciones', 'Brani', 'Låtar', 'Sange'],
+    'cmp.t.albums': ['Alben', 'Albums', 'Albums', 'Álbumes', 'Album', 'Album', 'Album'],
+    'cmp.t.genres': ['Genres', 'Genres', 'Genres', 'Géneros', 'Generi', 'Genrer', 'Genrer'],
+    'cmp.t.hours': ['Hörzeiten', 'Listening times', 'Heures d’écoute', 'Horas de escucha', 'Orari di ascolto', 'Lyssningstider', 'Lyttetider'],
+    'cmp.collTitle': ['Sammlung von {name}', '{name}’s collection', 'Collection de {name}', 'Colección de {name}', 'Collezione di {name}', '{name}s samling', '{name}s samling'],
+    'cmp.collSub': ['Plattenschrank und CD-Regal – nur zum Anschauen', 'Record cabinet and CD rack – view only', 'Meuble à vinyles et étagère à CD – consultation seule', 'Mueble de vinilos y estantería de CD: solo ver', 'Mobile per vinili e scaffale per CD – solo visione', 'Skivskåp och cd-ställ – bara att titta', 'Pladeskab og cd-stativ – kun til at kigge'],
+    'cmp.collShow': ['Sammlung ansehen', 'View collection', 'Voir la collection', 'Ver colección', 'Guarda la collezione', 'Visa samlingen', 'Se samlingen'],
+    'cmp.cdRackOf': ['CD-Regal von {name}', '{name}’s CD rack', 'Étagère à CD de {name}', 'Estantería de CD de {name}', 'Scaffale CD di {name}', '{name}s cd-ställ', '{name}s cd-stativ'],
+    'cmp.owner': ['Gehört', 'Owned by', 'Appartient à', 'Pertenece a', 'Appartiene a', 'Tillhör', 'Tilhører'],
     'cmp.you': ['Du', 'You', 'Toi', 'Tú', 'Tu', 'Du', 'Dig'],
     'cmp.match': ['Match', 'match', 'match', 'afinidad', 'affinità', 'match', 'match'],
     'cmp.l80': ['Musikalische Seelenverwandte 💞', 'Musical soulmates 💞', 'Âmes sœurs musicales 💞', 'Almas gemelas musicales 💞', 'Anime gemelle musicali 💞', 'Musikaliska själsfränder 💞', 'Musikalske sjælevenner 💞'],
@@ -700,8 +713,6 @@
     'cmp.youPlays': ['du {n}×', 'you {n}×', 'toi {n}×', 'tú {n}×', 'tu {n}×', 'du {n}×', 'dig {n}×'],
     'cmp.themPlays': ['{name} {n}×', '{name} {n}×', '{name} {n}×', '{name} {n}×', '{name} {n}×', '{name} {n}×', '{name} {n}×'],
     'cmp.genres': ['Genres im Vergleich', 'Genres compared', 'Genres comparés', 'Géneros comparados', 'Generi a confronto', 'Genrer jämförda', 'Genrer sammenlignet'],
-    'cmp.yourTop': ['Deine Top 5', 'Your top 5', 'Ton top 5', 'Tu top 5', 'La tua top 5', 'Din topp 5', 'Din top 5'],
-    'cmp.theirTop': ['Top 5 von {name}', '{name}’s top 5', 'Top 5 de {name}', 'Top 5 de {name}', 'Top 5 di {name}', '{name}s topp 5', '{name}s top 5'],
 
     // Jahresrückblick
     'wrapped.title': ['Dein Jahr {year} in Musik', 'Your {year} in music', 'Ton année {year} en musique', 'Tu {year} en música', 'Il tuo {year} in musica', 'Ditt {year} i musik', 'Dit {year} i musik'],

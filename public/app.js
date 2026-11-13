@@ -2576,7 +2576,6 @@
           <div class="t-sub">${esc(t('cmp.youPlays', { n: fmt(x.me.plays) }))} · ${esc(t('cmp.themPlays', { name: c.friend.username, n: fmt(x.friend.plays) }))}</div></div></li>`).join('')}</ul>`
       : `<p class="empty">${esc(t('cmp.noSharedSongs'))}</p>`;
     const gmax = Math.max(0.01, ...c.genres.flatMap((g) => [g.me, g.them]));
-    const top5 = (side, name) => `<ol class="cmp-top">${side.topArtists.map((a, i) => `<li data-detail-artist="${esc(a.name)}"><span>${i + 1}</span>${imgOrPlaceholder(a.image, a.name)}<b>${esc(a.name)}</b></li>`).join('') || `<li class="empty">–</li>`}</ol>`;
     box.innerHTML = `
       <section class="card compare-head">
         <div class="cmp-people">
@@ -2608,15 +2607,89 @@
         <ul class="duel-list genres">${c.genres.map((g) => `<li class="duel"><span class="duel-v me">${Math.round(g.me * 100)} %</span>
           <span class="duel-bar me"><span data-w="${(g.me / gmax) * 100}"></span></span><span class="duel-label">${esc(genreName(g.genre))}</span>
           <span class="duel-bar them"><span data-w="${(g.them / gmax) * 100}"></span></span><span class="duel-v them">${Math.round(g.them * 100)} %</span></li>`).join('')}</ul></section>` : ''}
-      <div class="grid-2">
-        <section class="card"><header class="card-head"><h2>${esc(t('cmp.yourTop'))}</h2></header>${top5(c.me)}</section>
-        <section class="card"><header class="card-head"><h2>${esc(t('cmp.theirTop', { name: c.friend.username }))}</h2></header>${top5(c.them)}</section>
-      </div>`;
+      ${top5Section(c)}
+      <section class="card friend-coll" id="friend-coll">
+        <header class="card-head"><div><h2>💿 ${esc(t('cmp.collTitle', { name: c.friend.username }))}</h2><p class="muted small">${esc(t('cmp.collSub'))}</p></div>
+          <button type="button" class="btn btn-ghost btn-xs" data-friend-coll="${c.friend.id}">${esc(t('cmp.collShow'))}</button></header>
+        <div id="friend-coll-body"></div>
+      </section>`;
     growBars(box, '.duel-bar span');
     countUp($('[data-match]', box), c.match);
   }
 
+  // Top 5 je Kategorie nebeneinander: Du | Freund, Gemeinsames hervorgehoben
+  const TOP5_CATS = [
+    { key: 'topArtists', title: 'cmp.t.artists', id: (x) => x.name.toLowerCase(), label: (x) => x.name, sub: (x) => `${fmt(x.minutes)} ${t('unit.min')}`, img: (x) => x.image, round: true, detail: (x) => `data-detail-artist="${esc(x.name)}"` },
+    { key: 'topTracks', title: 'cmp.t.songs', id: (x) => x.id, label: (x) => x.name, sub: (x) => x.artists, img: (x) => x.image, detail: (x) => `data-detail-track="${esc(x.id)}"` },
+    { key: 'topAlbums', title: 'cmp.t.albums', id: (x) => `${x.artist}|${x.name}`.toLowerCase(), label: (x) => x.name, sub: (x) => x.artist, img: (x) => x.image },
+    { key: 'topGenres', title: 'cmp.t.genres', id: (x) => x.genre, label: (x) => genreName(x.genre), sub: (x) => `${Math.round(x.share * 100)} %`, dot: (x) => genreColor(x.genre) },
+    { key: 'topHours', title: 'cmp.t.hours', id: (x) => String(x.hour), label: (x) => hourRange(x.hour), sub: (x) => `${fmt(x.minutes)} ${t('unit.min')}`, icon: '🕐' },
+  ];
+
+  function top5Section(c) {
+    const col = (cat, list, other) => {
+      const shared = new Set((other || []).map(cat.id));
+      return `<ol class="t5-list">${(list || []).map((x, i) => `
+        <li class="t5-row${shared.has(cat.id(x)) ? ' shared' : ''}" ${cat.detail ? cat.detail(x) : ''}>
+          <span class="t5-num">${i + 1}</span>
+          ${cat.img ? `<span class="cover${cat.round ? ' round' : ''}">${imgOrPlaceholder(cat.img(x), cat.label(x))}</span>`
+            : cat.dot ? `<span class="t5-dot" style="background:${cat.dot(x)}"></span>` : `<span class="t5-ico">${cat.icon}</span>`}
+          <span class="t5-text"><b>${esc(cat.label(x))}</b><small>${esc(cat.sub(x) || '')}</small></span>
+          ${shared.has(cat.id(x)) ? '<span class="t5-shared" title="' + esc(t('cmp.both')) + '">🔗</span>' : ''}
+        </li>`).join('') || '<li class="empty">–</li>'}</ol>`;
+    };
+    const tabs = TOP5_CATS.map((cat, i) => `<button type="button" class="chip-btn" data-t5="${i}" aria-pressed="${(fr.t5 || 0) === i}">${esc(t(cat.title))}</button>`).join('');
+    const cat = TOP5_CATS[fr.t5 || 0];
+    const both = (c.me[cat.key] || []).filter((x) => new Set((c.them[cat.key] || []).map(cat.id)).has(cat.id(x))).length;
+    return `<section class="card top5-card" id="top5-card">
+      <header class="card-head"><div><h2>${esc(t('cmp.top5'))}</h2><p class="muted small">${esc(t('cmp.top5Sub', { n: both }))}</p></div>
+        <div class="chips">${tabs}</div></header>
+      <div class="t5-grid">
+        <div><h3 class="t5-h"><span class="dot-me"></span>${esc(t('cmp.you'))}</h3>${col(cat, c.me[cat.key], c.them[cat.key])}</div>
+        <div><h3 class="t5-h"><span class="dot-them"></span>${esc(c.friend.username)}</h3>${col(cat, c.them[cat.key], c.me[cat.key])}</div>
+      </div>
+    </section>`;
+  }
+
+  // Sammlung eines Freundes (nur ansehen)
+  async function showFriendCollection(id) {
+    const body = $('#friend-coll-body');
+    if (!body) return;
+    body.innerHTML = skBlock(160);
+    try {
+      const r = await api(`/api/friends/${id}/collection`);
+      fr.collection = r;
+      const recs = r.collection.filter((x) => x.kind !== 'cd');
+      const cdl = r.collection.filter((x) => x.kind === 'cd');
+      body.innerHTML = `
+        <p class="muted small rec-stats">${esc(t('rec.countBoth', { n: fmt(recs.length), m: fmt(cdl.length) }))}${recs.length ? ` · ${collectionStats(r.collection)}` : ''}</p>
+        ${cabinetHTML(recs, { rows: Math.max(2, Math.ceil(recs.length / 6)), readonly: true })}
+        <p class="rack-label">💿 ${esc(t('cmp.cdRackOf', { name: r.friend.username }))}</p>
+        ${cdRackHTML(cdl, { rows: Math.max(1, Math.ceil(cdl.length / 10)), readonly: true })}`;
+      const btn = $(`[data-friend-coll="${id}"]`);
+      if (btn) btn.hidden = true;
+    } catch (err) {
+      body.innerHTML = `<p class="empty">${esc(errMsg(err))}</p>`;
+    }
+  }
+
   function bindFriends() {
+    document.addEventListener('click', (e) => {
+      const fc = e.target.closest('[data-friend-coll]');
+      if (fc) { showFriendCollection(Number(fc.dataset.friendColl)); return; }
+      const t5 = e.target.closest('[data-t5]');
+      if (t5 && fr.compare) {
+        fr.t5 = Number(t5.dataset.t5);
+        const card = $('#top5-card');
+        if (card) card.outerHTML = top5Section(fr.compare);
+        return;
+      }
+      const fi = e.target.closest('[data-friend-record]');
+      if (fi) {
+        const it = fr.collection?.collection.find((x) => x.id === fi.dataset.friendRecord);
+        if (it) openRecord(it, { owned: true, friendName: fr.collection.friend.username });
+      }
+    });
     $('#friend-form').addEventListener('submit', addFriend);
   }
 
@@ -2731,27 +2804,27 @@
   const records = (d) => (d?.collection || []).filter((r) => r.kind !== 'cd');
   const cds = (d) => (d?.collection || []).filter((r) => r.kind === 'cd');
 
-  function newItemHTML(r, i, art) {
-    const isNew = !recSeen().has(r.id);
+  function newItemHTML(r, i, art, readonly = false) {
+    const isNew = !readonly && !recSeen().has(r.id);
     const drop = isNew && !rec.dropped.has(r.id);
-    return `<button type="button" class="cab-item${r.kind === 'cd' ? ' cd-item' : ''}${isNew ? ' is-new' : ''}${drop ? ' drop' : ''}" data-record="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">
+    return `<button type="button" class="cab-item${r.kind === 'cd' ? ' cd-item' : ''}${isNew ? ' is-new' : ''}${drop ? ' drop' : ''}" ${readonly ? 'data-friend-record' : 'data-record'}="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">
       ${art}${isNew ? `<span class="new-tag">${esc(t('rec.newTag'))}</span>` : ''}
       ${drop ? '<span class="sparkles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' : ''}</button>`;
   }
 
   // CD-Regal: dunkles Metall, Glasböden, LED-Leiste
-  function cdRackHTML(list, { rows = 2, mini = false } = {}) {
+  function cdRackHTML(list, { rows = 2, mini = false, readonly = false } = {}) {
     return `<div class="cdrack${mini ? ' mini' : ''}${list.length ? '' : ' empty'}" style="--rows:${rows}">
       <div class="cdrack-top" aria-hidden="true"><span class="cdrack-led"></span></div>
-      <div class="cdrack-body"><div class="cdrack-inner">${list.map((r, i) => newItemHTML(r, i, cdArt(r))).join('')}</div></div>
+      <div class="cdrack-body"><div class="cdrack-inner">${list.map((r, i) => newItemHTML(r, i, cdArt(r), readonly)).join('')}</div></div>
       <div class="cdrack-base" aria-hidden="true"></div>
     </div>`;
   }
 
   // Staub: leerer Schrank oder seit DUST_DAYS Tagen keine neue Platte
   const DUST_DAYS = 15;
-  function dustState() {
-    const list = records(rec.data);
+  function dustState(all = records(rec.data)) {
+    const list = all;
     if (!list.length) return { dusty: true, days: null };
     const last = Math.max(...list.map((r) => new Date(r.acquired_at).getTime()));
     const days = Math.floor((T.effectiveDate().getTime() - last) / 864e5);
@@ -2800,20 +2873,21 @@
     });
   }
 
-  function cabinetHTML(list, { rows = 3, mini = false } = {}) {
-    const { dusty, days } = dustState();
+  function cabinetHTML(list, { rows = 3, mini = false, readonly = false } = {}) {
+    const all = readonly ? list : records(rec.data);
+    const { dusty, days } = dustState(all);
     const none = !list.length;
-    const reallyEmpty = !records(rec.data).length;
-    const clearing = rec.dustClearing && !dusty;
+    const reallyEmpty = !all.length;
+    const clearing = !readonly && rec.dustClearing && !dusty;
     return `<div class="cabinet${mini ? ' mini' : ''}${none ? ' empty' : ''}${dusty ? ' dusty' : ''}" style="--rows:${rows}">
       <div class="cab-crown" aria-hidden="true"></div>
       <div class="cab-body">
         <div class="cabinet-inner">
-          ${list.map((r, i) => newItemHTML(r, i, recordArt(r))).join('')}
+          ${list.map((r, i) => newItemHTML(r, i, recordArt(r), readonly)).join('')}
         </div>
         ${dusty || clearing ? dustLayer({ empty: reallyEmpty, leaving: clearing }) : ''}
         ${none && !reallyEmpty ? `<div class="cabinet-empty"><b>${esc(t('rec.noneOfRarity'))}</b></div>` : ''}
-        ${dusty && !reallyEmpty && !mini ? `<span class="dust-note">🕸️ ${esc(t('rec.dusty', { n: days }))}</span>` : ''}
+        ${dusty && !reallyEmpty && !mini && !readonly ? `<span class="dust-note">🕸️ ${esc(t('rec.dusty', { n: days }))}</span>` : ''}
       </div>
       <div class="cab-plinth" aria-hidden="true"><span></span><span></span></div>
     </div>`;
@@ -3130,7 +3204,7 @@
   }
 
   // Detail einer Platte: rotierende Schallplatte neben der Hülle
-  function openRecord(r, { owned = true, isNew = false } = {}) {
+  function openRecord(r, { owned = true, isNew = false, friendName = null } = {}) {
     const dlg = $('#record-dialog');
     const variant = variantName(r);
     const isCd = r.kind === 'cd';
@@ -3153,8 +3227,9 @@
         <p class="rd-artist"><button type="button" class="link-btn inline" data-detail-artist="${esc(r.artist)}">${esc(r.artist)}</button></p>
         ${r.discover || r.price?.discover ? `<p class="rd-discover">✨ ${esc(t('rec.discoverHint'))}</p>` : ''}
         <dl class="sys-list">
+          ${friendName ? `<dt>${esc(t('cmp.owner'))}</dt><dd>${esc(friendName)}</dd>` : ''}
           ${owned && r.acquired_at ? `<dt>${esc(t('rec.acquired'))}</dt><dd>${esc(dateFmtYear.format(new Date(r.acquired_at)))}</dd>` : ''}
-          <dt>${esc(t('rec.price'))}</dt><dd>${r.price.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}`}</dd>
+          ${friendName || !r.price ? '' : `<dt>${esc(t('rec.price'))}</dt><dd>${r.price.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}`}</dd>`}
         </dl>
         <div class="profile-actions">
           ${!owned ? `<button type="button" class="btn btn-primary" data-buy="${esc(r.id)}" ${lack ? 'disabled' : ''}>${rec.data?.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${r.price.tier}`) }) : t('rec.buy'))}</button>` : ''}

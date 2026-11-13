@@ -436,13 +436,29 @@ function cosine(a, b) {
 }
 
 async function tasteOf(userId, days) {
-  const [ov, artists, tracks, g] = await Promise.all([
+  const [ov, artists, tracks, g, albums, hours] = await Promise.all([
     overview(userId, days),
     topArtists(userId, days, 50),
     topTracks(userId, days, 50),
     genreStats(userId, days),
+    query(
+      `SELECT min(t.album_name) AS name, min(t.artist_names[1]) AS artist,
+              (array_agg(t.album_image) FILTER (WHERE t.album_image IS NOT NULL))[1] AS image,
+              round(sum(pl.ms_played) / 60000.0)::int AS minutes
+         FROM plays pl JOIN tracks t ON t.id = pl.track_id
+        WHERE pl.user_id = $1 AND t.album_name IS NOT NULL
+          AND ($2::int = 0 OR pl.played_at >= now() - make_interval(days => $2::int))
+        GROUP BY lower(t.artist_names[1]), lower(t.album_name) ORDER BY sum(pl.ms_played) DESC LIMIT 5`,
+      [userId, days],
+    ),
+    query(
+      `SELECT extract(hour FROM pl.played_at AT TIME ZONE $3)::int AS hour, round(sum(pl.ms_played) / 60000.0)::int AS minutes
+         FROM plays pl WHERE pl.user_id = $1 AND ($2::int = 0 OR pl.played_at >= now() - make_interval(days => $2::int))
+        GROUP BY 1 ORDER BY sum(pl.ms_played) DESC LIMIT 5`,
+      [userId, days, config.timezone],
+    ),
   ]);
-  return { ov, artists, tracks, genres: g.items };
+  return { ov, artists, tracks, genres: g.items, albums: albums.rows, hours: hours.rows };
 }
 
 /** Musikgeschmack mit einem Freund vergleichen (nur bei bestätigter Freundschaft). */
@@ -489,6 +505,10 @@ export async function compare(account, friendId, days) {
     artists: t.ov.artists,
     tracks: t.ov.tracks,
     topArtists: t.artists.slice(0, 5).map(({ name, image, minutes: m }) => ({ name, image, minutes: m })),
+    topTracks: t.tracks.slice(0, 5).map(({ id, name, artists, image, plays }) => ({ id, name, artists, image, plays })),
+    topAlbums: t.albums,
+    topGenres: t.genres.slice(0, 5).map(({ genre, share }) => ({ genre, share })),
+    topHours: t.hours,
     topGenre: t.genres[0]?.genre || null,
   });
   return {
@@ -671,4 +691,22 @@ export async function exportData(accountId) {
     top_snapshots: snaps.rows,
     plays: plays.rows,
   };
+}
+
+
+/** Sammlung (Platten & CD-Singles) eines bestätigten Freundes – nur ansehen. */
+export async function friendCollection(account, friendId) {
+  const { rows } = await query(
+    `SELECT a.id, a.username FROM friendships f JOIN accounts a ON a.id = $2
+      WHERE f.status = 'accepted'
+        AND ((f.requester_id = $1 AND f.addressee_id = $2) OR (f.requester_id = $2 AND f.addressee_id = $1))`,
+    [account.id, friendId],
+  );
+  if (!rows[0]) throw new UserError('Keine bestätigte Freundschaft.', 404, 'notFriends');
+  const { rows: items } = await query(
+    `SELECT record_id AS id, kind, rarity, artist, album, album_id, image, hue, acquired_at
+       FROM record_collection WHERE account_id = $1 ORDER BY acquired_at DESC`,
+    [friendId],
+  );
+  return { friend: rows[0], collection: items };
 }

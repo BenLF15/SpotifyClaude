@@ -2095,3 +2095,26 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 }
 .gift-stage { background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--gift-box) 45%, #140c2a), #0d0a18 75%); }
 @media (prefers-reduced-motion: reduce) { .egg, .egg-glint, .gm-shine, .gift-box::before { animation: none; } }
+
+
+/* ================================================================== Freunde: Top 5 & Sammlung */
+.top5-card .card-head { align-items: center; }
+.t5-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.t5-h { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; margin: 0 0 8px; color: var(--text-2); }
+.dot-me, .dot-them { width: 10px; height: 10px; border-radius: 3px; }
+.dot-me { background: var(--accent); } .dot-them { background: #3987e5; }
+.t5-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.t5-row { display: grid; grid-template-columns: 16px 38px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px; border-radius: 10px; border: 1px solid transparent; animation: panel-in 0.35s var(--ease) both; }
+.t5-row:nth-child(2) { animation-delay: 0.05s; } .t5-row:nth-child(3) { animation-delay: 0.1s; } .t5-row:nth-child(4) { animation-delay: 0.15s; } .t5-row:nth-child(5) { animation-delay: 0.2s; }
+.t5-row.shared { background: rgba(var(--accent-rgb), 0.1); border-color: rgba(var(--accent-rgb), 0.35); }
+.t5-num { color: var(--text-3); font-weight: 800; font-size: 0.78rem; text-align: right; }
+.t5-row .cover { width: 38px; height: 38px; }
+.t5-dot { width: 22px; height: 22px; border-radius: 50%; justify-self: center; box-shadow: 0 0 0 3px rgba(var(--ink-rgb), 0.06); }
+.t5-ico { text-align: center; font-size: 1.1rem; }
+.t5-text { display: flex; flex-direction: column; min-width: 0; }
+.t5-text b { font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t5-text small { font-size: 0.72rem; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t5-shared { font-size: 0.85rem; }
+@media (max-width: 560px) { .t5-grid { gap: 8px; } .t5-row { grid-template-columns: 12px 30px minmax(0, 1fr) auto; gap: 6px; padding: 4px; } .t5-row .cover { width: 30px; height: 30px; } .t5-shared { display: none; } }
+.friend-coll .card-head { align-items: center; }
+.friend-coll #friend-coll-body:empty { display: none; }

@@ -377,6 +377,7 @@ api.post(
   express.json({ limit: '1kb' }),
   wrap(async (req, res) => res.json(await features.requestFriend(req.account.id, req.body?.username))),
 );
+api.get('/friends/:id/collection', wrap(async (req, res) => res.json(await features.friendCollection(req.account, idParam(req)))));
 api.post(
   '/friends/:id/accept',
   wrap(async (req, res) => {

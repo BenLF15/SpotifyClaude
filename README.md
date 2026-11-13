@@ -23,7 +23,7 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
 - Als App installierbar (PWA), ohne Browserleiste und ohne Zoomen.
 - **Ladezustände**: Platzhalter („Skeletons“) beim ersten Laden, beim Zeitraumwechsel bleibt der alte Stand ausgegraut sichtbar.
 - **Jahresrückblick** (Tab „Rückblick“): Jahresübersicht mit Top-Künstlern und -Songs, Monaten, Genre-Mix, Rekorden und ersten Song des Jahres – plus eine Vollbild-Story zum Durchtippen (teilbar). Im Dezember und Januar weist die Übersicht darauf hin.
-- **Freunde vergleichen** (Tab „Freunde“): Anfrage per Benutzername, nach Bestätigung Match-Wert in %, gemeinsame Künstler und Songs, Genres und Kennzahlen im direkten Vergleich. Freunde sehen nur Top-Listen, Genres und Summen, nie den Verlauf.
+- **Freunde vergleichen** (Tab „Freunde“): Anfrage per Benutzername, nach Bestätigung Match-Wert in %, gemeinsame Künstler und Songs, Kennzahlen im direkten Vergleich, **Top 5 nebeneinander** (Künstler, Songs, Alben, Genres, Hörzeiten; Gemeinsames hervorgehoben) und die **Sammlung des Freundes** (Plattenschrank und CD-Regal, nur ansehen). Freunde sehen nie den Verlauf.
 - **Suche im Verlauf**: Songs, Künstler und Alben suchen. Ein Klick auf einen Song oder Künstler (überall in der App) öffnet die Detailansicht: erste und letzte Wiedergabe, Plays, Minuten, Rang, Lieblingszeit und Verlauf pro Monat.
 - **Meilensteine** (Profil): Hörminuten (500 bis 1 Mio.) und Tagesserien (3 bis 365 Tage) mit Fortschritt und einer kleinen Feier, wenn ein neuer erreicht wird.
 - **Als Playlist speichern** (Top-Listen): Die meistgehörten 10–100 Songs eines Zeitraums als private Playlist direkt in Spotify.
@@ -211,7 +211,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 
 **Plattenschrank**: In der Übersicht steht dein Plattenschrank, anfangs leer. Ein Klick auf eine Platte zeigt Hülle und drehende Schallplatte.
 
-**Plattenladen**: Jeden Montag gibt es eine neue Zufallsauswahl von 16 Schallplatten aus Alben deiner 25 meistgehörten Künstler (jedes Album höchstens einmal pro Woche). Seltenheiten:
+**Plattenladen**: Für jeden Nutzer jeden Montag komplett zufällig: 16 Schallplatten aus allen Alben deines Hörverlaufs (jedes Album höchstens einmal pro Woche). Die Seltenheit wird pro Platz neu gewürfelt (Platten: 55 % gewöhnlich, 28 % selten, 12 % episch, 5 % legendär; CDs: 58 / 27 / 11 / 4 %). Seltenheiten:
 
 | Seltenheit | Ausführung | Preis |
 |---|---|---|
