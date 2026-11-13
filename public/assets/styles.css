@@ -2004,3 +2004,94 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 .si-listen:hover { text-decoration: underline; }
 .rd-discover { margin: -6px 0 12px; padding: 8px 10px; border-radius: 10px; font-size: 0.82rem; background: rgba(127, 216, 255, 0.1); border: 1px dashed rgba(127, 216, 255, 0.45); }
 @media (prefers-reduced-motion: reduce) { .disc-badge { animation: none; } }
+
+
+/* ================================================================== Geschenk: passt sich Farbschema & Festtag an */
+:root {
+  --gift-box: var(--accent);
+  --gift-box-2: color-mix(in srgb, var(--accent) 62%, #000);
+  --gift-lid: color-mix(in srgb, var(--accent) 80%, #fff);
+  --gift-ribbon: #ffd23f;
+  --gift-ribbon-2: #f59e0b;
+  --gift-top: '';
+  --gift-top-color: #ffd23f;
+  --gift-pattern: none;
+}
+:root[data-theme='light'], :root[data-theme='spring'], :root[data-theme='summer'] { --gift-ribbon: #ffffff; --gift-ribbon-2: #e8e8e8; }
+:root[data-theme='winter'] { --gift-ribbon: #ffffff; --gift-ribbon-2: #cfe6ff; }
+/* Festliche Varianten (nur wenn der festliche Schalter an ist – sonst ist data-fest leer) */
+:root[data-fest='christmas'] { --gift-box: #c62828; --gift-box-2: #7f1414; --gift-lid: #e53935; --gift-ribbon: #2e7d32; --gift-ribbon-2: #1b5e20; --gift-top: '★'; --gift-top-color: #ffd23f; }
+:root[data-fest='newyear'] { --gift-box: #1f1f24; --gift-box-2: #050507; --gift-lid: #2c2c33; --gift-ribbon: #f5c542; --gift-ribbon-2: #b8860b; --gift-top: '✦'; --gift-top-color: #ffe08a; }
+:root[data-fest='birthday'] { --gift-box: #ff6b9a; --gift-box-2: #d63c72; --gift-lid: #ff8fb3; --gift-ribbon: #3ec5ff; --gift-ribbon-2: #1d8fc4;
+  --gift-pattern: radial-gradient(circle, #ffd23f 0 1.2px, transparent 1.6px) 0 0 / 6px 6px, radial-gradient(circle, #7ae582 0 1.2px, transparent 1.6px) 3px 3px / 6px 6px; }
+:root[data-fest='carnival'] { --gift-box: #8e24aa; --gift-box-2: #5e1577; --gift-lid: #ab47bc; --gift-ribbon: #ffd23f; --gift-ribbon-2: #ff8c42;
+  --gift-pattern: repeating-linear-gradient(135deg, rgba(255, 93, 143, 0.75) 0 3px, transparent 3px 6px, rgba(255, 140, 66, 0.75) 6px 9px, transparent 9px 12px); }
+:root[data-fest='midsummer'] { --gift-box: #f4c430; --gift-box-2: #c79a0e; --gift-lid: #ffd54f; --gift-ribbon: #43a047; --gift-ribbon-2: #2e7d32; --gift-top: '✿'; --gift-top-color: #ff6fa5; }
+:root[data-fest='easter'] { --gift-box: #b39ddb; --gift-box-2: #7e57c2; --gift-lid: #b39ddb; --gift-ribbon: #fff59d; --gift-ribbon-2: #f9e26e;
+  --gift-pattern: repeating-linear-gradient(0deg, transparent 0 4px, rgba(255, 255, 255, 0.55) 4px 6px, transparent 6px 9px, rgba(129, 212, 250, 0.7) 9px 11px); }
+
+/* Kleines verstecktes Geschenk */
+.egg { opacity: 0.8; width: 28px; height: 28px; animation: egg-wobble 6s ease-in-out var(--d, 0s) infinite; }
+.egg-ico { display: none; }
+.gift-mini { position: relative; display: block; width: 18px; height: 18px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 5px color-mix(in srgb, var(--gift-box) 60%, transparent)); }
+.gm-box {
+  position: absolute; left: 2px; right: 2px; bottom: 0; height: 12px; border-radius: 2px; overflow: hidden;
+  background:
+    linear-gradient(90deg, transparent 42%, var(--gift-ribbon) 42% 58%, transparent 58%),
+    var(--gift-pattern),
+    linear-gradient(160deg, var(--gift-box), var(--gift-box-2));
+}
+.gm-lid {
+  position: absolute; left: 0; right: 0; top: 4px; height: 5px; border-radius: 2px; z-index: 1;
+  background: linear-gradient(90deg, transparent 40%, var(--gift-ribbon) 40% 60%, transparent 60%), linear-gradient(180deg, var(--gift-lid), var(--gift-box));
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+.gm-lid::before, .gm-lid::after { content: ''; position: absolute; top: -5px; width: 6px; height: 5px; border: 1.6px solid var(--gift-ribbon); border-radius: 50% 50% 0 50%; }
+.gm-lid::before { left: 50%; margin-left: -7px; transform: rotate(-15deg); }
+.gm-lid::after { left: 50%; margin-left: 1px; transform: scaleX(-1) rotate(-15deg); }
+/* Aufsatz (Stern, Blume …) */
+.gift-mini::after {
+  content: var(--gift-top); position: absolute; left: 50%; top: -9px; transform: translateX(-50%); z-index: 2;
+  font-size: 9px; line-height: 1; color: var(--gift-top-color); text-shadow: 0 0 4px var(--gift-top-color);
+}
+/* Glanz, der über das Geschenk wandert */
+.gm-shine {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; border-radius: 3px;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.9) 48%, transparent 62%); background-size: 260% 100%;
+  mix-blend-mode: soft-light; animation: rec-shimmer 3.2s ease-in-out var(--d, 0s) infinite;
+}
+.egg-glint { opacity: 0; animation: egg-glint 3.2s ease-in-out var(--d, 0s) infinite; }
+.egg-glint.g2 { top: auto; right: auto; bottom: 0; left: -3px; width: 7px; height: 7px; animation-delay: calc(var(--d, 0s) + 1.6s); }
+@keyframes egg-glint { 0%, 70%, 100% { opacity: 0; transform: scale(0.3) rotate(0); } 82% { opacity: 1; transform: scale(1.25) rotate(45deg); } 92% { opacity: 0.4; transform: scale(0.8) rotate(80deg); } }
+@keyframes egg-wobble {
+  0%, 82%, 100% { transform: rotate(0) translateY(0); }
+  85% { transform: rotate(-16deg) translateY(-3px); }
+  88% { transform: rotate(13deg) translateY(-1px); }
+  91% { transform: rotate(-9deg); }
+  94% { transform: rotate(5deg); }
+  97% { transform: rotate(-2deg); }
+}
+.egg:hover, .egg:focus-visible { opacity: 1; }
+/* Ostern: Osterei statt Paket */
+:root[data-fest='easter'] .gift-mini .gm-lid { display: none; }
+:root[data-fest='easter'] .gift-mini .gm-box { left: 3px; right: 3px; top: 0; height: auto; border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%;
+  background: var(--gift-pattern), linear-gradient(160deg, var(--gift-box), var(--gift-box-2)); }
+:root[data-fest='easter'] .gift-mini .gm-shine { border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%; left: 3px; right: 3px; }
+
+/* Großes Geschenk im Dialog in denselben Farben */
+.gift-base { background: linear-gradient(90deg, transparent 43%, var(--gift-ribbon) 43% 57%, transparent 57%), var(--gift-pattern), linear-gradient(135deg, var(--gift-box), var(--gift-box-2)); }
+.gift-base i { display: none; }
+.gift-lid { background: linear-gradient(90deg, transparent 43%, var(--gift-ribbon) 43% 57%, transparent 57%), linear-gradient(180deg, var(--gift-lid), var(--gift-box)); }
+.gift-lid i { display: none; }
+.gift-lid::before, .gift-lid::after { border-color: var(--gift-ribbon); }
+.gift-box::after {
+  content: var(--gift-top); position: absolute; left: 50%; top: -26px; transform: translateX(-50%); z-index: 3;
+  font-size: 26px; color: var(--gift-top-color); text-shadow: 0 0 10px var(--gift-top-color); animation: lid-off 0.6s cubic-bezier(0.3, 1.4, 0.6, 1) 0.85s forwards;
+}
+.gift-box::before {
+  content: ''; position: absolute; inset: 14px 6px 0; z-index: 4; pointer-events: none; border-radius: 6px;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.55) 48%, transparent 62%); background-size: 260% 100%;
+  mix-blend-mode: soft-light; animation: rec-shimmer 1.4s ease-in-out infinite;
+}
+.gift-stage { background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--gift-box) 45%, #140c2a), #0d0a18 75%); }
+@media (prefers-reduced-motion: reduce) { .egg, .egg-glint, .gm-shine, .gift-box::before { animation: none; } }

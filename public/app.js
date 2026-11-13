@@ -2894,7 +2894,7 @@
       btn.dataset.egg = egg.id;
       btn.setAttribute('aria-label', t('egg.aria'));
       btn.title = t('egg.aria');
-      btn.innerHTML = '<span class="egg-ico">🎁</span><span class="egg-glint"></span>';
+      btn.innerHTML = '<span class="gift-mini" aria-hidden="true"><span class="gm-box"></span><span class="gm-lid"></span><span class="gm-shine"></span></span><span class="egg-glint"></span><span class="egg-glint g2"></span>';
       Object.entries(pos).forEach(([k, v]) => { btn.style[k] = `${v + (h % 7)}px`; });
       btn.style.setProperty('--d', `${(h % 9) * 0.7}s`);
       host.appendChild(btn);
