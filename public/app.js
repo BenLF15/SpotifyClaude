@@ -2621,7 +2621,26 @@
   }
 
   // ================================================================ Admin: Backup & Rechtliches
+  function renderFreeShop() {
+    const sw = $('#free-shop-switch');
+    if (sw) sw.setAttribute('aria-checked', String(Boolean(rec.data?.free)));
+  }
+
+  async function toggleFreeShop() {
+    const on = !rec.data?.free;
+    try {
+      await postJSON('/api/admin/free-shop', { on });
+      if (rec.data) rec.data.free = on;
+      renderFreeShop();
+      toast(t(on ? 'rec.freeOn' : 'rec.freeOff'));
+      loadRecords();
+    } catch (err) {
+      toast(errMsg(err), true);
+    }
+  }
+
   async function loadBackupInfo() {
+    renderFreeShop();
     try {
       const [b, legal] = await Promise.all([api('/api/admin/backup/info'), fetch('/api/legal').then((r) => r.json())]);
       const el = $('#backup-status');
@@ -2698,10 +2717,40 @@
     </span>`;
   }
 
+  // CD-Single: Jewel Case mit herausschauender CD
+  function cdArt(r, { size = '' } = {}) {
+    const special = r.rarity !== 'common';
+    return `<span class="cd ${size} r-${r.rarity}" style="--hue:${r.hue ?? 0}">
+      <span class="cd-disc"><span class="cd-ring"></span></span>
+      <span class="cd-case">${imgOrPlaceholder(r.image, r.album)}<span class="cd-hinge"></span><span class="cd-gloss"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${r.rarity === 'legendary' ? '<span class="rec-sign" aria-hidden="true"></span>' : ''}</span>
+    </span>`;
+  }
+  const itemArt = (r, opts) => (r.kind === 'cd' ? cdArt(r, opts) : recordArt(r, opts));
+  const variantName = (r) => t(r.kind === 'cd' ? `rec.cv.${r.rarity}` : `rec.v.${r.rarity}`);
+  const records = (d) => (d?.collection || []).filter((r) => r.kind !== 'cd');
+  const cds = (d) => (d?.collection || []).filter((r) => r.kind === 'cd');
+
+  function newItemHTML(r, i, art) {
+    const isNew = !recSeen().has(r.id);
+    const drop = isNew && !rec.dropped.has(r.id);
+    return `<button type="button" class="cab-item${r.kind === 'cd' ? ' cd-item' : ''}${isNew ? ' is-new' : ''}${drop ? ' drop' : ''}" data-record="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">
+      ${art}${isNew ? `<span class="new-tag">${esc(t('rec.newTag'))}</span>` : ''}
+      ${drop ? '<span class="sparkles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' : ''}</button>`;
+  }
+
+  // CD-Regal: dunkles Metall, Glasböden, LED-Leiste
+  function cdRackHTML(list, { rows = 2, mini = false } = {}) {
+    return `<div class="cdrack${mini ? ' mini' : ''}${list.length ? '' : ' empty'}" style="--rows:${rows}">
+      <div class="cdrack-top" aria-hidden="true"><span class="cdrack-led"></span></div>
+      <div class="cdrack-body"><div class="cdrack-inner">${list.map((r, i) => newItemHTML(r, i, cdArt(r))).join('')}</div></div>
+      <div class="cdrack-base" aria-hidden="true"></div>
+    </div>`;
+  }
+
   // Staub: leerer Schrank oder seit DUST_DAYS Tagen keine neue Platte
   const DUST_DAYS = 15;
   function dustState() {
-    const list = rec.data?.collection || [];
+    const list = records(rec.data);
     if (!list.length) return { dusty: true, days: null };
     const last = Math.max(...list.map((r) => new Date(r.acquired_at).getTime()));
     const days = Math.floor((T.effectiveDate().getTime() - last) / 864e5);
@@ -2750,22 +2799,16 @@
     });
   }
 
-  function cabinetHTML(records, { rows = 3, mini = false } = {}) {
+  function cabinetHTML(list, { rows = 3, mini = false } = {}) {
     const { dusty, days } = dustState();
-    const none = !records.length;
-    const reallyEmpty = !(rec.data?.collection || []).length;
+    const none = !list.length;
+    const reallyEmpty = !records(rec.data).length;
     const clearing = rec.dustClearing && !dusty;
     return `<div class="cabinet${mini ? ' mini' : ''}${none ? ' empty' : ''}${dusty ? ' dusty' : ''}" style="--rows:${rows}">
       <div class="cab-crown" aria-hidden="true"></div>
       <div class="cab-body">
         <div class="cabinet-inner">
-          ${records.map((r, i) => {
-            const isNew = !recSeen().has(r.id);
-            const drop = isNew && !rec.dropped.has(r.id);
-            return `<button type="button" class="cab-item${isNew ? ' is-new' : ''}${drop ? ' drop' : ''}" data-record="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">
-              ${recordArt(r)}${isNew ? `<span class="new-tag">${esc(t('rec.newTag'))}</span>` : ''}
-              ${drop ? '<span class="sparkles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' : ''}</button>`;
-          }).join('')}
+          ${list.map((r, i) => newItemHTML(r, i, recordArt(r))).join('')}
         </div>
         ${dusty || clearing ? dustLayer({ empty: reallyEmpty, leaving: clearing }) : ''}
         ${none && !reallyEmpty ? `<div class="cabinet-empty"><b>${esc(t('rec.noneOfRarity'))}</b></div>` : ''}
@@ -2841,10 +2884,12 @@
     const card = $('#records-card');
     if (!d) { card.hidden = true; return; }
     card.hidden = false;
-    const n = d.collection.length;
-    $('#records-sub').textContent = n ? t('rec.count', { n: fmt(n) }) : t('rec.subEmpty');
+    const n = records(d).length;
+    const m = cds(d).length;
+    $('#records-sub').textContent = n || m ? t('rec.countBoth', { n: fmt(n), m: fmt(m) }) : t('rec.subEmpty');
     $('#note-balance-mini').innerHTML = balanceHTML(d.balance);
-    $('#cabinet-mini').innerHTML = cabinetHTML(d.collection.slice(0, 16), { rows: 2, mini: true });
+    $('#cabinet-mini').innerHTML = cabinetHTML(records(d).slice(0, 16), { rows: 2, mini: true })
+      + `<p class="rack-label">💿 ${esc(t('rec.cdRack'))}</p>${cdRackHTML(cds(d).slice(0, 24), { rows: 1, mini: true })}`;
     const q = d.daily?.quiz;
     const so = d.daily?.sotd;
     $('#daily-chips').innerHTML = [
@@ -2878,25 +2923,34 @@
       `<button type="button" class="chip-btn" data-rec-tab="${k}" aria-pressed="${rec.tab === k}">${esc(t(`rec.tab.${k}`))}</button>`).join('');
     let body = '';
     if (rec.tab === 'collection') {
-      const list = rec.filter === 'all' ? d.collection : d.collection.filter((r) => r.rarity === rec.filter);
+      const byRarity = (l) => (rec.filter === 'all' ? l : l.filter((r) => r.rarity === rec.filter));
+      const list = byRarity(records(d));
+      const cdList = byRarity(cds(d));
       body = `<section class="card">
-        <header class="card-head"><div><h2>${esc(t('rec.cabinet'))}</h2><p class="muted small rec-stats">${d.collection.length ? collectionStats(d.collection) : esc(t('rec.subEmpty'))}</p></div>
+        <header class="card-head"><div><h2>${esc(t('rec.cabinet'))}</h2><p class="muted small rec-stats">${records(d).length ? collectionStats(records(d)) : esc(t('rec.subEmpty'))}</p></div>
           <div class="chips">${['all', ...RARITIES].map((r) => `<button type="button" class="chip-btn" data-rec-filter="${r}" aria-pressed="${rec.filter === r}">${esc(r === 'all' ? t('rec.all') : t(`rec.r.${r}`))}</button>`).join('')}</div></header>
         ${cabinetHTML(list, { rows: Math.max(3, Math.ceil(list.length / 6)) })}
         ${d.collection.length ? '' : `<div class="rec-cta"><button type="button" class="btn btn-primary" data-rec-tab="shop">🛍️ ${esc(t('rec.toShop'))}</button></div>`}
+      </section>
+      <section class="card">
+        <header class="card-head"><div><h2>💿 ${esc(t('rec.cdRack'))}</h2><p class="muted small rec-stats">${cds(d).length ? collectionStats(cds(d)) : esc(t('rec.cdEmpty'))}</p></div></header>
+        ${cdRackHTML(cdList, { rows: Math.max(2, Math.ceil(cdList.length / 10)) })}
+        ${cds(d).length ? '' : `<div class="rec-cta"><button type="button" class="btn btn-ghost" data-shop-page="cd">💿 ${esc(t('rec.toCdShop'))}</button></div>`}
       </section>`;
     } else if (rec.tab === 'shop') {
       const b = d.balance;
-      const items = d.shop.map((it) => {
-        const lack = Math.max(0, it.price.amount - b[it.price.tier]);
+      const cdPage = rec.shopPage === 'cd';
+      const list = cdPage ? d.singles : d.shop;
+      const items = list.map((it) => {
+        const lack = d.free ? 0 : Math.max(0, it.price.amount - b[it.price.tier]);
         const btn = it.owned
           ? `<span class="si-owned">✓ ${esc(t('rec.owned'))}</span>`
           : `<button type="button" class="btn ${lack ? 'btn-ghost' : 'btn-primary'} btn-xs si-buy" data-buy="${esc(it.id)}" ${lack || rec.busy ? 'disabled' : ''}>
-              ${noteIcon(it.price.tier)} ${fmt(it.price.amount)} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${it.price.tier}`) }) : t('rec.buy'))}</button>`;
-        return `<article class="shop-item r-${it.rarity}${it.owned ? ' owned' : ''}">
-          <button type="button" class="si-art" data-preview="${esc(it.id)}" aria-label="${esc(it.album)}">${recordArt(it, { size: 'lg' })}</button>
+              ${d.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(it.price.tier)} ${fmt(it.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${it.price.tier}`) }) : t('rec.buy'))}</button>`;
+        return `<article class="shop-item r-${it.rarity}${it.owned ? ' owned' : ''}${it.kind === 'cd' ? ' is-cd' : ''}">
+          <button type="button" class="si-art" data-preview="${esc(it.id)}" aria-label="${esc(it.album)}">${itemArt(it, { size: 'lg' })}</button>
           ${rarityBadge(it.rarity)}
-          <div class="si-text"><b title="${esc(it.album)}">${esc(it.album)}</b><small>${esc(it.artist)}</small><small class="si-variant">${esc(t(`rec.v.${it.rarity}`))}</small></div>
+          <div class="si-text"><b title="${esc(it.album)}">${esc(it.album)}</b><small>${esc(it.artist)}</small><small class="si-variant">${esc(variantName(it))}</small></div>
           ${btn}
         </article>`;
       }).join('');
@@ -2905,15 +2959,18 @@
         return `<button type="button" class="ex-btn" data-exchange="${tr}" ${b[tr] < d.exchangeRate ? 'disabled' : ''}>
           ${noteIcon(tr)}<b>${d.exchangeRate}</b> → ${noteIcon(to)}<b>1</b></button>`;
       }).join('');
+      const pages = ['record', 'cd'].map((k) => `<button type="button" class="chip-btn" data-shop-page="${k}" aria-pressed="${(rec.shopPage || 'record') === k}">${k === 'cd' ? '💿' : '🎵'} ${esc(t(k === 'cd' ? 'rec.shopCds' : 'rec.shopRecords'))}</button>`).join('');
       body = `<section class="card shop-card">
-          <header class="card-head"><div><h2>🛍️ ${esc(t('rec.shopTitle', { w: d.week.week }))}</h2>
-            <p class="muted small">${esc(countdown(d.week.resetsOn))} · ${esc(t('rec.yearly'))}</p></div></header>
-          ${d.shop.length ? `<div class="shop-grid">${items}</div>` : `<p class="empty">${esc(t('rec.shopEmpty'))}</p>`}
+          <header class="card-head"><div><h2>🛍️ ${esc(t(cdPage ? 'rec.cdShopTitle' : 'rec.shopTitle', { w: d.week.week }))}</h2>
+            <p class="muted small">${esc(countdown(d.week.resetsOn))} · ${esc(t('rec.yearly'))}</p></div>
+            <div class="chips shop-pages">${pages}</div></header>
+          ${d.free ? `<p class="free-banner">🎁 ${esc(t('rec.freeOn'))}</p>` : ''}
+          ${list.length ? `<div class="shop-grid${cdPage ? ' cd-grid' : ''}">${items}</div>` : `<p class="empty">${esc(t('rec.shopEmpty'))}</p>`}
         </section>
         <section class="card"><header class="card-head"><div><h2>${esc(t('rec.exchangeTitle'))}</h2><p class="muted small">${esc(t('rec.exchangeSub', { n: d.exchangeRate }))}</p></div></header>
           <div class="ex-row">${ex}</div></section>
         <section class="card"><header class="card-head"><h2>${esc(t('rec.rarityTitle'))}</h2></header>
-          <ul class="rarity-legend">${RARITIES.map((r) => `<li>${rarityBadge(r)}<span>${esc(t(`rec.v.${r}`))}</span><small>${esc(t(`rec.price.${r}`))}</small></li>`).join('')}</ul></section>`;
+          <ul class="rarity-legend">${RARITIES.map((r) => `<li>${rarityBadge(r)}<span>${esc(t(cdPage ? `rec.cv.${r}` : `rec.v.${r}`))}</span><small>${esc(t(cdPage ? `rec.cdPrice.${r}` : `rec.price.${r}`))}</small></li>`).join('')}</ul></section>`;
     } else {
       const groups = ['start', 'social', 'minutes', 'streak', 'variety', 'collector', 'recurring'];
       const srcTitle = (s) => {
@@ -2922,6 +2979,7 @@
         if (s.key.startsWith('streak-')) return t('ms.streakName', { n: fmt(Number(n)) });
         if (s.key.startsWith('artists-')) return t('src.artists', { n: fmt(Number(n)) });
         if (s.key.startsWith('coll-')) return Number(n) === 1 ? t('src.coll1') : t('src.coll', { n: fmt(Number(n)) });
+        if (s.key.startsWith('cd-')) return Number(n) === 1 ? t('src.cd1') : t('src.cd', { n: fmt(Number(n)) });
         return t(`src.${s.key}`);
       };
       const srcDesc = (s) => {
@@ -2942,7 +3000,7 @@
       const ledgerTitle = (l) => {
         if (!l.key) return t('led.exchange');
         if (l.key.startsWith('buy:')) {
-          const r = d.collection.find((x) => x.id === l.key.slice(4));
+          const r = d.collection.find((x) => x.id === l.key.slice(4).split('#')[0]);
           return r ? t('led.buy', { a: r.album }) : t('led.buyShort');
         }
         const base = l.key.split(':')[0];
@@ -2964,7 +3022,7 @@
       <section class="card rec-head">
         <button type="button" class="link-btn rec-back" data-goto="overview">← ${esc(t('nav.overview'))}</button>
         <div class="rec-head-main">
-          <div><h2>💿 ${esc(t('rec.title'))}</h2><p class="muted small">${esc(d.collection.length ? t('rec.count', { n: fmt(d.collection.length) }) : t('rec.subEmpty'))}</p></div>
+          <div><h2>💿 ${esc(t('rec.title'))}</h2><p class="muted small">${esc(d.collection.length ? t('rec.countBoth', { n: fmt(records(d).length), m: fmt(cds(d).length) }) : t('rec.subEmpty'))}</p></div>
           ${balanceHTML(d.balance, true)}
         </div>
         <div class="chips rec-tabs">${tabs}</div>
@@ -2987,10 +3045,11 @@
   // Detail einer Platte: rotierende Schallplatte neben der Hülle
   function openRecord(r, { owned = true, isNew = false } = {}) {
     const dlg = $('#record-dialog');
-    const variant = t(`rec.v.${r.rarity}`);
-    const lack = !owned && rec.data ? Math.max(0, r.price.amount - rec.data.balance[r.price.tier]) : 0;
+    const variant = variantName(r);
+    const isCd = r.kind === 'cd';
+    const lack = !owned && rec.data && !rec.data.free ? Math.max(0, r.price.amount - rec.data.balance[r.price.tier]) : 0;
     $('#record-body').innerHTML = `${CLOSE_BTN()}
-      <div class="rd-stage r-${r.rarity}${isNew ? ' is-new' : ''}">
+      <div class="rd-stage r-${r.rarity}${isNew ? ' is-new' : ''}${isCd ? ' is-cd' : ''}">
         <div class="rd-fx"></div>
         ${isNew ? `<p class="rd-new">✨ ${esc(t('rec.newIn'))}</p>` : ''}
         <div class="rd-player">
@@ -3007,12 +3066,12 @@
         <p class="rd-artist"><button type="button" class="link-btn inline" data-detail-artist="${esc(r.artist)}">${esc(r.artist)}</button></p>
         <dl class="sys-list">
           ${owned && r.acquired_at ? `<dt>${esc(t('rec.acquired'))}</dt><dd>${esc(dateFmtYear.format(new Date(r.acquired_at)))}</dd>` : ''}
-          <dt>${esc(t('rec.price'))}</dt><dd>${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}</dd>
+          <dt>${esc(t('rec.price'))}</dt><dd>${r.price.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}`}</dd>
           <dt>${esc(t('rec.returns'))}</dt><dd>${esc(t('rec.returnsWeek', { w: r.week }))}</dd>
         </dl>
         <div class="profile-actions">
-          ${!owned ? `<button type="button" class="btn btn-primary" data-buy="${esc(r.id)}" ${lack ? 'disabled' : ''}>${noteIcon(r.price.tier)} ${fmt(r.price.amount)} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${r.price.tier}`) }) : t('rec.buy'))}</button>` : ''}
-          ${realAlbum(r.album_id) ? `<a class="btn btn-ghost" href="https://open.spotify.com/album/${esc(r.album_id)}" target="_blank" rel="noopener">${LINK_ICON}<span>${esc(t('rec.listen'))}</span></a>` : ''}
+          ${!owned ? `<button type="button" class="btn btn-primary" data-buy="${esc(r.id)}" ${lack ? 'disabled' : ''}>${rec.data?.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${r.price.tier}`) }) : t('rec.buy'))}</button>` : ''}
+          ${realAlbum(r.album_id) ? `<a class="btn btn-ghost" href="https://open.spotify.com/${isCd ? 'track' : 'album'}/${esc(r.album_id)}" target="_blank" rel="noopener">${LINK_ICON}<span>${esc(t(isCd ? 'rec.listenTrack' : 'rec.listen'))}</span></a>` : ''}
         </div>
       </div>`;
     if (!dlg.open) dlg.showModal();
@@ -3021,9 +3080,9 @@
 
   async function buyRecord(id) {
     const d = rec.data;
-    const it = d?.shop.find((x) => x.id === id);
+    const it = [...(d?.shop || []), ...(d?.singles || [])].find((x) => x.id === id);
     if (!it || rec.busy) return;
-    if (['epic', 'legendary'].includes(it.rarity) && !confirm(t('rec.confirmBuy', { a: it.album, n: it.price.amount, tier: t(`note.${it.price.tier}`) }))) return;
+    if (!d.free && ['epic', 'legendary'].includes(it.rarity) && !confirm(t('rec.confirmBuy', { a: it.album, n: it.price.amount, tier: t(`note.${it.price.tier}`) }))) return;
     rec.busy = true;
     try {
       const r = await postJSON('/api/records/buy', { id });
@@ -3076,7 +3135,7 @@
     const chip = $(`.rec-head [data-note="${it.price.tier}"]`)?.closest('.nb');
     const jobs = [];
     // Noten wandern vom Kontostand zur Platte
-    for (let i = 0; i < Math.min(it.price.amount, 6); i++) {
+    for (let i = 0; i < (rec.data?.free ? 0 : Math.min(it.price.amount, 6)); i++) {
       jobs.push(flyEl(noteIcon(it.price.tier), chip, btn || card, { dur: 650, delay: i * 110, cls: 'fly-note', scaleTo: 0.7 }));
     }
     if (chip) { chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump'); }
@@ -3088,7 +3147,7 @@
       await new Promise((r) => setTimeout(r, 450));
       // Platte fliegt zum Reiter „Sammlung“
       const target = $('[data-rec-tab="collection"]') || $('.rec-head');
-      await flyEl(recordArt(it, { size: 'lg' }), $('.si-art', card), target, { dur: 850, rot: -25, scaleTo: 0.25, cls: 'fly-rec' });
+      await flyEl(itemArt(it, { size: 'lg' }), $('.si-art', card), target, { dur: 850, rot: -25, scaleTo: 0.25, cls: 'fly-rec' });
     }
   }
 
@@ -3120,6 +3179,7 @@
       if (k.startsWith('streak-')) return t('ms.streakName', { n: fmt(Number(n)) });
       if (k.startsWith('artists-')) return t('src.artists', { n: fmt(Number(n)) });
       if (k.startsWith('coll-')) return Number(n) === 1 ? t('src.coll1') : t('src.coll', { n: fmt(Number(n)) });
+      if (k.startsWith('cd-')) return Number(n) === 1 ? t('src.cd1') : t('src.cd', { n: fmt(Number(n)) });
       return t(`src.${base}`);
     };
     el.innerHTML = `<div class="nt-coins" aria-hidden="true">${TIERS.filter((tr) => sum[tr]).map((tr, i) => noteIcon(tr, 'fly').replace('class="note', `style="--i:${i}" class="note`)).join('')}</div>
@@ -3139,6 +3199,10 @@
     document.addEventListener('click', (e) => {
       const tb = e.target.closest('[data-records-tab]');
       if (tb) { $('#note-toast').hidden = true; openRecordsTab(tb.dataset.recordsTab); return; }
+      const sp = e.target.closest('[data-shop-page]');
+      if (sp) { rec.shopPage = sp.dataset.shopPage; rec.tab = 'shop'; if (state.panel !== 'records') showPanel('records'); else renderRecords(); return; }
+      const fs = e.target.closest('#free-shop-switch');
+      if (fs) { toggleFreeShop(); return; }
       const rt = e.target.closest('[data-rec-tab]');
       if (rt) { rec.tab = rt.dataset.recTab; renderRecords(); return; }
       const rf = e.target.closest('[data-rec-filter]');
@@ -3151,7 +3215,7 @@
       }
       const pv = e.target.closest('[data-preview]');
       if (pv) {
-        const it = rec.data?.shop.find((x) => x.id === pv.dataset.preview);
+        const it = [...(rec.data?.shop || []), ...(rec.data?.singles || [])].find((x) => x.id === pv.dataset.preview);
         if (it) openRecord(rec.data.collection.find((x) => x.id === it.id) || it, { owned: it.owned });
         return;
       }

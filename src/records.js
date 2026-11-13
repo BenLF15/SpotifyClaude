@@ -23,6 +23,7 @@ const STREAK_REWARDS = {
 };
 const ARTIST_STEPS = { 25: R(0, 1), 100: R(0, 0, 1), 250: R(0, 0, 2), 500: R(0, 0, 0, 1) };
 const COLLECTION_STEPS = { 1: R(2), 10: R(0, 1), 25: R(0, 0, 1), 50: R(0, 0, 0, 1) };
+const CD_STEPS = { 1: R(1), 10: R(2), 25: R(0, 1), 50: R(0, 0, 1), 100: R(0, 0, 0, 1) };
 const ONCE = {
   starter: R(5, 2, 1), // Startguthaben beim ersten Öffnen
   spotify: R(3), // Spotify verbunden
@@ -53,6 +54,10 @@ const PRICE = { common: ['bronze', 2, 4], rare: ['silver', 1, 2], epic: ['gold',
 // Wie viele Alben es in welcher Seltenheit überhaupt gibt (Prozent)
 const PRESENCE = { common: 100, rare: 60, epic: 30, legendary: 12 };
 const SHOP_SIZE = 8;
+// CD-Singles: günstiger als Schallplatten (legendär kostet Gold statt Platin)
+const CD_PRICE = { common: ['bronze', 1, 2], rare: ['silver', 1, 1], epic: ['gold', 1, 1], legendary: ['gold', 3, 3] };
+const CD_PRESENCE = { common: 100, rare: 50, epic: 25, legendary: 8 };
+const CD_SHOP_SIZE = 10;
 
 // ================================================================ Hilfen
 const hashInt = (s) => crypto.createHash('sha256').update(s).digest().readUInt32BE(0);
@@ -110,6 +115,7 @@ async function albumPool(userId) {
       const [tier, lo, hi] = PRICE[rarity];
       items.push({
         id: `${crypto.createHash('sha1').update(a.key).digest('hex').slice(0, 12)}-${rarity}`,
+        kind: 'record',
         rarity,
         artist: a.artist,
         album: a.album,
@@ -125,10 +131,49 @@ async function albumPool(userId) {
   return items;
 }
 
+/** CD-Singles: meistgehörte Songs (≥ 2 Plays) der Lieblingskünstler. */
+async function trackPool(userId) {
+  const { rows } = await query(
+    `WITH fav AS (
+       SELECT lower(t.artist_names[1]) AS k
+         FROM plays pl JOIN tracks t ON t.id = pl.track_id
+        WHERE pl.user_id = $1 AND t.artist_names[1] IS NOT NULL
+        GROUP BY 1 ORDER BY sum(pl.ms_played) DESC LIMIT 25
+     )
+     SELECT t.id, t.name, t.artist_names[1] AS artist, t.album_image AS image, count(*) AS plays
+       FROM plays pl JOIN tracks t ON t.id = pl.track_id
+      WHERE pl.user_id = $1 AND lower(t.artist_names[1]) IN (SELECT k FROM fav)
+      GROUP BY t.id HAVING count(*) >= 2`,
+    [userId],
+  );
+  const items = [];
+  for (const tr of rows) {
+    for (const rarity of RARITIES) {
+      const seed = `cd#${tr.id}#${rarity}`;
+      if (hashInt(`${seed}#presence`) % 100 >= CD_PRESENCE[rarity]) continue;
+      const [tier, lo, hi] = CD_PRICE[rarity];
+      items.push({
+        id: `${crypto.createHash('sha1').update(tr.id).digest('hex').slice(0, 12)}-cd-${rarity}`,
+        kind: 'cd',
+        rarity,
+        artist: tr.artist,
+        album: tr.name, // Titel der Single
+        album_id: tr.id, // Spotify-Track-ID
+        image: tr.image,
+        week: (hashInt(`${seed}#week`) % 52) + 1,
+        hue: hashInt(`${seed}#hue`) % 360,
+        price: { tier, amount: lo + (hashInt(`${seed}#price`) % (hi - lo + 1)) },
+        tie: hashInt(`${seed}#tie`),
+      });
+    }
+  }
+  return items;
+}
+
 /** Angebot der Woche: Platten dieser Kalenderwoche, bei kleiner Sammlung ergänzt aus den nächstgelegenen Wochen. */
-function weeklyShop(pool, week) {
+function weeklyShop(pool, week, size = SHOP_SIZE) {
   const dist = (w) => Math.min(Math.abs(w - week), 52 - Math.abs(w - week));
-  const picked = [...pool].sort((a, b) => dist(a.week) - dist(b.week) || a.tie - b.tie).slice(0, SHOP_SIZE);
+  const picked = [...pool].sort((a, b) => dist(a.week) - dist(b.week) || a.tie - b.tie).slice(0, size);
   return picked.sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || a.artist.localeCompare(b.artist));
 }
 
@@ -166,7 +211,7 @@ async function facts(account) {
         GROUP BY 1`,
       [config.timezone, uid, account.id],
     ),
-    query(`SELECT count(*) AS n, count(*) FILTER (WHERE rarity = 'legendary') AS legendary FROM record_collection WHERE account_id = $1`, [account.id]),
+    query(`SELECT count(*) FILTER (WHERE kind = 'record') AS n, count(*) FILTER (WHERE kind = 'cd') AS cds, count(*) FILTER (WHERE rarity = 'legendary') AS legendary FROM record_collection WHERE account_id = $1`, [account.id]),
     songOfTheDay(account),
   ]);
   return { ms, ...misc.rows[0], weeks: weeks.rows, months: months.rows, collection: coll.rows[0], sotd };
@@ -192,6 +237,7 @@ function eligibleAwards(account, f) {
   }
   for (const [n, r] of Object.entries(ARTIST_STEPS)) if (f.artists >= Number(n)) add(`artists-${n}`, r);
   for (const [n, r] of Object.entries(COLLECTION_STEPS)) if (f.collection.n >= Number(n)) add(`coll-${n}`, r);
+  for (const [n, r] of Object.entries(CD_STEPS)) if (f.collection.cds >= Number(n)) add(`cd-${n}`, r);
   add(`visit:${today}`, RECURRING.visit);
   if (f.sotd?.done) add(`sotd:${today}`, RECURRING.sotd);
   for (const w of f.weeks) if (w.minutes >= WEEK_GOAL) add(`week:${w.w}`, RECURRING.week);
@@ -262,6 +308,9 @@ function sources(account, f, earned) {
     ...Object.entries(COLLECTION_STEPS).map(([n, r]) => ({
       key: `coll-${n}`, group: 'collector', reward: r, done: has.has(`coll-${n}`), at: has.get(`coll-${n}`) || null, cur: Math.min(f.collection.n, Number(n)), goal: Number(n),
     })),
+    ...Object.entries(CD_STEPS).map(([n, r]) => ({
+      key: `cd-${n}`, group: 'collector', reward: r, done: has.has(`cd-${n}`), at: has.get(`cd-${n}`) || null, cur: Math.min(f.collection.cds, Number(n)), goal: Number(n),
+    })),
     once('legendary-1', 'collector', Math.min(f.collection.legendary, 1), 1),
     { key: 'visit', group: 'recurring', reward: RECURRING.visit, done: has.has(`visit:${today}`), at: has.get(`visit:${today}`) || null },
     { key: 'week', group: 'recurring', reward: RECURRING.week, done: has.has(`week:${thisWeek}`), at: has.get(`week:${thisWeek}`) || null,
@@ -280,26 +329,32 @@ export async function overviewFor(account) {
   const { fresh, facts: f } = await evaluate(account);
   const today = localDate();
   const { year, week } = isoWeek(today);
-  const [balance, ledger, collection, pool] = await Promise.all([
+  const [balance, ledger, collection, pool, tpool, freeRow] = await Promise.all([
     balanceOf(account.id),
     query(
       `SELECT key, bronze, silver, gold, platinum, created_at FROM note_ledger WHERE account_id = $1 ORDER BY created_at DESC, id DESC`,
       [account.id],
     ),
     query(
-      `SELECT record_id AS id, rarity, artist, album, album_id, image, hue, week, price, acquired_at
+      `SELECT record_id AS id, kind, rarity, artist, album, album_id, image, hue, week, price, acquired_at
          FROM record_collection WHERE account_id = $1 ORDER BY acquired_at DESC`,
       [account.id],
     ),
     albumPool(account.spotify_user_id),
+    trackPool(account.spotify_user_id),
+    query('SELECT free_shop FROM accounts WHERE id = $1', [account.id]),
   ]);
+  const free = Boolean(freeRow.rows[0]?.free_shop);
   const owned = new Set(collection.rows.map((r) => r.id));
   const shop = weeklyShop(pool, week).map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
+  const singles = weeklyShop(tpool, week, CD_SHOP_SIZE).map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
   return {
     balance,
     fresh,
     week: { year, week, resetsOn: nextMonday(today) },
     shop,
+    singles,
+    free,
     poolSize: pool.length,
     collection: collection.rows,
     sources: sources(account, f, ledger.rows.filter((r) => r.key && !r.key.startsWith('buy:'))),
@@ -316,31 +371,38 @@ export async function overviewFor(account) {
 export async function buy(account, recordId) {
   const today = localDate();
   const { week } = isoWeek(today);
-  const pool = await albumPool(account.spotify_user_id);
-  const item = weeklyShop(pool, week).find((it) => it.id === String(recordId));
+  const [pool, tpool, freeRow] = await Promise.all([
+    albumPool(account.spotify_user_id),
+    trackPool(account.spotify_user_id),
+    query('SELECT free_shop FROM accounts WHERE id = $1', [account.id]),
+  ]);
+  const free = Boolean(freeRow.rows[0]?.free_shop);
+  const item = [...weeklyShop(pool, week), ...weeklyShop(tpool, week, CD_SHOP_SIZE)].find((it) => it.id === String(recordId));
   if (!item) throw new UserError('Diese Platte gibt es diese Woche nicht.', 404, 'recordNotInShop');
   const result = await withTransaction(async (db) => {
     await db.query('SELECT pg_advisory_xact_lock($1)', [900000 + Number(account.id)]);
     const { rows: own } = await db.query('SELECT 1 FROM record_collection WHERE account_id = $1 AND record_id = $2', [account.id, item.id]);
     if (own.length) throw new UserError('Diese Platte hast du schon.', 409, 'recordOwned');
     const bal = await balanceOf(account.id, db);
-    if (bal[item.price.tier] < item.price.amount) throw new UserError('Nicht genug Noten.', 400, 'notEnoughNotes');
+    if (!free && bal[item.price.tier] < item.price.amount) throw new UserError('Nicht genug Noten.', 400, 'notEnoughNotes');
     const cost = R();
-    cost[item.price.tier] = -item.price.amount;
+    if (!free) cost[item.price.tier] = -item.price.amount;
     await db.query(
       'INSERT INTO note_ledger (account_id, key, bronze, silver, gold, platinum) VALUES ($1, $2, $3, $4, $5, $6)',
-      [account.id, `buy:${item.id}`, cost.bronze, cost.silver, cost.gold, cost.platinum],
+      [account.id, `buy:${item.id}#${Date.now()}`, cost.bronze, cost.silver, cost.gold, cost.platinum],
     );
     await db.query(
-      `INSERT INTO record_collection (account_id, record_id, rarity, artist, album, album_id, image, hue, week, price)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [account.id, item.id, item.rarity, item.artist, item.album, item.album_id, item.image, item.hue, item.week, JSON.stringify(item.price)],
+      `INSERT INTO record_collection (account_id, record_id, kind, rarity, artist, album, album_id, image, hue, week, price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [account.id, item.id, item.kind, item.rarity, item.artist, item.album, item.album_id, item.image, item.hue, item.week,
+        JSON.stringify(free ? { ...item.price, free: true } : item.price)],
     );
     return item;
   });
   // Sammler-Belohnungen sofort prüfen
   const { fresh } = await evaluate(account);
-  return { record: result, fresh, balance: await balanceOf(account.id) };
+  const { tie, ...record } = result;
+  return { record, fresh, balance: await balanceOf(account.id) };
 }
 
 export async function exchange(account, from) {
@@ -509,4 +571,9 @@ export async function answerQuiz(account, answer) {
   const fresh = await grant(account.id, [{ key: `quiz:${today}`, ...reward }]);
   if (!fresh.length) throw new UserError('Die Tagesfrage hast du heute schon beantwortet.', 409, 'quizDone');
   return { correct: choice.correct, answer: q.options.find((o) => o.correct).id, fresh, balance: await balanceOf(account.id) };
+}
+
+/** Admin: alle Platten und CD-Singles für das eigene Konto kostenlos (zum Testen). */
+export async function setFreeShop(accountId, on) {
+  await query('UPDATE accounts SET free_shop = $2 WHERE id = $1', [accountId, Boolean(on)]);
 }

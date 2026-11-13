@@ -246,3 +246,7 @@ CREATE TABLE IF NOT EXISTS record_collection (
   acquired_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (account_id, record_id)
 );
+
+-- ---------------------------------------------------------------- CD-Singles & Gratis-Laden (Admin)
+ALTER TABLE record_collection ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'record';
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS free_shop boolean NOT NULL DEFAULT false;

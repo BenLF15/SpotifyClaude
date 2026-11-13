@@ -490,6 +490,15 @@ admin.get('/backup', async (req, res) => {
     else res.destroy(err);
   }
 });
+// Plattenladen: alles kostenlos (nur für das eigene Admin-Konto)
+admin.post(
+  '/free-shop',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => {
+    await records.setFreeShop(req.account.id, req.body?.on === true);
+    res.json({ ok: true, on: req.body?.on === true });
+  }),
+);
 admin.get('/backup/info', wrap(async (_req, res) => res.json({ last: await lastBackup() })));
 admin.post(
   '/restore',

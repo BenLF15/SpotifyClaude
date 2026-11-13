@@ -222,6 +222,19 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 
 Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen.
 
+**CD-Singles**: Auf der zweiten Seite des Ladens gibt es jede Woche 10 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (Metall, Glasböden, LED-Leiste).
+
+| Seltenheit | Ausführung | Preis |
+|---|---|---|
+| Gewöhnlich | Jewel Case | 1–2 Bronze |
+| Selten | Farbige Edition | 1 Silber |
+| Episch | Holografische CD | 1 Gold |
+| Legendär | Signierte Single | 3 Gold |
+
+Für CD-Singles gibt es eigene Sammler-Belohnungen (1 / 10 / 25 / 50 / 100 CDs).
+
+**Admin – Plattenladen kostenlos**: Im Admin-Tab schaltet ein Schalter alle Platten und CD-Singles für das eigene Admin-Konto kostenlos (zum Testen). Andere Nutzer sind nicht betroffen.
+
 **Musiknoten verdienen**:
 
 | Kategorie | Belohnung |
@@ -280,7 +293,7 @@ Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an.
 | `src/importer.js` | Parser für `Streaming_History_Audio_*.json` |
 | `src/stats.js` | SQL-Auswertungen |
 | `src/features.js` | Rückblick, Suche & Details, Meilensteine, Freunde, Playlist, Aktuell läuft, Datenexport |
-| `src/records.js` | Plattensammlung: Musiknoten, Belohnungen, wöchentlicher Laden, Kauf & Tausch |
+| `src/records.js` | Plattensammlung & CD-Singles: Musiknoten, Belohnungen, tägliche Aufgaben, wöchentlicher Laden, Kauf & Tausch |
 | `src/backup.js` | Backup (gestreamt, gzip) und Wiederherstellung |
 | `src/schema.sql` | Idempotentes Schema |
 | `public/` | Frontend (Vanilla JS + Chart.js, ohne Build-Schritt) |
