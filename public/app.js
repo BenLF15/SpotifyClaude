@@ -508,6 +508,7 @@
     if (panel === 'records') { renderRecords(); return; }
     if (!d) return;
     if (panel === 'overview') {
+      if (rec.data) renderRecordsCard();
       renderKpis(d.overview, d.timeline.daily);
       renderInsights(d);
       renderTimeline();
@@ -2661,7 +2662,7 @@
   // ================================================================ Plattensammlung & Musiknoten
   const TIERS = ['bronze', 'silver', 'gold', 'platinum'];
   const RARITIES = ['common', 'rare', 'epic', 'legendary'];
-  const rec = { data: null, tab: 'collection', filter: 'all', busy: false };
+  const rec = { data: null, tab: 'collection', filter: 'all', busy: false, dropped: new Set() };
   const noteIcon = (tier, cls = '') => `<span class="note n-${tier} ${cls}" aria-hidden="true">♪</span>`;
   const rewardChips = (r) => TIERS.filter((tr) => r[tr]).map((tr) =>
     `<span class="note-chip" title="${esc(t(`note.${tr}`))}">${noteIcon(tr)}<b>${r[tr] > 0 ? '+' : ''}${fmt(r[tr])}</b></span>`).join('');
@@ -2674,8 +2675,13 @@
     if (!state.spotify) return;
     try {
       rec.data = await api('/api/records');
-      renderRecordsCard();
-      if (state.panel === 'records') renderRecords();
+      recSeen(); // „gesehen“-Liste anlegen, bevor neue Platten dazukommen
+      // Läuft gerade eine Fall-Animation, erst danach neu zeichnen
+      const wait = Math.max(0, (rec.animUntil || 0) - Date.now());
+      setTimeout(() => {
+        renderRecordsCard();
+        if (state.panel === 'records') renderRecords();
+      }, wait);
       if (rec.data.fresh?.length) showNoteToast(rec.data.fresh);
     } catch (err) {
       if (!silent) toast(errMsg(err), true);
@@ -2719,6 +2725,31 @@
     </div>`;
   }
 
+  // Neue Platten: „NEU“, bis sie einmal geöffnet wurden; Fall-Animation einmal je Sitzung
+  const recSeenKey = () => `rec-seen-${state.account?.id}`;
+  let recSeenCache = null;
+  function saveRecSeen() { store.set(recSeenKey(), JSON.stringify([...recSeenCache])); }
+  function recSeen() {
+    if (!recSeenCache) {
+      const raw = store.get(recSeenKey(), null);
+      try { recSeenCache = new Set(JSON.parse(raw || '[]')); } catch { recSeenCache = new Set(); }
+      // Beim allerersten Mal gelten alle bisherigen Platten als gesehen
+      if (raw === null && rec.data) { rec.data.collection.forEach((r) => recSeenCache.add(r.id)); saveRecSeen(); }
+    }
+    return recSeenCache;
+  }
+  function markRecSeen(id) { recSeen().add(id); saveRecSeen(); }
+  // Sichtbar abgespielte Fall-Animationen merken, damit sie nicht bei jedem Neuzeichnen wiederkommen
+  function afterCabinetRender(root) {
+    $$('.cab-item.drop', root).forEach((el, i) => {
+      if (!el.offsetParent) return;
+      const id = el.dataset.record;
+      const dur = 2200 + Math.min(i, 8) * 180;
+      rec.animUntil = Math.max(rec.animUntil || 0, Date.now() + dur);
+      setTimeout(() => rec.dropped.add(id), dur);
+    });
+  }
+
   function cabinetHTML(records, { rows = 3, mini = false } = {}) {
     const { dusty, days } = dustState();
     const none = !records.length;
@@ -2728,10 +2759,16 @@
       <div class="cab-crown" aria-hidden="true"></div>
       <div class="cab-body">
         <div class="cabinet-inner">
-          ${records.map((r, i) => `<button type="button" class="cab-item" data-record="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">${recordArt(r)}</button>`).join('')}
+          ${records.map((r, i) => {
+            const isNew = !recSeen().has(r.id);
+            const drop = isNew && !rec.dropped.has(r.id);
+            return `<button type="button" class="cab-item${isNew ? ' is-new' : ''}${drop ? ' drop' : ''}" data-record="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">
+              ${recordArt(r)}${isNew ? `<span class="new-tag">${esc(t('rec.newTag'))}</span>` : ''}
+              ${drop ? '<span class="sparkles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>' : ''}</button>`;
+          }).join('')}
         </div>
         ${dusty || clearing ? dustLayer({ empty: reallyEmpty, leaving: clearing }) : ''}
-        ${none ? `<div class="cabinet-empty"><b>${esc(t(reallyEmpty ? 'rec.emptyTitle' : 'rec.noneOfRarity'))}</b>${reallyEmpty ? `<small>${esc(t('rec.emptyText'))}</small>` : ''}</div>` : ''}
+        ${none && !reallyEmpty ? `<div class="cabinet-empty"><b>${esc(t('rec.noneOfRarity'))}</b></div>` : ''}
         ${dusty && !reallyEmpty && !mini ? `<span class="dust-note">🕸️ ${esc(t('rec.dusty', { n: days }))}</span>` : ''}
       </div>
       <div class="cab-plinth" aria-hidden="true"><span></span><span></span></div>
@@ -2747,6 +2784,7 @@
     $('#records-sub').textContent = n ? t('rec.count', { n: fmt(n) }) : t('rec.subEmpty');
     $('#note-balance-mini').innerHTML = balanceHTML(d.balance);
     $('#cabinet-mini').innerHTML = cabinetHTML(d.collection.slice(0, 16), { rows: 2, mini: true });
+    afterCabinetRender($('#cabinet-mini'));
   }
 
   function collectionStats(list) {
@@ -2865,6 +2903,10 @@
         <div class="chips rec-tabs">${tabs}</div>
       </section>
       ${body}`;
+    afterCabinetRender(el);
+    const fresh = d.collection.filter((r) => !recSeen().has(r.id)).length;
+    const ct = $('[data-rec-tab="collection"]', el);
+    if (ct && fresh && rec.tab !== 'collection') ct.insertAdjacentHTML('beforeend', ` <span class="tab-dot">${fresh}</span>`);
     decoratePanel('records');
   }
 
@@ -2918,6 +2960,7 @@
     rec.busy = true;
     try {
       const r = await postJSON('/api/records/buy', { id });
+      await purchaseAnimation(it);
       d.balance = r.balance;
       it.owned = true;
       const owned = { ...r.record, acquired_at: new Date().toISOString() };
@@ -2929,11 +2972,56 @@
       if (state.panel === 'records') renderRecords();
       openRecord(owned, { isNew: true });
       if (r.fresh?.length) setTimeout(() => showNoteToast(r.fresh), 1200);
-      loadRecords(); // Quellen & Verlauf aktualisieren
+      setTimeout(loadRecords, 2500); // Quellen & Verlauf aktualisieren (nach den Animationen)
     } catch (err) {
       rec.busy = false;
       toast(errMsg(err), true);
       loadRecords();
+    }
+  }
+
+  // Kauf: Noten fliegen aus dem Kontostand, „Gekauft“-Stempel, Platte fliegt in die Sammlung
+  function flyEl(html, from, to, { dur = 800, cls = '', rot = 0, scaleTo = 0.4, delay = 0 } = {}) {
+    if (!from || !to) return Promise.resolve();
+    const a = from.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = `fly ${cls}`;
+    el.innerHTML = html;
+    Object.assign(el.style, { left: `${a.left + a.width / 2}px`, top: `${a.top + a.height / 2}px` });
+    document.body.appendChild(el);
+    const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+    const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+    const lift = Math.min(-60, dy / 2 - 80);
+    const anim = el.animate([
+      { transform: 'translate(-50%, -50%) scale(1) rotate(0deg)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${dx * 0.45}px), calc(-50% + ${lift}px)) scale(1.1) rotate(${rot / 2}deg)`, opacity: 1, offset: 0.45 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${scaleTo}) rotate(${rot}deg)`, opacity: 0.2 },
+    ], { duration: dur, delay, easing: 'cubic-bezier(.45,.05,.35,1)', fill: 'forwards' });
+    const done = () => el.parentNode && el.parentNode.removeChild(el);
+    return anim.finished.then(done, done);
+  }
+
+  async function purchaseAnimation(it) {
+    if (reduceMotion) return;
+    const card = $(`.shop-item [data-preview="${CSS.escape(it.id)}"]`)?.closest('.shop-item');
+    const btn = card ? $('.si-buy', card) : null;
+    const chip = $(`.rec-head [data-note="${it.price.tier}"]`)?.closest('.nb');
+    const jobs = [];
+    // Noten wandern vom Kontostand zur Platte
+    for (let i = 0; i < Math.min(it.price.amount, 6); i++) {
+      jobs.push(flyEl(noteIcon(it.price.tier), chip, btn || card, { dur: 650, delay: i * 110, cls: 'fly-note', scaleTo: 0.7 }));
+    }
+    if (chip) { chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump'); }
+    await Promise.all(jobs);
+    if (card) {
+      card.classList.add('just-bought');
+      card.insertAdjacentHTML('beforeend', `<span class="sold-stamp">✓ ${esc(t('rec.bought'))}</span>`);
+      confetti($('#fx-layer'), it.rarity === 'legendary' ? 60 : it.rarity === 'common' ? 18 : 34);
+      await new Promise((r) => setTimeout(r, 450));
+      // Platte fliegt zum Reiter „Sammlung“
+      const target = $('[data-rec-tab="collection"]') || $('.rec-head');
+      await flyEl(recordArt(it, { size: 'lg' }), $('.si-art', card), target, { dur: 850, rot: -25, scaleTo: 0.25, cls: 'fly-rec' });
     }
   }
 
@@ -2989,7 +3077,11 @@
       const rf = e.target.closest('[data-rec-filter]');
       if (rf) { rec.filter = rf.dataset.recFilter; renderRecords(); return; }
       const rb = e.target.closest('[data-record]');
-      if (rb) { const r = rec.data?.collection.find((x) => x.id === rb.dataset.record); if (r) openRecord(r); return; }
+      if (rb) {
+        const r = rec.data?.collection.find((x) => x.id === rb.dataset.record);
+        if (r) { markRecSeen(r.id); rb.classList.remove('is-new'); $('.new-tag', rb)?.remove(); openRecord(r); }
+        return;
+      }
       const pv = e.target.closest('[data-preview]');
       if (pv) {
         const it = rec.data?.shop.find((x) => x.id === pv.dataset.preview);
