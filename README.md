@@ -211,7 +211,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 
 **Plattenschrank**: In der Übersicht steht dein Plattenschrank, anfangs leer. Ein Klick auf eine Platte zeigt Hülle und drehende Schallplatte.
 
-**Plattenladen**: Jede Woche (ab Montag) gibt es 8 Schallplatten von Alben deiner 25 meistgehörten Künstler. Jede Platte hat eine feste Kalenderwoche und kehrt deshalb **jedes Jahr in derselben Woche** zurück. Seltenheiten:
+**Plattenladen**: Jeden Montag gibt es eine neue Zufallsauswahl von 16 Schallplatten aus Alben deiner 25 meistgehörten Künstler (jedes Album höchstens einmal pro Woche). Seltenheiten:
 
 | Seltenheit | Ausführung | Preis |
 |---|---|---|
@@ -222,7 +222,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 
 Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen.
 
-**CD-Singles**: Auf der zweiten Seite des Ladens gibt es jede Woche 10 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (Metall, Glasböden, LED-Leiste).
+**CD-Singles**: Auf der zweiten Seite des Ladens gibt es jede Woche 20 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (Metall, Glasböden, LED-Leiste).
 
 | Seltenheit | Ausführung | Preis |
 |---|---|---|

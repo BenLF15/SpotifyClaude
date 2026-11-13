@@ -1,7 +1,7 @@
 // Plattensammlung: Musiknoten (Bronze, Silber, Gold, Platin) verdienen, im wöchentlich wechselnden
 // Plattenladen Schallplatten der Lieblingskünstler kaufen und im Plattenschrank sammeln.
 //
-// - Jede Platte (Album × Seltenheit) hat eine feste Kalenderwoche → sie kehrt jedes Jahr in derselben Woche zurück.
+// - Der Laden zeigt jede Woche (ab Montag) eine neue Zufallsauswahl, jedes Album bzw. jeder Song höchstens einmal.
 // - Noten-Gutschriften stehen in note_ledger; einmalige Belohnungen haben einen eindeutigen Schlüssel (idempotent).
 import crypto from 'node:crypto';
 import { config } from './config.js';
@@ -53,11 +53,11 @@ const EXCHANGE_RATE = 4; // 4 × niedrigere Stufe = 1 × nächste Stufe
 const PRICE = { common: ['bronze', 2, 4], rare: ['silver', 1, 2], epic: ['gold', 1, 2], legendary: ['platinum', 1, 1] };
 // Wie viele Alben es in welcher Seltenheit überhaupt gibt (Prozent)
 const PRESENCE = { common: 100, rare: 60, epic: 30, legendary: 12 };
-const SHOP_SIZE = 8;
+const SHOP_SIZE = 16;
 // CD-Singles: günstiger als Schallplatten (legendär kostet Gold statt Platin)
 const CD_PRICE = { common: ['bronze', 1, 2], rare: ['silver', 1, 1], epic: ['gold', 1, 1], legendary: ['gold', 3, 3] };
 const CD_PRESENCE = { common: 100, rare: 50, epic: 25, legendary: 8 };
-const CD_SHOP_SIZE = 10;
+const CD_SHOP_SIZE = 20;
 
 // ================================================================ Hilfen
 const hashInt = (s) => crypto.createHash('sha256').update(s).digest().readUInt32BE(0);
@@ -171,11 +171,21 @@ async function trackPool(userId) {
 }
 
 /** Angebot der Woche: Platten dieser Kalenderwoche, bei kleiner Sammlung ergänzt aus den nächstgelegenen Wochen. */
-function weeklyShop(pool, week, size = SHOP_SIZE) {
-  const dist = (w) => Math.min(Math.abs(w - week), 52 - Math.abs(w - week));
-  const picked = [...pool].sort((a, b) => dist(a.week) - dist(b.week) || a.tie - b.tie).slice(0, size);
+function weeklyShop(pool, seed, size = SHOP_SIZE) {
+  // Jede Woche eine neue Zufallsauswahl (fest innerhalb der Woche), jedes Album/jeder Song höchstens einmal
+  const shuffled = [...pool].sort((a, b) => hashInt(`${seed}#${a.id}`) - hashInt(`${seed}#${b.id}`));
+  const seen = new Set();
+  const picked = [];
+  for (const it of shuffled) {
+    const base = it.id.replace(/-(cd-)?(common|rare|epic|legendary)$/, '');
+    if (seen.has(base)) continue;
+    seen.add(base);
+    picked.push(it);
+    if (picked.length >= size) break;
+  }
   return picked.sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || a.artist.localeCompare(b.artist));
 }
+const shopSeed = (account, year, week) => `${account.id}#${year}-W${week}`;
 
 // ================================================================ Belohnungen auswerten (idempotent)
 async function facts(account) {
@@ -346,8 +356,9 @@ export async function overviewFor(account) {
   ]);
   const free = Boolean(freeRow.rows[0]?.free_shop);
   const owned = new Set(collection.rows.map((r) => r.id));
-  const shop = weeklyShop(pool, week).map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
-  const singles = weeklyShop(tpool, week, CD_SHOP_SIZE).map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
+  const seed = shopSeed(account, year, week);
+  const shop = weeklyShop(pool, seed).map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
+  const singles = weeklyShop(tpool, `${seed}#cd`, CD_SHOP_SIZE).map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
   return {
     balance,
     fresh,
@@ -370,14 +381,15 @@ export async function overviewFor(account) {
 // ================================================================ Kaufen & Tauschen
 export async function buy(account, recordId) {
   const today = localDate();
-  const { week } = isoWeek(today);
+  const { year, week } = isoWeek(today);
   const [pool, tpool, freeRow] = await Promise.all([
     albumPool(account.spotify_user_id),
     trackPool(account.spotify_user_id),
     query('SELECT free_shop FROM accounts WHERE id = $1', [account.id]),
   ]);
   const free = Boolean(freeRow.rows[0]?.free_shop);
-  const item = [...weeklyShop(pool, week), ...weeklyShop(tpool, week, CD_SHOP_SIZE)].find((it) => it.id === String(recordId));
+  const seed = shopSeed(account, year, week);
+  const item = [...weeklyShop(pool, seed), ...weeklyShop(tpool, `${seed}#cd`, CD_SHOP_SIZE)].find((it) => it.id === String(recordId));
   if (!item) throw new UserError('Diese Platte gibt es diese Woche nicht.', 404, 'recordNotInShop');
   const result = await withTransaction(async (db) => {
     await db.query('SELECT pg_advisory_xact_lock($1)', [900000 + Number(account.id)]);

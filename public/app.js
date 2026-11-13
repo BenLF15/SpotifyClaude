@@ -2962,7 +2962,7 @@
       const pages = ['record', 'cd'].map((k) => `<button type="button" class="chip-btn" data-shop-page="${k}" aria-pressed="${(rec.shopPage || 'record') === k}">${k === 'cd' ? '💿' : '🎵'} ${esc(t(k === 'cd' ? 'rec.shopCds' : 'rec.shopRecords'))}</button>`).join('');
       body = `<section class="card shop-card">
           <header class="card-head"><div><h2>🛍️ ${esc(t(cdPage ? 'rec.cdShopTitle' : 'rec.shopTitle', { w: d.week.week }))}</h2>
-            <p class="muted small">${esc(countdown(d.week.resetsOn))} · ${esc(t('rec.yearly'))}</p></div>
+            <p class="muted small">${esc(countdown(d.week.resetsOn))}</p></div>
             <div class="chips shop-pages">${pages}</div></header>
           ${d.free ? `<p class="free-banner">🎁 ${esc(t('rec.freeOn'))}</p>` : ''}
           ${list.length ? `<div class="shop-grid${cdPage ? ' cd-grid' : ''}">${items}</div>` : `<p class="empty">${esc(t('rec.shopEmpty'))}</p>`}
@@ -3067,7 +3067,6 @@
         <dl class="sys-list">
           ${owned && r.acquired_at ? `<dt>${esc(t('rec.acquired'))}</dt><dd>${esc(dateFmtYear.format(new Date(r.acquired_at)))}</dd>` : ''}
           <dt>${esc(t('rec.price'))}</dt><dd>${r.price.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}`}</dd>
-          <dt>${esc(t('rec.returns'))}</dt><dd>${esc(t('rec.returnsWeek', { w: r.week }))}</dd>
         </dl>
         <div class="profile-actions">
           ${!owned ? `<button type="button" class="btn btn-primary" data-buy="${esc(r.id)}" ${lack ? 'disabled' : ''}>${rec.data?.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${r.price.tier}`) }) : t('rec.buy'))}</button>` : ''}
