@@ -609,6 +609,11 @@ api.post(
   wrap(async (req, res) => res.json(await records.exchange(req.account, req.body?.from))),
 );
 api.post(
+  '/records/egg',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => res.json(await records.openEgg(req.account, req.body?.id))),
+);
+api.post(
   '/records/quiz',
   express.json({ limit: '1kb' }),
   wrap(async (req, res) => res.json(await records.answerQuiz(req.account, req.body?.answer))),

@@ -2700,6 +2700,7 @@
       setTimeout(() => {
         renderRecordsCard();
         if (state.panel === 'records') renderRecords();
+        placeEggs();
       }, wait);
       if (rec.data.fresh?.length) showNoteToast(rec.data.fresh);
     } catch (err) {
@@ -2856,8 +2857,107 @@
           </div>
         </div>`
       : `<div class="daily-box"><div class="daily-head"><span class="daily-ico" aria-hidden="true">🎵</span><div><b>${esc(t('sotd.title'))}</b></div></div><p class="muted small">${esc(t('sotd.none'))}</p></div>`;
+    const eggs = d.eggs || [];
+    const found = eggs.filter((e) => e.found).length;
+    const eggHint = eggs.length
+      ? `<p class="egg-hint">🔍 ${esc(tn('egg.hint', eggs.length, { n: eggs.length, f: found }))} ${found < eggs.length ? esc(t('egg.hintMore')) : '✓'}</p>` : '';
     return `<section class="card daily-card"><header class="card-head"><div><h2>${esc(t('daily.title'))}</h2><p class="muted small">${esc(t('daily.sub'))}</p></div></header>
-      <div class="daily-grid">${quiz}${sotd}</div></section>`;
+      <div class="daily-grid">${quiz}${sotd}</div>${eggHint}</section>`;
+  }
+
+  // ---------------------------------------------------------------- Versteckte Überraschungen
+  const EGG_SPOTS = {
+    topbar: () => $('.topbar'),
+    kpi: () => $('[data-kpi="tracks"]')?.closest('.card'),
+    heatmap: () => $('#heatmap')?.closest('.card'),
+    genres: () => $('#genre-donut')?.closest('.card'),
+    trends: () => $('#trend-chart')?.closest('.card'),
+    history: () => $('.search-card'),
+    podium: () => $('#podium')?.closest('.card'),
+    cabinet: () => $('#records-card .cab-body'),
+    cdrack: () => $('#records-card .cdrack-body'),
+    shop: () => $('#records .shop-card'),
+    earn: () => $('#records .daily-card'),
+    profile: () => $('.profile-head'),
+    wrapped: () => $('.wrapped-hero'),
+    friends: () => $('#friend-form')?.closest('.card'),
+  };
+  const eggHash = (str) => [...str].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const openEggs = () => (rec.data?.eggs || []).filter((e) => !e.found);
+
+  function placeEggs() {
+    for (const egg of openEggs()) {
+      const host = EGG_SPOTS[egg.spot]?.();
+      if (!host || host.querySelector(`[data-egg="${CSS.escape(egg.id)}"]`)) continue;
+      const h = eggHash(egg.id + egg.spot);
+      const corners = [{ right: 10, bottom: 8 }, { left: 10, bottom: 8 }, { right: 12, top: 10 }, { right: 46, bottom: 10 }];
+      const pos = corners[h % corners.length];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'egg';
+      btn.dataset.egg = egg.id;
+      btn.setAttribute('aria-label', t('egg.aria'));
+      btn.title = t('egg.aria');
+      btn.innerHTML = '<span class="egg-ico">🎁</span><span class="egg-glint"></span>';
+      Object.entries(pos).forEach(([k, v]) => { btn.style[k] = `${v + (h % 7)}px`; });
+      btn.style.setProperty('--d', `${(h % 9) * 0.7}s`);
+      host.appendChild(btn);
+    }
+  }
+
+  let eggTimer;
+  function watchEggs() {
+    const obs = new MutationObserver(() => { clearTimeout(eggTimer); eggTimer = setTimeout(placeEggs, 350); });
+    ['#view-stats', '#view-profile', '.topbar'].forEach((sel) => { const el = $(sel); if (el) obs.observe(el, { childList: true, subtree: true }); });
+  }
+
+  async function openEgg(btn) {
+    const id = btn.dataset.egg;
+    if (btn.classList.contains('opening')) return;
+    btn.classList.add('opening');
+    try {
+      const r = await postJSON('/api/records/egg', { id });
+      const egg = rec.data.eggs.find((e) => e.id === id);
+      if (egg) egg.found = true;
+      rec.data.balance = r.balance;
+      if (r.gift) rec.data.collection.unshift(r.gift);
+      setTimeout(() => btn.remove(), 400);
+      showGift(r);
+      renderRecordsCard();
+      if (state.panel === 'records') renderRecords();
+      if (r.fresh?.length) setTimeout(() => showNoteToast(r.fresh), 3500);
+    } catch (err) {
+      btn.classList.remove('opening');
+      if (err.key === 'eggFound') btn.remove();
+      toast(errMsg(err), true);
+    }
+  }
+
+  function showGift(r) {
+    const dlg = $('#gift-dialog');
+    const notes = TIERS.filter((tr) => r.reward[tr]);
+    const content = r.gift
+      ? `<div class="gift-item">${itemArt(r.gift, { size: 'lg' })}</div>`
+      : `<div class="gift-coins">${notes.map((tr) => `<span class="gift-coin">${noteIcon(tr)}<b>+${r.reward[tr]}</b></span>`).join('')}</div>`;
+    const desc = r.gift
+      ? t(r.gift.kind === 'cd' ? 'egg.cd' : 'egg.record', { a: `${r.gift.album} · ${r.gift.artist}` })
+      : t('egg.notes', { r: notes.map((tr) => `${r.reward[tr]} ${t(`note.${tr}`)}`).join(', ') });
+    $('#gift-body').innerHTML = `${CLOSE_BTN()}
+      <div class="gift-stage">
+        <div class="gift-rays" aria-hidden="true"></div>
+        <div class="gift-fx"></div>
+        <div class="gift-box" aria-hidden="true"><span class="gift-lid"><i></i></span><span class="gift-base"><i></i></span></div>
+        <div class="gift-reveal">${content}</div>
+      </div>
+      <div class="gift-text">
+        <p class="tour-step">${esc(t('egg.found'))}</p>
+        <h2 id="gift-title">${esc(t('egg.title'))}</h2>
+        <p>${esc(desc)}</p>
+        <p class="muted small">${esc(r.left ? tn('egg.left', r.left, { n: r.left }) : t('egg.allFound'))}</p>
+        <button type="button" class="btn btn-primary" data-close-dialog>${esc(t('egg.great'))}</button>
+      </div>`;
+    dlg.showModal();
+    setTimeout(() => confetti($('.gift-fx', dlg), r.gift || r.reward.platinum ? 60 : 36), 1050);
   }
 
   async function answerQuiz(id) {
@@ -2895,7 +2995,9 @@
     $('#daily-chips').innerHTML = [
       q ? `<button type="button" class="daily-chip${q.answered ? ' done' : ' open'}" data-records-tab="earn">🎯 ${esc(t('quiz.title'))}${q.answered ? ' ✓' : ''}</button>` : '',
       so ? `<button type="button" class="daily-chip${so.rewarded ? ' done' : ' open'}" data-records-tab="earn">🎵 ${esc(t('sotd.title'))}${so.rewarded ? ' ✓' : ''}</button>` : '',
+      openEggs().length ? `<button type="button" class="daily-chip egg-chip" data-records-tab="earn">🔍 ${esc(tn('egg.chip', openEggs().length, { n: openEggs().length }))}</button>` : '',
     ].join('');
+    setTimeout(placeEggs, 50);
     afterCabinetRender($('#cabinet-mini'));
   }
 
@@ -3228,6 +3330,11 @@
     });
     const dlg = $('#record-dialog');
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    watchEggs();
+    document.addEventListener('click', (e) => {
+      const eg = e.target.closest('[data-egg]');
+      if (eg) { e.stopPropagation(); e.preventDefault(); openEgg(eg); }
+    }, true);
   }
 
   // ================================================================ Start

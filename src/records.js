@@ -57,7 +57,7 @@ const SHOP_SIZE = 16;
 // CD-Singles: günstiger als Schallplatten (legendär kostet Gold statt Platin)
 const CD_PRICE = { common: ['bronze', 1, 2], rare: ['silver', 1, 1], epic: ['gold', 1, 1], legendary: ['gold', 3, 3] };
 const CD_PRESENCE = { common: 100, rare: 50, epic: 25, legendary: 8 };
-const CD_SHOP_SIZE = 20;
+const CD_SHOP_SIZE = 30;
 
 // ================================================================ Hilfen
 const hashInt = (s) => crypto.createHash('sha256').update(s).digest().readUInt32BE(0);
@@ -331,6 +331,12 @@ function sources(account, f, earned) {
     { key: 'wrapped', group: 'recurring', reward: RECURRING.wrapped, done: earned.some((r) => r.key.startsWith('wrapped:')), at: null },
     { key: 'quiz', group: 'recurring', reward: RECURRING.quiz, done: has.has(`quiz:${today}`), at: has.get(`quiz:${today}`) || null },
     { key: 'sotd', group: 'recurring', reward: RECURRING.sotd, done: has.has(`sotd:${today}`), at: has.get(`sotd:${today}`) || null },
+    (() => {
+      const { year: y, week: w } = isoWeek(today);
+      const eggs = weeklyEggs(account, y, w);
+      const found = eggs.filter((e) => has.has(`egg:${e.id}`)).length;
+      return { key: 'egg', group: 'recurring', reward: R(), done: found >= eggs.length, at: null, cur: found, goal: eggs.length };
+    })(),
   ];
   return list;
 }
@@ -371,6 +377,7 @@ export async function overviewFor(account) {
     sources: sources(account, f, ledger.rows.filter((r) => r.key && !r.key.startsWith('buy:'))),
     ledger: ledger.rows.slice(0, 25),
     exchangeRate: EXCHANGE_RATE,
+    eggs: weeklyEggs(account, year, week).map((e) => ({ id: e.id, spot: e.spot, found: ledger.rows.some((r) => r.key === `egg:${e.id}`) })),
     daily: {
       quiz: await quizState(account, ledger.rows),
       sotd: f.sotd ? { ...f.sotd, rewarded: ledger.rows.some((r) => r.key === `sotd:${today}`) } : null,
@@ -588,4 +595,68 @@ export async function answerQuiz(account, answer) {
 /** Admin: alle Platten und CD-Singles für das eigene Konto kostenlos (zum Testen). */
 export async function setFreeShop(accountId, on) {
   await query('UPDATE accounts SET free_shop = $2 WHERE id = $1', [accountId, Boolean(on)]);
+}
+
+
+// ================================================================ Versteckte Überraschungen (1–2 pro Woche)
+// Orte in der App, an denen ein kleines Geschenk versteckt sein kann (Platzierung macht das Frontend).
+export const EGG_SPOTS = ['topbar', 'kpi', 'heatmap', 'genres', 'trends', 'history', 'podium', 'cabinet', 'shop', 'profile', 'wrapped', 'friends', 'cdrack', 'earn'];
+
+function weeklyEggs(account, year, week) {
+  const base = `${account.id}#${year}-W${week}#egg`;
+  const count = 1 + (hashInt(`${base}#count`) % 2);
+  const spots = [...EGG_SPOTS].sort((a, b) => hashInt(`${base}#${a}`) - hashInt(`${base}#${b}`));
+  return Array.from({ length: count }, (_, i) => ({ id: `${year}-W${String(week).padStart(2, '0')}#${i + 1}`, spot: spots[i] }));
+}
+
+/** Überraschung öffnen: Noten oder ein Gratis-Stück für die Sammlung (fest je Überraschung). */
+export async function openEgg(account, eggId) {
+  const today = localDate();
+  const { year, week } = isoWeek(today);
+  const egg = weeklyEggs(account, year, week).find((e) => e.id === String(eggId));
+  if (!egg) throw new UserError('Diese Überraschung gibt es nicht (mehr).', 404, 'eggNotFound');
+  const key = `egg:${egg.id}`;
+  const roll = hashInt(`${account.id}#${key}#roll`) % 100;
+  let gift = null;
+  let reward = R();
+  if (roll < 35) reward = R(3);
+  else if (roll < 60) reward = R(0, 2);
+  else if (roll < 78) reward = R(0, 0, 1);
+  else if (roll < 95) {
+    // Gratis-Stück: CD-Single (häufiger) oder Schallplatte, das man noch nicht hat
+    const wantRecord = roll >= 89;
+    const [pool, own] = await Promise.all([
+      wantRecord ? albumPool(account.spotify_user_id) : trackPool(account.spotify_user_id),
+      query('SELECT record_id FROM record_collection WHERE account_id = $1', [account.id]),
+    ]);
+    const owned = new Set(own.rows.map((r) => r.record_id));
+    const cands = pool.filter((it) => !owned.has(it.id) && it.rarity !== 'legendary')
+      .sort((a, b) => hashInt(`${key}#${a.id}`) - hashInt(`${key}#${b.id}`));
+    if (cands.length) gift = cands[0];
+    else reward = R(0, 0, 1);
+  } else reward = R(0, 0, 0, 1);
+
+  const result = await withTransaction(async (db) => {
+    await db.query('SELECT pg_advisory_xact_lock($1)', [900000 + Number(account.id)]);
+    const ins = await db.query(
+      `INSERT INTO note_ledger (account_id, key, bronze, silver, gold, platinum) VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (account_id, key) WHERE key IS NOT NULL DO NOTHING RETURNING id`,
+      [account.id, key, reward.bronze, reward.silver, reward.gold, reward.platinum],
+    );
+    if (!ins.rowCount) throw new UserError('Diese Überraschung hast du schon gefunden.', 409, 'eggFound');
+    if (gift) {
+      await db.query(
+        `INSERT INTO record_collection (account_id, record_id, kind, rarity, artist, album, album_id, image, hue, week, price)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT DO NOTHING`,
+        [account.id, gift.id, gift.kind, gift.rarity, gift.artist, gift.album, gift.album_id, gift.image, gift.hue, gift.week,
+          JSON.stringify({ ...gift.price, free: true, gift: true })],
+      );
+    }
+    return true;
+  });
+  const { fresh } = await evaluate(account);
+  const eggs = weeklyEggs(account, year, week);
+  const { rows } = await query('SELECT key FROM note_ledger WHERE account_id = $1 AND key = ANY($2)', [account.id, eggs.map((e) => `egg:${e.id}`)]);
+  const giftOut = gift ? (({ tie, ...g }) => ({ ...g, acquired_at: new Date().toISOString(), price: { ...g.price, free: true, gift: true } }))(gift) : null;
+  return { ok: result, reward, gift: giftOut, left: eggs.length - rows.length, fresh, balance: await balanceOf(account.id) };
 }

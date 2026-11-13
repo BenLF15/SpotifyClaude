@@ -222,7 +222,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 
 Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen.
 
-**CD-Singles**: Auf der zweiten Seite des Ladens gibt es jede Woche 20 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (Metall, Glasböden, LED-Leiste).
+**CD-Singles**: Auf der zweiten Seite des Ladens gibt es jede Woche 30 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (Metall, Glasböden, LED-Leiste).
 
 | Seltenheit | Ausführung | Preis |
 |---|---|---|
@@ -232,6 +232,8 @@ Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich g
 | Legendär | Signierte Single | 3 Gold |
 
 Für CD-Singles gibt es eigene Sammler-Belohnungen (1 / 10 / 25 / 50 / 100 CDs).
+
+**Versteckte Überraschungen**: Jede Woche sind 1–2 kleine 🎁 an zufälligen Stellen in der App versteckt (z. B. Heatmap, Podium, Plattenschrank, CD-Regal, Laden, Profil, Rückblick, Freunde). Ein Klick öffnet ein Geschenk: meist Noten (3 Bronze, 2 Silber, 1 Gold, selten 1 Platin), manchmal eine Gratis-CD-Single oder Schallplatte für die Sammlung. Ein Hinweis in der Übersicht und unter „Noten verdienen“ zeigt, wie viele noch versteckt sind.
 
 **Admin – Plattenladen kostenlos**: Im Admin-Tab schaltet ein Schalter alle Platten und CD-Singles für das eigene Admin-Konto kostenlos (zum Testen). Andere Nutzer sind nicht betroffen.
 
