@@ -3097,26 +3097,13 @@
           <div class="src-main"><b>${esc(srcTitle(s))}</b>${srcDesc(s) ? `<small>${esc(srcDesc(s))}</small>` : ''}${prog}</div>
           <span class="src-reward">${rewardChips(s.reward)}</span></li>`;
       };
-      const ledgerTitle = (l) => {
-        if (!l.key) return t('led.exchange');
-        if (l.key.startsWith('buy:')) {
-          const r = d.collection.find((x) => x.id === l.key.slice(4).split('#')[0]);
-          return r ? t('led.buy', { a: r.album }) : t('led.buyShort');
-        }
-        const base = l.key.split(':')[0];
-        if (l.key.includes(':')) return t(`src.${base}`);
-        return srcTitle({ key: l.key });
-      };
       body = `${dailyHTML(d)}<div class="earn-grid">${groups.map((g) => {
           const list = d.sources.filter((s) => s.group === g);
           const done = list.filter((s) => s.done).length;
           return `<section class="card"><header class="card-head"><div><h2>${esc(t(`rec.group.${g}`))}</h2>
             <p class="muted small">${g === 'recurring' ? esc(t('rec.recurringSub')) : esc(t('rec.doneOf', { n: done, m: list.length }))}</p></div></header>
             <ul class="src-list">${list.map(row).join('')}</ul></section>`;
-        }).join('')}</div>
-        <section class="card"><header class="card-head"><h2>${esc(t('rec.ledger'))}</h2></header>
-          <ul class="ledger">${d.ledger.map((l) => `<li><span>${esc(ledgerTitle(l))}</span><small>${esc(relTime(l.created_at))}</small>
-            <span class="src-reward">${rewardChips(l)}</span></li>`).join('') || `<li class="empty">–</li>`}</ul></section>`;
+        }).join('')}</div>`;
     }
     el.innerHTML = `
       <section class="card rec-head">

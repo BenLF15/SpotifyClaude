@@ -370,7 +370,6 @@ export async function overviewFor(account) {
     poolSize: pool.length,
     collection: collection.rows,
     sources: sources(account, f, ledger.rows.filter((r) => r.key && !r.key.startsWith('buy:'))),
-    ledger: ledger.rows.slice(0, 25),
     exchangeRate: EXCHANGE_RATE,
     eggs: weeklyEggs(account, year, week).map((e) => ({ id: e.id, spot: e.spot, found: ledger.rows.some((r) => r.key === `egg:${e.id}`) })),
     daily: {
