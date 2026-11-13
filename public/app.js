@@ -249,6 +249,7 @@
     if (state.panel) renderPanel(state.panel);
     renderThemeSettings();
     updateFestive();
+    if (rec.data) renderRecordsCard(); // Staub hängt vom (Test-)Datum ab
   });
 
   const baseScales = (extra = {}) => ({
@@ -2681,21 +2682,59 @@
     }
   }
 
-  // Schallplatte: Hülle mit herausschauender Platte (Farbe je Seltenheit)
+  // Schallplatte: Hülle mit herausschauender Platte (Farbe je Seltenheit), besondere Platten schimmern
   function recordArt(r, { size = '' } = {}) {
+    const special = r.rarity !== 'common';
     return `<span class="rec ${size} r-${r.rarity}" style="--hue:${r.hue ?? 0}">
-      <span class="rec-disc"><span class="rec-label">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}</span></span>
-      <span class="rec-sleeve">${imgOrPlaceholder(r.image, r.album)}${r.rarity === 'legendary' ? '<span class="rec-sign" aria-hidden="true"></span>' : ''}</span>
+      <span class="rec-disc">${r.rarity === 'epic' && r.image ? `<img class="rec-pic" src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}<span class="rec-sheen"></span>
+        <span class="rec-label">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}</span></span>
+      <span class="rec-sleeve">${imgOrPlaceholder(r.image, r.album)}<span class="rec-wear"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${r.rarity === 'legendary' ? '<span class="rec-sign" aria-hidden="true"></span>' : ''}</span>
     </span>`;
   }
 
+  // Staub: leerer Schrank oder seit DUST_DAYS Tagen keine neue Platte
+  const DUST_DAYS = 15;
+  function dustState() {
+    const list = rec.data?.collection || [];
+    if (!list.length) return { dusty: true, days: null };
+    const last = Math.max(...list.map((r) => new Date(r.acquired_at).getTime()));
+    const days = Math.floor((T.effectiveDate().getTime() - last) / 864e5);
+    return { dusty: days >= DUST_DAYS, days };
+  }
+
+  const COBWEB = `<svg viewBox="0 0 120 120" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round">
+    <path stroke-width="1.1" d="M0 0 L120 64 M0 0 L96 96 M0 0 L64 120 M0 0 L118 26 M0 0 L26 118"/>
+    <path stroke-width="0.8" d="M22 12 Q19 19 12 22 Q17 26 16 32 Q24 28 30 31 Q28 22 33 18 Q26 17 22 12Z"/>
+    <path stroke-width="0.8" d="M44 23 Q37 36 23 44 Q30 52 29 63 Q44 55 57 60 Q53 45 62 35 Q50 33 44 23Z"/>
+    <path stroke-width="0.7" d="M70 37 Q57 57 37 70 Q46 82 45 96 Q66 83 85 91 Q79 70 93 55 Q76 52 70 37Z"/>
+    <path stroke-width="0.6" d="M96 51 Q78 79 51 96 Q62 110 61 120 M96 51 Q105 72 118 73"/></g></svg>`;
+
+  function dustLayer({ empty, leaving = false }) {
+    const motes = Array.from({ length: empty ? 16 : 22 }, (_, k) =>
+      `<i style="--x:${(k * 37) % 100}%;--y:${(k * 53) % 90}%;--d:${(k % 7) * 0.9}s;--t:${7 + (k % 5) * 2}s;--s:${1.5 + (k % 3)}px"></i>`).join('');
+    return `<div class="cab-dust${empty ? ' is-empty' : ''}${leaving ? ' leaving' : ''}" aria-hidden="true">
+      <span class="web web-l">${COBWEB}</span><span class="web web-r">${COBWEB}</span>
+      ${empty ? '<span class="spider"><span class="thread"></span><span class="spider-body"></span></span>' : ''}
+      <span class="dust-film"></span><span class="motes">${motes}</span>
+    </div>`;
+  }
+
   function cabinetHTML(records, { rows = 3, mini = false } = {}) {
-    const empty = !records.length;
-    return `<div class="cabinet${mini ? ' mini' : ''}${empty ? ' empty' : ''}" style="--rows:${rows}">
-      <div class="cabinet-inner">
-        ${records.map((r, i) => `<button type="button" class="cab-item" data-record="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">${recordArt(r)}</button>`).join('')}
+    const { dusty, days } = dustState();
+    const none = !records.length;
+    const reallyEmpty = !(rec.data?.collection || []).length;
+    const clearing = rec.dustClearing && !dusty;
+    return `<div class="cabinet${mini ? ' mini' : ''}${none ? ' empty' : ''}${dusty ? ' dusty' : ''}" style="--rows:${rows}">
+      <div class="cab-crown" aria-hidden="true"></div>
+      <div class="cab-body">
+        <div class="cabinet-inner">
+          ${records.map((r, i) => `<button type="button" class="cab-item" data-record="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">${recordArt(r)}</button>`).join('')}
+        </div>
+        ${dusty || clearing ? dustLayer({ empty: reallyEmpty, leaving: clearing }) : ''}
+        ${none ? `<div class="cabinet-empty"><b>${esc(t(reallyEmpty ? 'rec.emptyTitle' : 'rec.noneOfRarity'))}</b>${reallyEmpty ? `<small>${esc(t('rec.emptyText'))}</small>` : ''}</div>` : ''}
+        ${dusty && !reallyEmpty && !mini ? `<span class="dust-note">🕸️ ${esc(t('rec.dusty', { n: days }))}</span>` : ''}
       </div>
-      ${empty ? `<div class="cabinet-empty"><span aria-hidden="true">🪹</span><b>${esc(t('rec.emptyTitle'))}</b><small>${esc(t('rec.emptyText'))}</small></div>` : ''}
+      <div class="cab-plinth" aria-hidden="true"><span></span><span></span></div>
     </div>`;
   }
 
@@ -2882,8 +2921,10 @@
       d.balance = r.balance;
       it.owned = true;
       const owned = { ...r.record, acquired_at: new Date().toISOString() };
+      const wasDusty = dustState().dusty;
       d.collection.unshift(owned);
       rec.busy = false;
+      if (wasDusty) { rec.dustClearing = true; setTimeout(() => { rec.dustClearing = false; renderRecordsCard(); if (state.panel === 'records') renderRecords(); }, 1600); }
       renderRecordsCard();
       if (state.panel === 'records') renderRecords();
       openRecord(owned, { isNew: true });

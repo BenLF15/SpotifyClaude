@@ -1490,3 +1490,179 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 .nt-text .src-reward { justify-content: flex-start; }
 .note-toast .fest-close { top: 50%; margin-top: -15px; background: var(--surface-3); color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .rd-vinyl { animation: none; } }
+
+/* ================================================================== Plattenschrank – Premium */
+.cabinet {
+  --row: 132px; --wood-a: #6b4224; --wood-b: #4a2b15; --wood-c: #2e190b;
+  --grain-h: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.22' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.08 0 0 0 0 0.03 0 0 0 0.75 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --grain-v: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25 0.005' numOctaves='3' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.06 0 0 0 0 0.02 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  position: relative; padding: 0; border-radius: 10px 10px 6px 6px; background: none; box-shadow: none;
+  filter: drop-shadow(0 26px 30px rgba(0, 0, 0, 0.55));
+}
+.cabinet.mini { --row: 112px; }
+/* Kranzleiste oben */
+.cab-crown {
+  height: 18px; border-radius: 8px 8px 2px 2px; margin: 0 -6px;
+  background: var(--grain-h), linear-gradient(180deg, #8a5a33 0%, #6b4224 35%, #4a2b15 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 220, 170, 0.35), inset 0 -3px 4px rgba(0, 0, 0, 0.35), 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+/* Korpus: Seitenwände + Rückwand mit warmer Beleuchtung */
+.cab-body {
+  position: relative; padding: 0 16px; overflow: hidden;
+  background: var(--grain-v), linear-gradient(90deg, #5a361b, #6e4426 3%, #5a361b 6%, transparent 6%, transparent 94%, #5a361b 94%, #6e4426 97%, #4a2b15);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+.cabinet-inner {
+  position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); grid-auto-rows: var(--row);
+  align-items: end; min-height: calc(var(--row) * var(--rows)); padding: 0 8px; border-radius: 2px;
+  background:
+    /* Fachboden: Oberkante (hell), Vorderkante (Holz), Schatten darunter */
+    repeating-linear-gradient(180deg,
+      rgba(0, 0, 0, 0.55) 0, rgba(0, 0, 0, 0.18) 10px, transparent 26px,
+      transparent calc(var(--row) - 15px),
+      #a06a3c calc(var(--row) - 15px), #8a5a33 calc(var(--row) - 12px),
+      #5e3a1d calc(var(--row) - 11px), #4a2b15 calc(var(--row) - 2px), #2a170a var(--row)),
+    /* warmes Licht unter jedem Boden */
+    repeating-linear-gradient(180deg, rgba(255, 196, 120, 0.13) 0, rgba(255, 196, 120, 0.03) 45%, transparent 70%, transparent var(--row)),
+    radial-gradient(120% 90% at 50% 40%, rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.45) 100%),
+    var(--grain-v),
+    linear-gradient(180deg, #2d1a0c, #24140a);
+  background-size: 100% var(--row), 100% var(--row), 100% 100%, 200px 400px, 100% 100%;
+  box-shadow: inset 0 10px 18px rgba(0, 0, 0, 0.6), inset 8px 0 14px rgba(0, 0, 0, 0.45), inset -8px 0 14px rgba(0, 0, 0, 0.45);
+}
+.cabinet.mini .cabinet-inner { max-height: calc(var(--row) * var(--rows)); overflow: hidden; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+/* Sockel mit Füßen */
+.cab-plinth {
+  position: relative; height: 16px; margin: 0 -4px; border-radius: 0 0 4px 4px;
+  background: var(--grain-h), linear-gradient(180deg, #5e3a1d, #3c2210);
+  box-shadow: inset 0 1px 0 rgba(255, 210, 160, 0.25), inset 0 -2px 3px rgba(0, 0, 0, 0.4);
+}
+.cab-plinth span { position: absolute; bottom: -8px; width: 34px; height: 9px; border-radius: 0 0 6px 6px; background: linear-gradient(180deg, #2a170a, #140a04); }
+.cab-plinth span:first-child { left: 18px; } .cab-plinth span:last-child { right: 18px; }
+
+/* Platte im Fach: leichtes Anlehnen, Kontaktschatten auf dem Boden */
+.cab-item { margin-bottom: 15px; }
+.cab-item::after {
+  content: ''; position: absolute; left: 8%; right: 18%; bottom: -3px; height: 8px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.65), transparent); z-index: 0;
+}
+.cab-item .rec { --s: 80px; transform: perspective(500px) rotateY(-10deg) rotateZ(calc((var(--i) % 3 - 1) * 0.8deg)); transform-origin: bottom center; }
+.cabinet.mini .cab-item .rec { --s: 70px; }
+.cab-item:hover .rec, .cab-item:focus-visible .rec { transform: perspective(500px) rotateY(0) translateY(-10px) scale(1.04); }
+
+/* ---------- Realistischere Platten */
+.rec-sleeve {
+  border-radius: 3px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 0 0 1px rgba(0, 0, 0, 0.45), 2px 3px 6px rgba(0, 0, 0, 0.45), 6px 12px 22px -10px rgba(0, 0, 0, 0.8);
+}
+.rec-sleeve::after {
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 28%, transparent 42%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.18), transparent 30%);
+}
+/* Gebrauchsspuren: Ringabdruck der Platte + Papierstruktur */
+.rec-wear {
+  position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay; opacity: 0.55;
+  background:
+    radial-gradient(circle at 54% 50%, transparent 41%, rgba(255, 255, 255, 0.22) 42.5%, transparent 44.5%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
+}
+.rec-disc {
+  overflow: hidden;
+  background:
+    repeating-radial-gradient(circle, rgba(255, 255, 255, 0.035) 0 0.6px, transparent 0.6px 2.2px),
+    radial-gradient(circle, #1b1b1b 0 33%, #0b0b0b 34% 35%, #161616 36% 96%, #050505 97%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 6px 12px rgba(0, 0, 0, 0.55);
+}
+.rec-sheen { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 40deg, transparent 0 6%, rgba(255, 255, 255, 0.22) 10%, transparent 15%, transparent 50%, rgba(255, 255, 255, 0.16) 56%, transparent 61%); }
+.rec-pic { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.rec-label { position: relative; z-index: 1; }
+.rec-label::after { content: ''; position: absolute; left: 50%; top: 50%; width: 14%; height: 14%; transform: translate(-50%, -50%); border-radius: 50%; background: #0a0a0a; }
+.rec.r-rare .rec-disc {
+  background:
+    repeating-radial-gradient(circle, rgba(255, 255, 255, 0.07) 0 0.6px, transparent 0.6px 2.2px),
+    radial-gradient(circle, hsla(var(--hue), 85%, 58%, 0.95) 0 60%, hsla(var(--hue), 80%, 40%, 0.95) 97%);
+}
+.rec.r-epic .rec-disc { background: conic-gradient(from 0deg, #ff5d8f, #ffd23f, #3ec5ff, #b892ff, #ff5d8f); }
+.rec.r-legendary .rec-disc {
+  background:
+    repeating-radial-gradient(circle, rgba(255, 220, 120, 0.06) 0 0.6px, transparent 0.6px 2.2px),
+    radial-gradient(circle, #1c1606 0 60%, #0c0903 97%);
+  box-shadow: 0 0 0 2px #e9b949, 0 0 14px rgba(245, 197, 66, 0.55);
+}
+
+/* ---------- Shimmer für besondere Platten (Selten, Episch, Legendär) */
+.rec-shimmer {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: screen;
+  background: linear-gradient(110deg, transparent 30%, var(--sh, rgba(255, 255, 255, 0.55)) 47%, transparent 62%);
+  background-size: 260% 100%; background-position: 160% 0;
+  animation: rec-shimmer var(--sh-t, 4.2s) ease-in-out infinite; animation-delay: calc(var(--i, 0) * 0.37s);
+}
+.rec.r-rare .rec-shimmer { --sh: rgba(140, 200, 255, 0.55); --sh-t: 5.2s; }
+.rec.r-epic .rec-shimmer {
+  --sh-t: 4.4s; mix-blend-mode: color-dodge;
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 93, 143, 0.5) 38%, rgba(255, 210, 63, 0.55) 45%, rgba(62, 197, 255, 0.55) 52%, rgba(184, 146, 255, 0.5) 60%, transparent 72%);
+  background-size: 260% 100%;
+}
+.rec.r-legendary .rec-shimmer { --sh: rgba(255, 228, 140, 0.8); --sh-t: 3.4s; }
+.rec.r-legendary .rec-sleeve::after { animation: none; background: linear-gradient(118deg, rgba(255, 255, 255, 0.22) 0%, transparent 42%); }
+@keyframes rec-shimmer { 0% { background-position: 160% 0; } 55%, 100% { background-position: -60% 0; } }
+.cab-item .rec-shimmer { animation-delay: calc(var(--i) * 0.53s); }
+/* Platten im Fach mit besonderem Rand-Glanz */
+.rec.r-rare .rec-sleeve { box-shadow: 0 0 0 1.5px #4a93ec, 2px 3px 6px rgba(0, 0, 0, 0.45), 0 0 14px -2px rgba(74, 147, 236, 0.6); }
+.rec.r-epic .rec-sleeve { box-shadow: 0 0 0 1.5px #a56cf0, 2px 3px 6px rgba(0, 0, 0, 0.45), 0 0 16px -2px rgba(165, 108, 240, 0.65); }
+.rec.r-legendary .rec-sleeve { box-shadow: 0 0 0 2px #e9b949, 2px 3px 6px rgba(0, 0, 0, 0.45), 0 0 20px -2px rgba(245, 197, 66, 0.7); }
+
+/* ---------- Staub & Spinnennetz */
+.cab-dust { position: absolute; inset: 0; pointer-events: none; z-index: 3; transition: opacity 1.2s ease, filter 1.2s ease; }
+.cab-dust.leaving { animation: dust-puff 1.5s ease forwards; }
+@keyframes dust-puff { 0% { opacity: 1; } 30% { opacity: 1; filter: blur(1px) brightness(1.4); transform: scale(1.02); } 100% { opacity: 0; filter: blur(6px); transform: scale(1.06); } }
+.web { position: absolute; top: 0; width: 96px; height: 96px; color: rgba(235, 230, 220, 0.38); filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.25)); animation: web-sway 7s ease-in-out infinite; transform-origin: top left; }
+.web svg { width: 100%; height: 100%; display: block; }
+.web-l { left: 0; }
+.web-r { right: 0; transform: scaleX(-1); transform-origin: top right; animation-name: web-sway-r; width: 74px; height: 74px; }
+.cabinet.mini .web { width: 70px; height: 70px; } .cabinet.mini .web-r { width: 56px; height: 56px; }
+@keyframes web-sway { 50% { transform: skewX(2deg) scale(1.015); } }
+@keyframes web-sway-r { 0%, 100% { transform: scaleX(-1); } 50% { transform: scaleX(-1) skewX(2deg) scale(1.015); } }
+.spider { position: absolute; top: 0; left: 64%; animation: spider-bob 6s ease-in-out infinite; }
+.spider .thread { position: absolute; left: 4px; top: 0; width: 1px; height: 46px; background: linear-gradient(rgba(235, 230, 220, 0.5), rgba(235, 230, 220, 0.25)); }
+.spider-body { position: absolute; top: 44px; left: 0; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #4a4038, #120e0b); box-shadow: -4px -1px 0 -3px #1a1410, 4px -1px 0 -3px #1a1410, -5px 3px 0 -3px #1a1410, 5px 3px 0 -3px #1a1410; }
+@keyframes spider-bob { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(22px); } 70% { transform: translateY(10px); } }
+.dust-film {
+  position: absolute; inset: 0; opacity: 0.32; mix-blend-mode: screen;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='2' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 0.85 0 0 0 0 0.8 0 0 0 0 0.72 0 0 0 1.4 -0.85'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23d)'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, rgba(200, 190, 175, 0.12), transparent 60%);
+}
+.cabinet.dusty:not(.empty) .cab-item .rec { filter: saturate(0.6) brightness(0.88) sepia(0.15); }
+.motes i {
+  position: absolute; left: var(--x); top: var(--y); width: var(--s); height: var(--s); border-radius: 50%;
+  background: rgba(255, 236, 205, 0.85); box-shadow: 0 0 6px rgba(255, 226, 180, 0.8); opacity: 0;
+  animation: mote var(--t) ease-in-out var(--d) infinite;
+}
+@keyframes mote {
+  0% { opacity: 0; transform: translate(0, 0); }
+  20% { opacity: 0.85; }
+  50% { transform: translate(14px, -18px); opacity: 0.5; }
+  80% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(-8px, -36px); }
+}
+.cabinet-empty { z-index: 4; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); }
+.dust-note {
+  position: absolute; z-index: 4; right: 22px; bottom: 6px; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+  color: #f3e3cf; background: rgba(20, 12, 6, 0.65); border: 1px solid rgba(243, 227, 207, 0.25); backdrop-filter: blur(2px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec-shimmer, .motes i, .web, .spider { animation: none; }
+  .motes i { opacity: 0.6; }
+}
+/* Feinschliff Staub */
+.cab-dust { inset: 0 16px; }
+.web-r { transform-origin: top center; }
+.motes i { width: calc(var(--s) + 1px); height: calc(var(--s) + 1px); background: rgba(255, 240, 215, 0.95); box-shadow: 0 0 8px 1px rgba(255, 226, 180, 0.75); }
+.cab-dust::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 220, 170, 0.07) 35%, transparent 50%, rgba(255, 220, 170, 0.05) 62%, transparent 75%);
+  animation: dust-beam 9s ease-in-out infinite;
+}
+@keyframes dust-beam { 50% { opacity: 0.4; } }
