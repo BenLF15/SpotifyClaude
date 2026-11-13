@@ -24,6 +24,11 @@
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const session = {
+    get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { sessionStorage.setItem(k, v); } catch { /* egal */ } },
+  };
+  try { localStorage.removeItem('panel'); } catch { /* alter Eintrag */ }
   const store = {
     get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* egal */ } },
@@ -38,7 +43,8 @@
     trendMode: 'minutes',
     rankKind: store.get('rankKind', 'artists'),
     rankRange: store.get('rankRange', 'short_term'),
-    panel: PANELS.includes(store.get('panel')) ? store.get('panel') : 'overview',
+    // Tab nur für die laufende Sitzung merken: nach dem Schließen startet die App immer in der Übersicht
+    panel: (() => { const v = session.get('panel'); return PANELS.includes(v) ? v : 'overview'; })(),
     dashboard: null,
     trends: null,
     ranking: null,
@@ -1527,7 +1533,7 @@
     if (!PANELS.includes(panel)) return;
     const changed = panel !== state.panel;
     state.panel = panel;
-    store.set('panel', panel);
+    session.set('panel', panel);
     applyView();
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     if (changed) window.scrollTo({ top: 0, behavior: 'auto' });
