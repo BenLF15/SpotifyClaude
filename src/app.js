@@ -600,6 +600,11 @@ api.post(
   wrap(async (req, res) => res.json(await records.exchange(req.account, req.body?.from))),
 );
 api.post(
+  '/records/quiz',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => res.json(await records.answerQuiz(req.account, req.body?.answer))),
+);
+api.post(
   '/records/event',
   express.json({ limit: '1kb' }),
   wrap(async (req, res) => res.json(await records.event(req.account, req.body || {}))),

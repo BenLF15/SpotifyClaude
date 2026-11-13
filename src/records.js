@@ -40,8 +40,11 @@ const RECURRING = {
   discover: R(0, 1), // Monat mit mindestens DISCOVER_GOAL neuen Künstlern
   bday: R(0, 0, 1), // an deinem Geburtstag
   wrapped: R(0, 1), // Jahresrückblick bis zum Ende angesehen
+  quiz: R(0, 1), // Tagesfrage richtig (falsch: QUIZ_CONSOLATION)
+  sotd: R(0, 1), // Song des Tages heute gehört
 };
 export const WEEK_GOAL = 120;
+const QUIZ_CONSOLATION = R(1);
 export const DISCOVER_GOAL = 5;
 const EXCHANGE_RATE = 4; // 4 × niedrigere Stufe = 1 × nächste Stufe
 
@@ -132,7 +135,7 @@ function weeklyShop(pool, week) {
 // ================================================================ Belohnungen auswerten (idempotent)
 async function facts(account) {
   const uid = account.spotify_user_id;
-  const [ms, misc, weeks, months, coll] = await Promise.all([
+  const [ms, misc, weeks, months, coll, sotd] = await Promise.all([
     milestones(uid, []),
     query(
       `SELECT (SELECT count(*) FROM plays WHERE user_id = $1 AND source = 'import') AS imported,
@@ -164,8 +167,9 @@ async function facts(account) {
       [config.timezone, uid, account.id],
     ),
     query(`SELECT count(*) AS n, count(*) FILTER (WHERE rarity = 'legendary') AS legendary FROM record_collection WHERE account_id = $1`, [account.id]),
+    songOfTheDay(account),
   ]);
-  return { ms, ...misc.rows[0], weeks: weeks.rows, months: months.rows, collection: coll.rows[0] };
+  return { ms, ...misc.rows[0], weeks: weeks.rows, months: months.rows, collection: coll.rows[0], sotd };
 }
 
 function eligibleAwards(account, f) {
@@ -189,6 +193,7 @@ function eligibleAwards(account, f) {
   for (const [n, r] of Object.entries(ARTIST_STEPS)) if (f.artists >= Number(n)) add(`artists-${n}`, r);
   for (const [n, r] of Object.entries(COLLECTION_STEPS)) if (f.collection.n >= Number(n)) add(`coll-${n}`, r);
   add(`visit:${today}`, RECURRING.visit);
+  if (f.sotd?.done) add(`sotd:${today}`, RECURRING.sotd);
   for (const w of f.weeks) if (w.minutes >= WEEK_GOAL) add(`week:${w.w}`, RECURRING.week);
   for (const m of f.months) if (m.n >= DISCOVER_GOAL) add(`discover:${m.m}`, RECURRING.discover);
   if (account.birthday && account.birthday.slice(5) === today.slice(5)) add(`bday:${today.slice(0, 4)}`, RECURRING.bday);
@@ -265,6 +270,8 @@ function sources(account, f, earned) {
       cur: Math.min(f.months.find((m) => m.m === thisMonth)?.n || 0, DISCOVER_GOAL), goal: DISCOVER_GOAL },
     { key: 'bday', group: 'recurring', reward: RECURRING.bday, done: has.has(`bday:${today.slice(0, 4)}`), at: has.get(`bday:${today.slice(0, 4)}`) || null, birthday: account.birthday || null },
     { key: 'wrapped', group: 'recurring', reward: RECURRING.wrapped, done: earned.some((r) => r.key.startsWith('wrapped:')), at: null },
+    { key: 'quiz', group: 'recurring', reward: RECURRING.quiz, done: has.has(`quiz:${today}`), at: has.get(`quiz:${today}`) || null },
+    { key: 'sotd', group: 'recurring', reward: RECURRING.sotd, done: has.has(`sotd:${today}`), at: has.get(`sotd:${today}`) || null },
   ];
   return list;
 }
@@ -298,6 +305,10 @@ export async function overviewFor(account) {
     sources: sources(account, f, ledger.rows.filter((r) => r.key && !r.key.startsWith('buy:'))),
     ledger: ledger.rows.slice(0, 25),
     exchangeRate: EXCHANGE_RATE,
+    daily: {
+      quiz: await quizState(account, ledger.rows),
+      sotd: f.sotd ? { ...f.sotd, rewarded: ledger.rows.some((r) => r.key === `sotd:${today}`) } : null,
+    },
   };
 }
 
@@ -360,4 +371,142 @@ export async function event(account, { type, year }) {
     return { fresh: await grant(account.id, [{ key: `wrapped:${y}`, ...RECURRING.wrapped }]), balance: await balanceOf(account.id) };
   }
   throw new UserError('Ungültig.', 400, 'invalidSetting');
+}
+
+
+// ================================================================ Tägliche Aufgaben: Tagesfrage & Song des Tages
+const dayShift = (day, n) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
+
+/** Song des Tages: ein früher oft gehörter Song (≥ 3 Plays), seit mindestens 30 Tagen nicht mehr gehört. */
+async function songOfTheDay(account) {
+  const uid = account.spotify_user_id;
+  const today = localDate();
+  const pick = async (minPlays, minDays) => {
+    const { rows } = await query(
+      `SELECT t.id, t.name, array_to_string(t.artist_names, ', ') AS artists, t.album_image AS image,
+              count(*) FILTER (WHERE (pl.played_at AT TIME ZONE $2)::date < $3::date) AS plays,
+              max(pl.played_at) FILTER (WHERE (pl.played_at AT TIME ZONE $2)::date < $3::date) AS last,
+              bool_or((pl.played_at AT TIME ZONE $2)::date = $3::date) AS today
+         FROM plays pl JOIN tracks t ON t.id = pl.track_id
+        WHERE pl.user_id = $1
+        GROUP BY t.id
+       HAVING count(*) FILTER (WHERE (pl.played_at AT TIME ZONE $2)::date < $3::date) >= $4
+          AND max(pl.played_at) FILTER (WHERE (pl.played_at AT TIME ZONE $2)::date < $3::date) < ($3::date - $5::int)::timestamp AT TIME ZONE $2
+        ORDER BY t.id`,
+      [uid, config.timezone, today, minPlays, minDays],
+    );
+    return rows;
+  };
+  let rows = await pick(3, 30);
+  if (!rows.length) rows = await pick(2, 7); // Fallback für kurze Hörverläufe
+  if (!rows.length) return null;
+  const t = rows[hashInt(`${account.id}#${today}#sotd`) % rows.length];
+  return {
+    id: t.id, name: t.name, artists: t.artists, image: t.image, plays: t.plays, last: t.last, done: t.today,
+    url: /^[0-9A-Za-z]{22}$/.test(t.id) ? `https://open.spotify.com/track/${t.id}` : null,
+  };
+}
+
+/** Tagesfrage aus den eigenen Daten (nur Daten bis gestern → stabil über den Tag). */
+export async function buildQuiz(account) {
+  const uid = account.spotify_user_id;
+  const tz = config.timezone;
+  const today = localDate();
+  const yesterday = dayShift(today, -1);
+  const weekStart = dayShift(today, -7);
+  const seed = (x) => hashInt(`${account.id}#${today}#${x}`);
+  const window = `(pl.played_at AT TIME ZONE $2)::date BETWEEN $3::date AND $4::date`;
+  const shuffle = (opts) => opts
+    .map((o) => ({ ...o, k: seed(o.label) }))
+    .sort((a, b) => a.k - b.k)
+    .map(({ k, ...o }, i) => ({ ...o, id: 'abc'[i] }));
+
+  const topArtists = async (from, to, limit) => (await query(
+    `SELECT min(t.artist_names[1]) AS name, sum(pl.ms_played) AS ms
+       FROM plays pl JOIN tracks t ON t.id = pl.track_id
+      WHERE pl.user_id = $1 AND ${window} AND t.artist_names[1] IS NOT NULL
+      GROUP BY lower(t.artist_names[1]) ORDER BY ms DESC LIMIT $5`,
+    [uid, tz, from, to, limit],
+  )).rows;
+  const artistQuestion = async (type, from) => {
+    const top = await topArtists(from, yesterday, 1);
+    if (!top.length) return null;
+    const pool = (await topArtists(dayShift(today, -365), yesterday, 15)).filter((a) => a.name.toLowerCase() !== top[0].name.toLowerCase());
+    if (pool.length < 2) return null;
+    const others = pool.sort((a, b) => seed(a.name) - seed(b.name)).slice(0, 2);
+    return { type, options: shuffle([{ label: top[0].name, correct: true }, ...others.map((a) => ({ label: a.name, correct: false }))]) };
+  };
+  const songQuestion = async () => {
+    const q = (from, limit) => query(
+      `SELECT t.id, t.name, t.artist_names[1] AS artist, t.album_image AS image, count(*) AS n
+         FROM plays pl JOIN tracks t ON t.id = pl.track_id
+        WHERE pl.user_id = $1 AND ${window}
+        GROUP BY t.id ORDER BY n DESC, t.id LIMIT $5`,
+      [uid, tz, from, yesterday, limit],
+    );
+    const top = (await q(weekStart, 1)).rows;
+    if (!top.length) return null;
+    const pool = (await q(dayShift(today, -90), 20)).rows.filter((x) => x.id !== top[0].id);
+    if (pool.length < 2) return null;
+    const others = pool.sort((a, b) => seed(a.id) - seed(b.id)).slice(0, 2);
+    const opt = (x, correct) => ({ label: x.name, sub: x.artist, image: x.image, correct });
+    return { type: 'songWeek', options: shuffle([opt(top[0], true), ...others.map((x) => opt(x, false))]) };
+  };
+  const minutesQuestion = async () => {
+    const { rows } = await query(
+      `SELECT round(COALESCE(sum(ms_played), 0) / 60000.0)::int AS m FROM plays pl WHERE pl.user_id = $1 AND ${window}`,
+      [uid, tz, yesterday, yesterday],
+    );
+    const m = rows[0].m;
+    if (m < 10) return null;
+    const vals = [m, Math.max(1, Math.round(m * 0.55)), Math.round(m * 1.6)];
+    if (new Set(vals).size < 3) return null;
+    return { type: 'minutesYesterday', options: shuffle(vals.map((v, i) => ({ label: String(v), unit: 'min', correct: i === 0 }))) };
+  };
+  const hourQuestion = async () => {
+    const { rows } = await query(
+      `SELECT extract(hour FROM pl.played_at AT TIME ZONE $2)::int AS h, sum(ms_played) AS ms
+         FROM plays pl WHERE pl.user_id = $1 AND ${window} GROUP BY 1 ORDER BY ms DESC LIMIT 1`,
+      [uid, tz, dayShift(today, -30), yesterday],
+    );
+    if (!rows.length) return null;
+    const h = rows[0].h;
+    return { type: 'hourMonth', options: shuffle([h, (h + 7) % 24, (h + 15) % 24].map((x, i) => ({ label: String(x), unit: 'hour', correct: i === 0 }))) };
+  };
+
+  const makers = [
+    () => artistQuestion('artistYesterday', yesterday),
+    songQuestion,
+    minutesQuestion,
+    () => artistQuestion('artistWeek', weekStart),
+    hourQuestion,
+  ];
+  const start = seed('type') % makers.length;
+  for (let i = 0; i < makers.length; i++) {
+    const q = await makers[(start + i) % makers.length]();
+    if (q) return q;
+  }
+  return null;
+}
+
+async function quizState(account, ledgerRows) {
+  const today = localDate();
+  const q = await buildQuiz(account);
+  if (!q) return null;
+  const row = ledgerRows.find((r) => r.key === `quiz:${today}`);
+  const options = q.options.map(({ correct, ...o }) => o); // Lösung erst nach dem Antworten
+  if (!row) return { type: q.type, options, answered: false };
+  return { type: q.type, options, answered: true, correct: row.silver > 0, answer: q.options.find((o) => o.correct).id };
+}
+
+export async function answerQuiz(account, answer) {
+  const today = localDate();
+  const q = await buildQuiz(account);
+  if (!q) throw new UserError('Heute gibt es keine Tagesfrage.', 404, 'notFound');
+  const choice = q.options.find((o) => o.id === String(answer));
+  if (!choice) throw new UserError('Ungültige Antwort.', 400, 'invalidSetting');
+  const reward = choice.correct ? RECURRING.quiz : QUIZ_CONSOLATION;
+  const fresh = await grant(account.id, [{ key: `quiz:${today}`, ...reward }]);
+  if (!fresh.length) throw new UserError('Die Tagesfrage hast du heute schon beantwortet.', 409, 'quizDone');
+  return { correct: choice.correct, answer: q.options.find((o) => o.correct).id, fresh, balance: await balanceOf(account.id) };
 }

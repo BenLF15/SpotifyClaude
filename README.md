@@ -239,6 +239,8 @@ Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich g
 | Entdecker des Monats (5 neue Künstler) | 1 Silber pro Monat |
 | Geburtstagsgeschenk | 1 Gold pro Jahr |
 | Jahresrückblick bis zum Ende angesehen | 1 Silber pro Jahr |
+| 🎯 Tagesfrage zu deinen eigenen Hördaten (z. B. „Wer war gestern dein meistgehörter Künstler?“) | richtig 1 Silber, falsch 1 Bronze, einmal pro Tag |
+| 🎵 Song des Tages: ein alter Favorit (≥ 3 Plays, seit 30 Tagen nicht gehört) heute erneut hören | 1 Silber pro Tag (wird beim Sync erkannt) |
 
 Bereits erreichte Meilensteine werden beim ersten Öffnen nachträglich gutgeschrieben; wöchentliche und monatliche Belohnungen zählen ab dann. Alle Buchungen stehen im Noten-Verlauf.
 

@@ -2775,6 +2775,67 @@
     </div>`;
   }
 
+  // ---------------------------------------------------------------- Tägliche Aufgaben (Tagesfrage & Song des Tages)
+  function quizOptLabel(o) {
+    if (o.unit === 'min') return `${fmt(Number(o.label))} ${t('unit.min')}`;
+    if (o.unit === 'hour') return hourRange(Number(o.label));
+    return o.label;
+  }
+
+  function dailyHTML(d) {
+    const q = d.daily?.quiz;
+    const so = d.daily?.sotd;
+    const quiz = q
+      ? `<div class="daily-box quiz-box${q.answered ? (q.correct ? ' right' : ' wrong') : ''}">
+          <div class="daily-head"><span class="daily-ico" aria-hidden="true">🎯</span><div><b>${esc(t('quiz.title'))}</b>
+            <small>${esc(t('src.quiz.d'))}</small></div></div>
+          <p class="quiz-q">${esc(t(`quiz.q.${q.type}`))}</p>
+          <div class="quiz-opts">${q.options.map((o) => {
+            const state = q.answered ? (o.id === q.answer ? ' is-right' : o.id === q.picked ? ' is-wrong' : ' is-off') : '';
+            return `<button type="button" class="quiz-opt${state}" data-quiz="${o.id}" ${q.answered ? 'disabled' : ''}>
+              ${o.image !== undefined ? `<span class="cover">${imgOrPlaceholder(o.image, o.label)}</span>` : ''}
+              <span class="qo-text"><b>${esc(quizOptLabel(o))}</b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</span></button>`;
+          }).join('')}</div>
+          ${q.answered ? `<p class="quiz-result">${q.correct ? `🎉 ${esc(t('quiz.right'))}` : `🙈 ${esc(t('quiz.wrong'))}`} · ${esc(t('quiz.tomorrow'))}</p>` : ''}
+        </div>`
+      : `<div class="daily-box"><div class="daily-head"><span class="daily-ico" aria-hidden="true">🎯</span><div><b>${esc(t('quiz.title'))}</b></div></div><p class="muted small">${esc(t('quiz.none'))}</p></div>`;
+    const sotd = so
+      ? `<div class="daily-box sotd-box${so.done ? ' right' : ''}">
+          <div class="daily-head"><span class="daily-ico" aria-hidden="true">🎵</span><div><b>${esc(t('sotd.title'))}</b><small>${esc(t('sotd.text'))}</small></div></div>
+          <div class="sotd-track" data-detail-track="${esc(so.id)}">
+            <span class="sotd-cover">${imgOrPlaceholder(so.image, so.name)}<span class="sotd-disc"></span></span>
+            <span class="qo-text"><b>${esc(so.name)}</b><small>${esc(so.artists)}</small>
+              <small>${esc(t('sotd.last', { r: relTime(so.last), n: fmt(so.plays) }))}</small></span>
+          </div>
+          <div class="sotd-actions">
+            ${so.url ? `<a class="btn btn-primary btn-xs" href="${esc(so.url)}" target="_blank" rel="noopener">▶ ${esc(t('sotd.listen'))}</a>` : ''}
+            <span class="sotd-status">${so.rewarded ? `✓ ${esc(t('sotd.done'))}` : so.done ? esc(t('sotd.done')) : esc(t('sotd.pending'))}</span>
+          </div>
+        </div>`
+      : `<div class="daily-box"><div class="daily-head"><span class="daily-ico" aria-hidden="true">🎵</span><div><b>${esc(t('sotd.title'))}</b></div></div><p class="muted small">${esc(t('sotd.none'))}</p></div>`;
+    return `<section class="card daily-card"><header class="card-head"><div><h2>${esc(t('daily.title'))}</h2><p class="muted small">${esc(t('daily.sub'))}</p></div></header>
+      <div class="daily-grid">${quiz}${sotd}</div></section>`;
+  }
+
+  async function answerQuiz(id) {
+    const q = rec.data?.daily?.quiz;
+    if (!q || q.answered || rec.quizBusy) return;
+    rec.quizBusy = true;
+    try {
+      const r = await postJSON('/api/records/quiz', { answer: id });
+      Object.assign(q, { answered: true, correct: r.correct, answer: r.answer, picked: id });
+      rec.data.balance = r.balance;
+      renderRecords();
+      renderRecordsCard();
+      if (r.correct) confetti($('#fx-layer'), 30);
+      if (r.fresh?.length) setTimeout(() => showNoteToast(r.fresh), 600);
+    } catch (err) {
+      toast(errMsg(err), true);
+    } finally {
+      rec.quizBusy = false;
+    }
+  }
+
   function renderRecordsCard() {
     const d = rec.data;
     const card = $('#records-card');
@@ -2784,6 +2845,12 @@
     $('#records-sub').textContent = n ? t('rec.count', { n: fmt(n) }) : t('rec.subEmpty');
     $('#note-balance-mini').innerHTML = balanceHTML(d.balance);
     $('#cabinet-mini').innerHTML = cabinetHTML(d.collection.slice(0, 16), { rows: 2, mini: true });
+    const q = d.daily?.quiz;
+    const so = d.daily?.sotd;
+    $('#daily-chips').innerHTML = [
+      q ? `<button type="button" class="daily-chip${q.answered ? ' done' : ' open'}" data-records-tab="earn">🎯 ${esc(t('quiz.title'))}${q.answered ? ' ✓' : ''}</button>` : '',
+      so ? `<button type="button" class="daily-chip${so.rewarded ? ' done' : ' open'}" data-records-tab="earn">🎵 ${esc(t('sotd.title'))}${so.rewarded ? ' ✓' : ''}</button>` : '',
+    ].join('');
     afterCabinetRender($('#cabinet-mini'));
   }
 
@@ -2882,7 +2949,7 @@
         if (l.key.includes(':')) return t(`src.${base}`);
         return srcTitle({ key: l.key });
       };
-      body = `<div class="earn-grid">${groups.map((g) => {
+      body = `${dailyHTML(d)}<div class="earn-grid">${groups.map((g) => {
           const list = d.sources.filter((s) => s.group === g);
           const done = list.filter((s) => s.done).length;
           return `<section class="card"><header class="card-head"><div><h2>${esc(t(`rec.group.${g}`))}</h2>
@@ -3090,6 +3157,8 @@
       }
       const by = e.target.closest('[data-buy]');
       if (by) { $('#record-dialog').close(); buyRecord(by.dataset.buy); return; }
+      const qz = e.target.closest('[data-quiz]');
+      if (qz) { answerQuiz(qz.dataset.quiz); return; }
       const ex = e.target.closest('[data-exchange]');
       if (ex) { exchangeNotes(ex.dataset.exchange); return; }
       if (e.target.closest('[data-note-toast-close]')) { $('#note-toast').hidden = true; }
