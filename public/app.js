@@ -2857,12 +2857,8 @@
           </div>
         </div>`
       : `<div class="daily-box"><div class="daily-head"><span class="daily-ico" aria-hidden="true">🎵</span><div><b>${esc(t('sotd.title'))}</b></div></div><p class="muted small">${esc(t('sotd.none'))}</p></div>`;
-    const eggs = d.eggs || [];
-    const found = eggs.filter((e) => e.found).length;
-    const eggHint = eggs.length
-      ? `<p class="egg-hint">🔍 ${esc(tn('egg.hint', eggs.length, { n: eggs.length, f: found }))} ${found < eggs.length ? esc(t('egg.hintMore')) : '✓'}</p>` : '';
     return `<section class="card daily-card"><header class="card-head"><div><h2>${esc(t('daily.title'))}</h2><p class="muted small">${esc(t('daily.sub'))}</p></div></header>
-      <div class="daily-grid">${quiz}${sotd}</div>${eggHint}</section>`;
+      <div class="daily-grid">${quiz}${sotd}</div></section>`;
   }
 
   // ---------------------------------------------------------------- Versteckte Überraschungen
@@ -2995,7 +2991,6 @@
     $('#daily-chips').innerHTML = [
       q ? `<button type="button" class="daily-chip${q.answered ? ' done' : ' open'}" data-records-tab="earn">🎯 ${esc(t('quiz.title'))}${q.answered ? ' ✓' : ''}</button>` : '',
       so ? `<button type="button" class="daily-chip${so.rewarded ? ' done' : ' open'}" data-records-tab="earn">🎵 ${esc(t('sotd.title'))}${so.rewarded ? ' ✓' : ''}</button>` : '',
-      openEggs().length ? `<button type="button" class="daily-chip egg-chip" data-records-tab="earn">🔍 ${esc(tn('egg.chip', openEggs().length, { n: openEggs().length }))}</button>` : '',
     ].join('');
     setTimeout(placeEggs, 50);
     afterCabinetRender($('#cabinet-mini'));

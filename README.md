@@ -235,7 +235,7 @@ Für CD-Singles gibt es eigene Sammler-Belohnungen (1 / 10 / 25 / 50 / 100 CDs).
 
 **Höranstoß im Laden**: Ein Teil des Angebots sind Stücke deiner Lieblingskünstler, die du **noch nie gehört** hast (4 von 16 Platten, 8 von 30 CDs), markiert mit „✨ Noch nie gehört“ und einem „▶ Reinhören“-Link. Spotlfy sucht sie einmal pro Woche über die Spotify-Suche (6 Anfragen pro Nutzer, gecacht in `discover_cache`); klappt das nicht, nimmt es ungehörte Songs und Alben dieser Künstler aus dem eigenen Katalog (z. B. von Freunden).
 
-**Versteckte Überraschungen**: Jede Woche sind 1–2 kleine 🎁 an zufälligen Stellen in der App versteckt (z. B. Heatmap, Podium, Plattenschrank, CD-Regal, Laden, Profil, Rückblick, Freunde). Ein Klick öffnet ein Geschenk: meist Noten (3 Bronze, 2 Silber, 1 Gold, selten 1 Platin), manchmal eine Gratis-CD-Single oder Schallplatte für die Sammlung. Ein Hinweis in der Übersicht und unter „Noten verdienen“ zeigt, wie viele noch versteckt sind.
+**Versteckte Überraschungen**: Jede Woche sind 1–2 kleine 🎁 an zufälligen Stellen in der App versteckt (z. B. Heatmap, Podium, Plattenschrank, CD-Regal, Laden, Profil, Rückblick, Freunde). Ein Klick öffnet ein Geschenk: meist Noten (3 Bronze, 2 Silber, 1 Gold, selten 1 Platin), manchmal eine Gratis-CD-Single oder Schallplatte für die Sammlung. Es gibt bewusst keinen Hinweis darauf – man muss sie selbst entdecken.
 
 **Admin – Plattenladen kostenlos**: Im Admin-Tab schaltet ein Schalter alle Platten und CD-Singles für das eigene Admin-Konto kostenlos (zum Testen). Andere Nutzer sind nicht betroffen.
 

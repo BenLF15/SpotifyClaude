@@ -332,12 +332,6 @@ function sources(account, f, earned) {
     { key: 'wrapped', group: 'recurring', reward: RECURRING.wrapped, done: earned.some((r) => r.key.startsWith('wrapped:')), at: null },
     { key: 'quiz', group: 'recurring', reward: RECURRING.quiz, done: has.has(`quiz:${today}`), at: has.get(`quiz:${today}`) || null },
     { key: 'sotd', group: 'recurring', reward: RECURRING.sotd, done: has.has(`sotd:${today}`), at: has.get(`sotd:${today}`) || null },
-    (() => {
-      const { year: y, week: w } = isoWeek(today);
-      const eggs = weeklyEggs(account, y, w);
-      const found = eggs.filter((e) => has.has(`egg:${e.id}`)).length;
-      return { key: 'egg', group: 'recurring', reward: R(), done: found >= eggs.length, at: null, cur: found, goal: eggs.length };
-    })(),
   ];
   return list;
 }
