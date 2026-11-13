@@ -16,11 +16,11 @@
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
   <title>Spotlfy</title>
-  <script src="/assets/theme.js?v=20261112l"></script>
-  <script src="/assets/i18n.js?v=20261112l"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20261112l" />
+  <script src="/assets/theme.js?v=20261113a"></script>
+  <script src="/assets/i18n.js?v=20261113a"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261113a" />
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261112l" defer></script>
+  <script src="/app.js?v=20261113a" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
@@ -51,6 +51,8 @@
       <button role="tab" data-panel="genres" data-i18n="nav.genres">Genres</button>
       <button role="tab" data-panel="trends" data-i18n="nav.trends">Entwicklung</button>
       <button role="tab" data-panel="history" data-i18n="nav.history">Verlauf</button>
+      <button role="tab" data-panel="wrapped" data-i18n="nav.wrapped">Rückblick</button>
+      <button role="tab" data-panel="friends" data-i18n="nav.friends">Freunde</button>
       <button role="tab" data-panel="admin" id="admin-tab" hidden data-i18n="nav.admin">Admin</button>
     </div>
   </nav>
@@ -62,6 +64,22 @@
         <p class="muted" data-i18n="banner.expired.text"></p>
       </div>
       <a class="btn btn-primary" href="/auth/login" data-i18n="btn.reconnect"></a>
+    </section>
+    <section id="privacy-banner" class="notice" hidden>
+      <span class="notice-icon" aria-hidden="true">🔒</span>
+      <div class="notice-text"><strong data-i18n="privacy.bannerTitle"></strong><p class="muted small" data-i18n="privacy.bannerText"></p></div>
+      <div class="notice-actions">
+        <a class="btn btn-ghost btn-xs" href="/datenschutz" target="_blank" rel="noopener" data-i18n="privacy.read"></a>
+        <button class="btn btn-primary btn-xs" type="button" id="privacy-accept" data-i18n="privacy.accept"></button>
+      </div>
+    </section>
+    <section id="scope-banner" class="notice" hidden>
+      <span class="notice-icon" aria-hidden="true">✨</span>
+      <div class="notice-text"><strong data-i18n="scope.title"></strong><p class="muted small" data-i18n="scope.text"></p></div>
+      <div class="notice-actions">
+        <a class="btn btn-primary btn-xs" href="/auth/login" data-i18n="btn.reconnect"></a>
+        <button class="btn btn-ghost btn-xs" type="button" id="scope-dismiss" data-i18n="fest.dismiss"></button>
+      </div>
     </section>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
@@ -76,6 +94,8 @@
     </div>
 
     <div class="view" id="view-stats" hidden>
+      <!-- Aktuell läuft -->
+      <div class="now-playing" id="now-playing" hidden></div>
       <!-- Ebene 2: Zeitraum (gilt für Übersicht, Top-Listen, Hörzeiten, Genres) -->
       <div class="range-bar" id="range-bar">
         <div class="segmented small" id="range-control" role="tablist" data-i18n-attr="aria-label:aria.range">
@@ -90,6 +110,7 @@
       <!-- ================================================= Übersicht -->
       <section class="panel" data-panel="overview">
         <div class="fest-ribbon" id="fest-ribbon" hidden></div>
+        <div class="wrapped-promo" id="wrapped-promo" hidden></div>
         <div class="kpis">
           <article class="card kpi kpi-hero">
             <span class="kpi-label" data-i18n="kpi.minutes"></span>
@@ -136,7 +157,13 @@
           <ol class="rank-bars" id="top-artists" start="4"></ol>
         </section>
         <section class="card">
-          <header class="card-head"><div><h2 data-i18n="top.songsTitle"></h2><p class="muted small" data-i18n="top.songsSub"></p></div></header>
+          <header class="card-head">
+            <div><h2 data-i18n="top.songsTitle"></h2><p class="muted small" data-i18n="top.songsSub"></p></div>
+            <button class="btn btn-ghost btn-xs" id="playlist-btn" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h11M4 16h7M17 13v8m-4-4h8" /></svg>
+              <span data-i18n="pl.save"></span>
+            </button>
+          </header>
           <ol class="rank-bars cols-2" id="top-tracks"></ol>
         </section>
       </section>
@@ -217,8 +244,34 @@
 
       <!-- ================================================= Verlauf -->
       <section class="panel" data-panel="history" hidden>
+        <section class="card search-card">
+          <label class="search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            <input id="search-input" type="search" autocomplete="off" spellcheck="false" maxlength="80" data-i18n-attr="placeholder:search.placeholder;aria-label:search.placeholder" />
+          </label>
+          <div class="search-results" id="search-results" hidden></div>
+        </section>
         <div class="history" id="history"></div>
         <button class="btn btn-ghost history-more" id="history-more" type="button" hidden data-i18n="history.more"></button>
+      </section>
+
+      <!-- ================================================= Rückblick -->
+      <section class="panel" data-panel="wrapped" hidden>
+        <div id="wrapped"></div>
+      </section>
+
+      <!-- ================================================= Freunde -->
+      <section class="panel" data-panel="friends" hidden>
+        <section class="card">
+          <header class="card-head"><div><h2 data-i18n="friends.title"></h2><p class="muted small" data-i18n="friends.sub"></p></div></header>
+          <form class="friend-add" id="friend-form" novalidate>
+            <input id="friend-input" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="24" data-i18n-attr="placeholder:friends.placeholder;aria-label:friends.placeholder" />
+            <button class="btn btn-primary" type="submit" data-i18n="friends.add"></button>
+          </form>
+          <div id="friend-requests"></div>
+          <ul class="friend-list" id="friend-list"></ul>
+        </section>
+        <div id="compare"></div>
       </section>
     </div><!-- /view-stats -->
 
@@ -230,6 +283,11 @@
           <h2 id="profile-name"></h2>
           <p class="muted small" id="profile-sub"></p>
         </div>
+      </section>
+
+      <section class="card" id="milestones-card" hidden>
+        <header class="card-head"><div><h2 data-i18n="ms.title" data-fest-title></h2><p class="muted small" data-i18n="ms.sub"></p></div></header>
+        <div id="milestones"></div>
       </section>
 
       <div class="grid-2">
@@ -296,6 +354,10 @@
         </div>
         <div class="profile-actions">
           <button class="btn btn-ghost" data-action="password" type="button" data-i18n="btn.password"></button>
+          <a class="btn btn-ghost" href="/api/me/export" download>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
+            <span data-i18n="btn.export"></span>
+          </a>
           <form method="post" action="/logout">
             <button class="btn btn-ghost" type="submit">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10" /></svg>
@@ -360,7 +422,29 @@
           </section>
         </div>
       </div>
+      <section class="card">
+        <header class="card-head"><div><h2 data-i18n="backup.title"></h2><p class="muted small" data-i18n="backup.sub"></p></div></header>
+        <p class="backup-status" id="backup-status"></p>
+        <p class="muted small" data-i18n="backup.warning"></p>
+        <div class="profile-actions">
+          <a class="btn btn-primary" id="backup-download" href="/api/admin/backup" download>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" /></svg>
+            <span data-i18n="backup.download"></span>
+          </a>
+          <label class="btn btn-ghost">
+            <input type="file" id="restore-file" accept=".gz,.json,application/gzip,application/json" hidden />
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9m0 0-4 4m4-4 4 4M5 4h14" /></svg>
+            <span data-i18n="backup.restore"></span>
+          </label>
+        </div>
+        <ul class="import-log" id="restore-log"></ul>
+      </section>
     </div>
+    <footer class="app-footer">
+      <a href="/datenschutz" target="_blank" rel="noopener" data-i18n="legal.privacy"></a>
+      <span aria-hidden="true">·</span>
+      <a href="/impressum" target="_blank" rel="noopener" data-i18n="legal.imprint"></a>
+    </footer>
   </main>
 
   <!-- Festliche Effekte: Partikel-Ebene (rein dekorativ) -->
@@ -368,6 +452,18 @@
 
   <dialog id="fest-tour" class="dialog tour" aria-labelledby="tour-title">
     <div class="tour-inner" id="tour-body"></div>
+  </dialog>
+  <dialog id="detail-dialog" class="dialog detail" aria-labelledby="detail-title">
+    <div class="detail-inner" id="detail-body"></div>
+  </dialog>
+  <dialog id="playlist-dialog" class="dialog pl-dialog" aria-labelledby="pl-title">
+    <div class="dialog-inner" id="pl-body"></div>
+  </dialog>
+  <dialog id="milestone-dialog" class="dialog ms-dialog" aria-labelledby="ms-dlg-title">
+    <div class="ms-dlg-inner" id="ms-dlg-body"></div>
+  </dialog>
+  <dialog id="story" class="story" aria-labelledby="story-title">
+    <div class="story-inner" id="story-body"></div>
   </dialog>
   <dialog id="import-dialog" class="dialog">
     <form method="dialog" class="dialog-inner">

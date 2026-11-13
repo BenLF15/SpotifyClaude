@@ -29,7 +29,7 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* egal */ } },
   };
 
-  const PANELS = ['overview', 'top', 'times', 'genres', 'trends', 'history', 'admin', 'profile'];
+  const PANELS = ['overview', 'top', 'times', 'genres', 'trends', 'history', 'wrapped', 'friends', 'admin', 'profile'];
   const RANGE_PANELS = new Set(['overview', 'top', 'times', 'genres']);
 
   const state = {
@@ -308,6 +308,9 @@
     renderProfile(s);
     updateFestive();
     maybeShowTour();
+    renderNotices();
+    renderWrappedPromo();
+    startNowPlaying();
     return s;
   }
 
@@ -451,16 +454,25 @@
   }
 
   // ================================================================ Daten laden
+  let dashSeq = 0;
   async function loadDashboard() {
+    const view = $('#view-stats');
+    if (!state.dashboard) showDashboardSkeleton(); else view.classList.add('is-refreshing');
+    const seq = ++dashSeq;
     try {
-      state.dashboard = await api(`/api/dashboard?range=${state.range}`);
+      const d = await api(`/api/dashboard?range=${state.range}`);
+      if (seq !== dashSeq) return; // schneller Zeitraumwechsel: nur die letzte Antwort zählt
+      state.dashboard = d;
+      view.classList.remove('is-loading', 'is-refreshing');
       renderPanel(state.panel);
       renderRibbon();
     } catch (err) {
+      view.classList.remove('is-loading', 'is-refreshing');
       if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(t('toast.loadFailed', { e: errMsg(err) }), true);
     }
   }
   async function loadTrends() {
+    $('#trend-chart').parentElement.classList.add('loading');
     try {
       state.trends = await api('/api/trends');
       if (state.panel === 'trends') renderTrends();
@@ -469,6 +481,8 @@
     }
   }
   async function loadRanking() {
+    if (!state.ranking) $('#rank-list').innerHTML = skRows(6);
+    $('#rank-chart').parentElement.classList.add('loading');
     try {
       state.ranking = await api(`/api/spotify-top?kind=${state.rankKind}&range=${state.rankRange}`);
       if (state.panel === 'trends') renderRanking();
@@ -488,6 +502,8 @@
     if (panel === 'admin') { renderThemeSettings(); renderEventButtons(); return loadAdmin(); }
     if (panel === 'profile') { if (state.status) renderProfile(state.status); decoratePanel(panel); return; }
     if (panel === 'history') { if (history.days.length) renderHistory(); else loadHistory(true); return; }
+    if (panel === 'wrapped') { if (wr.data) renderWrapped(); else loadWrapped(); return; }
+    if (panel === 'friends') { if (fr.data) renderFriends(); loadFriends(); return; }
     if (!d) return;
     if (panel === 'overview') {
       renderKpis(d.overview, d.timeline.daily);
@@ -664,7 +680,7 @@
     const val = (x) => (kind === 'artist' ? x.minutes : x.plays);
     const max = maxOverride || val(list[0]) || 1;
     el.innerHTML = list.map((x, i) => `
-      <li class="rb">
+      <li class="rb" ${kind === 'artist' ? `data-detail-artist="${esc(x.name)}"` : `data-detail-track="${esc(x.id)}"`}>
         <span class="num">${offset + i + 1}</span>
         <div class="cover${kind === 'artist' ? ' round' : ''}">${imgOrPlaceholder(x.image, x.name)}</div>
         <div class="rb-main">
@@ -682,7 +698,7 @@
     if (!top3.length) { el.innerHTML = `<p class="empty">${esc(t('empty.range'))}</p>`; return; }
     const order = [top3[1], top3[0], top3[2]].map((a, i) => (a ? { a, place: [2, 1, 3][i] } : null)).filter(Boolean);
     el.innerHTML = order.map(({ a, place }) => `
-      <div class="podium-item p${place}">
+      <div class="podium-item p${place}" data-detail-artist="${esc(a.name)}">
         <div class="pimg-wrap"><div class="pimg">${imgOrPlaceholder(a.image, a.name)}</div></div>
         <div class="podium-name" title="${esc(a.name)}">${esc(a.name)}</div>
         <div class="podium-meta">${esc(t('podium.meta', { min: fmt(a.minutes), plays: fmt(a.plays) }))}</div>
@@ -875,6 +891,7 @@
   async function loadHistory(reset = false) {
     if (history.loading) return;
     history.loading = true;
+    if (reset && !history.days.length) $('#history').innerHTML = skCard(`<ul class="day-list">${skRows(5)}</ul>`).repeat(2);
     try {
       const before = !reset && history.days.length ? history.days.at(-1).day : '';
       const r = await api(`/api/history${before ? `?before=${before}` : ''}`);
@@ -919,7 +936,7 @@
         lastHour = d.getHours();
         html += `<li class="hour-sep">${esc(t('time.hour', { h: hh(lastHour) }))}</li>`;
       }
-      html += `<li class="track">
+      html += `<li class="track" data-detail-track="${esc(it.id)}">
         <div class="cover">${imgOrPlaceholder(it.image, it.name)}</div>
         <div class="t-main"><div class="t-title">${esc(it.name)}${it.count > 1 ? `<span class="repeat">${it.count}×</span>` : ''}</div><div class="t-sub">${esc(it.artists)}</div></div>
         <div class="t-stat">${timeFmt.format(d)}</div>
@@ -956,7 +973,7 @@
         ${merged.length > DAY_PREVIEW ? `<button class="day-more" type="button" data-toggle-day="${d.day}">${esc(open ? t('history.showLess') : t('history.showAll', { n: fmt(d.plays) }))} ${CHEVRON}</button>` : ''}
       </section>`;
     }).join('');
-    $('#history-more').hidden = !history.hasMore;
+    $('#history-more').hidden = !history.hasMore || !$('#search-results').hidden;
     decoratePanel('history');
   }
 
@@ -967,6 +984,7 @@
   }
 
   function renderTrends() {
+    $('#trend-chart').parentElement.classList.remove('loading');
     const rows = state.trends?.monthly || [];
     const key = state.trendMode;
     const label = t(`trends.label.${key}`);
@@ -1021,6 +1039,7 @@
   function renderRanking() {
     const r = state.ranking;
     if (!r) return;
+    $('#rank-chart').parentElement.classList.remove('loading');
     const list = $('#rank-list');
     $('#ranking-caption').textContent = r.date ? t('rank.stand', { d: dateFmtYear.format(parseDay(r.date)) }) : t('rank.sub');
     if (!r.items.length) {
@@ -1035,7 +1054,7 @@
             : diff < 0 ? `<span class="rank-change down">▼ ${-diff}</span>`
             : '<span class="rank-change same">–</span>';
         }
-        return `<li class="track">
+        return `<li class="track" ${state.rankKind === 'artists' ? `data-detail-artist="${esc(it.name)}"` : `data-detail-track="${esc(it.id)}"`}>
           <span class="num">${it.rank}</span>
           <div class="cover${round}">${imgOrPlaceholder(it.image, it.name)}</div>
           <div class="t-main"><div class="t-title">${esc(it.name)}</div><div class="t-sub">${esc(it.subtitle || '')}</div></div>
@@ -1412,6 +1431,7 @@
       const r = await api('/api/sync', { method: 'POST' });
       const n = r.recent?.inserted ?? 0;
       toast(n ? t('toast.newPlays', { n: fmt(n) }) : t('toast.upToDate'));
+      wr.data = null;
       await refreshAll();
     } catch (err) {
       toast(err.status === 409 ? t('toast.expired') : t('toast.syncFailed', { e: errMsg(err) }), true);
@@ -1450,7 +1470,7 @@
           li.lastElementChild.textContent = err instanceof SyntaxError ? t('import.invalid') : errMsg(err);
         }
       }
-      if (any) { toast(t('import.done')); state.trends = null; refreshAll(); }
+      if (any) { toast(t('import.done')); state.trends = null; wr.data = null; refreshAll(); }
     }
     input.addEventListener('change', () => { handle(input.files); input.value = ''; });
     ['dragenter', 'dragover'].forEach((ty) => zone.addEventListener(ty, (e) => { e.preventDefault(); zone.classList.add('is-over'); }));
@@ -1522,10 +1542,11 @@
     state.trends = null;
     state.ranking = null;
     history.days = [];
-    const jobs = [loadDashboard()];
+    const jobs = [loadDashboard(), loadFriends()];
     if (state.panel === 'history') jobs.push(loadHistory(true));
     if (state.panel === 'trends') jobs.push(loadTrends(), loadRanking());
     await Promise.all(jobs);
+    loadMilestones({ celebrate: true });
   }
 
   function handleQueryFlags() {
@@ -1718,6 +1739,7 @@
   }
 
   async function loadAdmin() {
+    if (!adminAccounts.length) $('#admin-users').innerHTML = skRows(4);
     try {
       const [d, sys] = await Promise.all([api('/api/admin/accounts'), api('/api/admin/system')]);
       const weekAgo = Date.now() - 7 * 864e5;
@@ -1729,6 +1751,7 @@
       adminAccounts = d.accounts;
       renderAdminUsers();
       renderSystem(sys);
+      loadBackupInfo();
       $('#admin-logins').innerHTML = d.logins.length
         ? d.logins.map((l) => `
           <li>
@@ -1740,6 +1763,891 @@
     } catch (err) {
       if (err.message !== 'unauthorized') toast(t('admin.actionFailed', { e: errMsg(err) }), true);
     }
+  }
+
+  // ================================================================ Ladezustände (Skeletons)
+  const SK_ROW = '<li class="sk-row" aria-hidden="true"><span class="sk sk-cover"></span><span class="sk-lines"><span class="sk sk-line"></span><span class="sk sk-line short"></span></span></li>';
+  const skRows = (n) => SK_ROW.repeat(n);
+  const skInsights = (n) => '<div class="insight sk-card" aria-hidden="true"><span class="sk sk-icon"></span><span class="sk sk-line short"></span><span class="sk sk-line"></span></div>'.repeat(n);
+  const skBlock = (h, cls = '') => `<div class="sk sk-block ${cls}" style="height:${h}px" aria-hidden="true"></div>`;
+  const skCard = (inner) => `<section class="card sk-wrap" aria-busy="true">${inner}</section>`;
+
+  function showDashboardSkeleton() {
+    $('#view-stats').classList.add('is-loading');
+    $$('[data-kpi]').forEach((el) => { el.innerHTML = '<span class="sk sk-num"></span>'; el.dataset.value = 0; });
+    $$('[data-kpi-sub]').forEach((el) => { el.innerHTML = '<span class="sk sk-line short"></span>'; });
+    $('#insights').innerHTML = skInsights(4);
+    $('#time-insights').innerHTML = skInsights(4);
+    ['#overview-artists', '#overview-tracks', '#genres'].forEach((s) => { $(s).innerHTML = skRows(5); });
+    $('#top-artists').innerHTML = skRows(6);
+    $('#top-tracks').innerHTML = skRows(8);
+    $('#podium').innerHTML = [2, 1, 3].map((p) => `<div class="podium-item p${p}"><div class="pimg-wrap"><div class="pimg sk"></div></div><span class="sk sk-line short"></span></div>`).join('');
+    $('#heatmap').innerHTML = skBlock(190, 'sk-span');
+    $('#donut-center').innerHTML = '';
+  }
+
+  // ================================================================ Allgemeines: Dialoge & Konfetti
+  const LINK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg>';
+  const CLOSE_BTN = (extra = '') => `<button type="button" class="tour-close ${extra}" data-close-dialog aria-label="${esc(t('tour.close'))}">✕</button>`;
+
+  function confetti(container = $('#fx-layer'), n = 36) {
+    if (reduceMotion || !container) return;
+    const colors = ['#ff5d8f', '#ffd23f', '#3ec5ff', '#7ae582', '#b892ff', '#ff8c42'];
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('span');
+      p.className = 'fx-p fx-burst fx-conf';
+      p.style.background = colors[i % colors.length];
+      p.style.setProperty('--x', `${rnd(4, 96)}%`);
+      p.style.setProperty('--dx', `${rnd(-15, 15)}vw`);
+      p.style.setProperty('--dy', `${rnd(-50, -20)}vh`);
+      p.style.setProperty('--rot', `${rnd(-300, 300)}deg`);
+      p.style.setProperty('--dur', `${rnd(1.8, 3)}s`);
+      p.style.setProperty('--delay', `${rnd(0, 0.4)}s`);
+      p.addEventListener('animationend', () => p.remove());
+      setTimeout(() => p.remove(), 4500);
+      container.appendChild(p);
+    }
+  }
+
+  // Erst zeigen, wenn kein anderer Dialog offen ist (z. B. Walkthrough)
+  function whenNoDialog(fn) {
+    if (!document.querySelector('dialog[open]')) { fn(); return; }
+    const iv = setInterval(() => { if (!document.querySelector('dialog[open]')) { clearInterval(iv); setTimeout(fn, 400); } }, 800);
+  }
+
+  const PERIODS = ['7d', '30d', '90d', '365d', 'all'];
+  const periodName = (r) => t(`period.${r}`);
+  const compactFmt = new Intl.NumberFormat(LOCALE, { notation: 'compact', maximumFractionDigits: 1 });
+
+  // Lückenlose Monatsreihe (YYYY-MM) zwischen erstem und letztem Monat
+  function fillMonths(rows, key) {
+    if (!rows.length) return { labels: [], values: [] };
+    const map = new Map(rows.map((r) => [r.month, r[key]]));
+    const [y0, m0] = rows[0].month.split('-').map(Number);
+    const [y1, m1] = rows.at(-1).month.split('-').map(Number);
+    const labels = [];
+    for (let y = y0, m = m0; y < y1 || (y === y1 && m <= m1); m === 12 ? (y++, m = 1) : m++) labels.push(`${y}-${String(m).padStart(2, '0')}`);
+    return { labels, values: labels.map((l) => map.get(l) || 0) };
+  }
+
+  // ================================================================ Aktuell läuft
+  const np = { data: null, fetchedAt: 0, lastPoll: 0, timer: null, tick: null };
+
+  async function pollNowPlaying() {
+    if (!state.spotify || state.spotify.auth_expired || document.visibilityState !== 'visible') return;
+    np.lastPoll = Date.now();
+    try {
+      np.data = await api('/api/now-playing');
+      np.fetchedAt = Date.now();
+    } catch {
+      np.data = null;
+    }
+    renderNowPlaying();
+  }
+
+  function renderNowPlaying() {
+    const el = $('#now-playing');
+    const d = np.data;
+    if (!d?.playing) { el.hidden = true; el.innerHTML = ''; delete el.dataset.track; return; }
+    const tr = d.track;
+    if (el.dataset.track !== tr.id) {
+      el.dataset.track = tr.id;
+      el.innerHTML = `
+        <button type="button" class="np-main"${d.timesPlayed ? ` data-detail-track="${esc(tr.id)}"` : ''}>
+          <span class="np-cover">${imgOrPlaceholder(tr.image, tr.name)}</span>
+          <span class="np-text">
+            <span class="np-label"><span class="np-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="np-state"></span></span>
+            <span class="np-title">${esc(tr.name)}</span>
+            <span class="np-sub">${esc(tr.artists)}<span class="np-count"></span></span>
+          </span>
+        </button>
+        <a class="np-open" href="${esc(tr.url)}" target="_blank" rel="noopener" title="${esc(t('np.open'))}" aria-label="${esc(t('np.open'))}">${LINK_ICON}</a>
+        <span class="np-progress" aria-hidden="true"><span></span></span>`;
+      el.classList.remove('np-in');
+      void el.offsetWidth;
+      el.classList.add('np-in');
+    }
+    el.classList.toggle('paused', !d.is_playing);
+    $('.np-state', el).textContent = t(d.is_playing ? 'np.playing' : 'np.paused');
+    $('.np-count', el).textContent = ` · ${d.timesPlayed ? t('np.times', { n: fmt(d.timesPlayed) }) : t('np.first')}`;
+    el.hidden = false;
+    updateNpProgress();
+  }
+
+  function updateNpProgress() {
+    const d = np.data;
+    if (!d?.playing) return;
+    const pos = Math.min(d.duration_ms, d.progress_ms + (d.is_playing ? Date.now() - np.fetchedAt : 0));
+    const bar = $('#now-playing .np-progress span');
+    if (bar) bar.style.width = `${d.duration_ms ? (pos / d.duration_ms) * 100 : 0}%`;
+    // Song zu Ende → gleich nachsehen, was als Nächstes läuft
+    if (d.is_playing && pos >= d.duration_ms && Date.now() - np.lastPoll > 4000) pollNowPlaying();
+  }
+
+  function startNowPlaying() {
+    if (np.timer || !state.spotify || state.spotify.missing_scopes?.includes('user-read-currently-playing')) return;
+    pollNowPlaying();
+    np.timer = setInterval(pollNowPlaying, 20_000);
+    np.tick = setInterval(updateNpProgress, 1000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pollNowPlaying(); });
+  }
+
+  // ================================================================ Hinweise: Datenschutz & neue Berechtigungen
+  function renderNotices() {
+    const acc = state.account;
+    const sp = state.spotify;
+    $('#privacy-banner').hidden = !acc || acc.privacy_accepted;
+    const scopeKey = 'scope-dismiss';
+    const dismissed = Number(store.get(scopeKey, 0)) > Date.now();
+    $('#scope-banner').hidden = !sp || sp.auth_expired || !sp.missing_scopes?.length || dismissed;
+  }
+
+  async function acceptPrivacy() {
+    try {
+      await api('/api/me/privacy', { method: 'POST' });
+      state.account.privacy_accepted = true;
+      renderNotices();
+      toast(t('toast.saved'));
+    } catch (err) {
+      toast(errMsg(err), true);
+    }
+  }
+
+  // ================================================================ Details zu Song / Künstler
+  async function openDetail(kind, key) {
+    const dlg = $('#detail-dialog');
+    const body = $('#detail-body');
+    body.innerHTML = `${CLOSE_BTN('detail-close')}
+      <div class="detail-head"><span class="sk sk-cover-lg"></span><span class="sk-lines"><span class="sk sk-line short"></span><span class="sk sk-line"></span></span></div>
+      ${skBlock(70)}${skBlock(150)}`;
+    if (!dlg.open) dlg.showModal();
+    try {
+      const d = await api(kind === 'track' ? `/api/track/${encodeURIComponent(key)}` : `/api/artist?name=${encodeURIComponent(key)}`);
+      renderDetail(d);
+    } catch (err) {
+      body.innerHTML = `${CLOSE_BTN('detail-close')}<p class="empty detail-empty">${esc(err.key === 'notFound' ? t('detail.notFound') : errMsg(err))}</p>`;
+    }
+  }
+
+  function renderDetail(d) {
+    const isArtist = d.type === 'artist';
+    const fav = d.favourite || {};
+    const stat = (label, val) => `<div class="dstat"><span>${esc(label)}</span><b>${val}</b></div>`;
+    const genreLine = isArtist && d.main_genre
+      ? `<p class="muted small">${esc(genreName(d.main_genre))}${d.styles?.length ? ` · ${d.styles.slice(0, 3).map(esc).join(', ')}` : ''}</p>` : '';
+    const sub = isArtist
+      ? genreLine
+      : `<p class="muted small"><button type="button" class="link-btn inline" data-detail-artist="${esc(d.artist)}">${esc(d.artists)}</button>${d.album ? ` · ${esc(d.album)}` : ''}</p>`;
+    const maxPlays = Math.max(1, ...(d.topTracks || []).map((x) => x.plays));
+    $('#detail-body').innerHTML = `${CLOSE_BTN('detail-close')}
+      <div class="detail-head">
+        <div class="detail-cover${isArtist ? ' round' : ''}">${imgOrPlaceholder(d.image, d.name)}</div>
+        <div class="detail-who">
+          <span class="detail-kind">${esc(t(isArtist ? 'detail.artist' : 'detail.track'))} · ${esc(t('detail.rank', { n: fmt(d.rank) }))}</span>
+          <h2 id="detail-title">${esc(d.name)}</h2>
+          ${sub}
+        </div>
+      </div>
+      <div class="detail-stats">
+        ${stat(t('kpi.plays'), fmt(d.plays))}
+        ${stat(t('detail.minutes'), fmt(d.minutes))}
+        ${isArtist ? stat(t('kpi.songs'), fmt(d.tracks)) : ''}
+        ${stat(t('detail.first'), esc(dateFmtYear.format(new Date(d.first))))}
+        ${stat(t('detail.last'), esc(relTime(d.last)))}
+        ${stat(t('insight.favTime'), fav.hour != null ? esc(`${DAYS[fav.weekday]} · ${hourRange(fav.hour)}`) : '–')}
+      </div>
+      <h3 class="detail-h">${esc(t(isArtist ? 'detail.minutesPerMonth' : 'detail.playsPerMonth'))}</h3>
+      <div class="chart-wrap short"><canvas id="detail-chart" role="img" aria-label="${esc(t('detail.perMonth'))}"></canvas></div>
+      ${isArtist
+        ? `<h3 class="detail-h">${esc(t('detail.topSongs'))}</h3>
+           <ol class="rank-bars">${d.topTracks.map((x, i) => `
+             <li class="rb" data-detail-track="${esc(x.id)}">
+               <span class="num">${i + 1}</span>
+               <div class="cover">${imgOrPlaceholder(x.image, x.name)}</div>
+               <div class="rb-main"><div class="rb-title">${esc(x.name)}</div><div class="rb-bar"><span data-w="${Math.max(3, (x.plays / maxPlays) * 100)}"></span></div></div>
+               <div class="rb-val">${fmt(x.plays)}×<small>${fmt(x.minutes)} ${esc(t('unit.min'))}</small></div>
+             </li>`).join('')}</ol>`
+        : `<h3 class="detail-h">${esc(t('detail.recent'))}</h3>
+           <ul class="detail-recent">${(d.recent || []).map((r) => `<li>${esc(dateTimeFmt.format(new Date(r)))}</li>`).join('')}</ul>`}
+      ${d.url ? `<a class="btn btn-primary detail-open" href="${esc(d.url)}" target="_blank" rel="noopener">${LINK_ICON}<span>${esc(t('np.open'))}</span></a>` : ''}`;
+    growBars($('#detail-body'), '.rb-bar span');
+    const { labels, values } = fillMonths(d.monthly || [], isArtist ? 'minutes' : 'plays');
+    intensityBars('detail', $('#detail-chart'), labels.map((l) => monthFmt.format(new Date(`${l}-15`))), values,
+      (i) => monthFmtLong.format(new Date(`${labels[i]}-15`)));
+    if (isArtist) charts.detail.options.plugins.tooltip.callbacks.label = (item) => t('n.minutes', { n: fmt(item.raw) });
+    else charts.detail.options.plugins.tooltip.callbacks.label = (item) => `${fmt(item.raw)}×`;
+  }
+
+  // ================================================================ Suche im Verlauf
+  let searchTimer;
+  let searchSeq = 0;
+  const hl = (text, q) => {
+    const s = String(text || '');
+    const i = s.toLowerCase().indexOf(q.toLowerCase());
+    return i < 0 ? esc(s) : `${esc(s.slice(0, i))}<mark>${esc(s.slice(i, i + q.length))}</mark>${esc(s.slice(i + q.length))}`;
+  };
+
+  async function runSearch() {
+    const q = $('#search-input').value.trim();
+    const box = $('#search-results');
+    if (q.length < 2) { box.hidden = true; box.innerHTML = ''; $('#history').hidden = false; return; }
+    const seq = ++searchSeq;
+    box.hidden = false;
+    $('#history').hidden = true;
+    $('#history-more').hidden = true;
+    box.innerHTML = `<ul class="search-tracks">${skRows(4)}</ul>`;
+    try {
+      const r = await api(`/api/search?q=${encodeURIComponent(q)}`);
+      if (seq !== searchSeq) return;
+      if (!r.tracks.length && !r.artists.length) { box.innerHTML = `<p class="empty">${esc(t('search.none', { q }))}</p>`; return; }
+      box.innerHTML = `
+        ${r.artists.length ? `<h3 class="search-h">${esc(t('kpi.artists'))}</h3>
+          <div class="search-artists">${r.artists.map((a) => `
+            <button type="button" class="artist-chip" data-detail-artist="${esc(a.name)}">
+              <span class="cover round">${imgOrPlaceholder(a.image, a.name)}</span>
+              <span class="ac-text"><b>${hl(a.name, q)}</b><small>${esc(t('search.artistSub', { plays: fmt(a.plays), min: fmt(a.minutes) }))}</small></span>
+            </button>`).join('')}</div>` : ''}
+        ${r.tracks.length ? `<h3 class="search-h">${esc(t('kpi.songs'))}</h3>
+          <ul class="search-tracks">${r.tracks.map((x) => `
+            <li class="track" data-detail-track="${esc(x.id)}">
+              <div class="cover">${imgOrPlaceholder(x.image, x.name)}</div>
+              <div class="t-main"><div class="t-title">${hl(x.name, q)}</div><div class="t-sub">${hl(x.artists, q)}</div></div>
+              <div class="t-stat"><b>${fmt(x.plays)}×</b><small>${esc(t('search.since', { d: dateFmtYear.format(new Date(x.first)) }))}</small></div>
+            </li>`).join('')}</ul>` : ''}`;
+    } catch (err) {
+      if (seq === searchSeq) box.innerHTML = `<p class="empty">${esc(errMsg(err))}</p>`;
+    }
+  }
+
+  function bindSearch() {
+    const input = $('#search-input');
+    input.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 280); });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTimeout(searchTimer); runSearch(); input.blur(); } });
+  }
+
+  // ================================================================ Meilensteine (Hörminuten & Tagesserie)
+  const ms = { data: null };
+  const MS_ICON = { minutes: '🎧', streak: '🔥' };
+  const msName = (m) => (m.kind === 'minutes' ? t('ms.minutesName', { n: fmt(m.value) }) : t('ms.streakName', { n: fmt(m.value) }));
+  const msShort = (m) => (m.value >= 1e6 ? compactFmt.format(m.value) : fmt(m.value));
+
+  async function loadMilestones({ celebrate = false } = {}) {
+    if (!state.spotify) return;
+    try {
+      ms.data = await api('/api/milestones');
+    } catch {
+      return;
+    }
+    renderMilestones();
+    if (celebrate) whenNoDialog(celebrateMilestones);
+  }
+
+  function renderMilestones() {
+    const d = ms.data;
+    const card = $('#milestones-card');
+    if (!d) { card.hidden = true; return; }
+    card.hidden = false;
+    const nm = d.next.minutes;
+    const ns = d.next.streak;
+    const hint = d.activeToday ? t('ms.todayDone') : d.currentStreak ? t('ms.keepAlive') : t('ms.startStreak');
+    const badge = (m) => `
+      <li class="ms-badge ms-${m.kind}${m.achieved ? ' on' : ''}" title="${esc(msName(m))}${m.at ? ` · ${esc(dateFmtYear.format(parseDay(m.at)))}` : ''}">
+        <span class="ms-badge-ico" aria-hidden="true">${m.achieved ? MS_ICON[m.kind] : '🔒'}</span>
+        <b>${esc(msShort(m))}</b>
+        <small>${esc(m.kind === 'minutes' ? t('unit.min') : tn('unit.dayWord', m.value))}</small>
+      </li>`;
+    $('#milestones').innerHTML = `
+      <div class="ms-progress">
+        <div class="ms-prog">
+          <span class="ms-ico" aria-hidden="true">🎧</span>
+          <div class="ms-prog-main">
+            <div class="ms-prog-top"><b>${fmt(d.totalMinutes)}</b> <span>${esc(t('ms.totalMinutes'))}</span></div>
+            <div class="ms-bar"><span data-w="${nm ? Math.round(nm.progress * 100) : 100}"></span></div>
+            <small class="muted">${esc(nm ? t('ms.toNext', { n: fmt(nm.value - d.totalMinutes), goal: fmt(nm.value) }) : t('ms.allDone'))}</small>
+          </div>
+        </div>
+        <div class="ms-prog">
+          <span class="ms-ico${d.currentStreak ? ' burning' : ''}" aria-hidden="true">🔥</span>
+          <div class="ms-prog-main">
+            <div class="ms-prog-top"><b>${esc(tn('unit.day', d.currentStreak, { n: fmt(d.currentStreak) }))}</b> <span>${esc(t('ms.currentStreak'))}</span></div>
+            <div class="ms-bar streak"><span data-w="${ns ? Math.round(ns.progress * 100) : 100}"></span></div>
+            <small class="muted">${esc(hint)} · ${esc(t('ms.best', { n: fmt(d.bestStreak) }))}</small>
+          </div>
+        </div>
+      </div>
+      <h3 class="ms-h">${esc(t('ms.minutesTitle'))}</h3>
+      <ul class="ms-badges">${d.items.filter((m) => m.kind === 'minutes').map(badge).join('')}</ul>
+      <h3 class="ms-h">${esc(t('ms.streakTitle'))}</h3>
+      <ul class="ms-badges">${d.items.filter((m) => m.kind === 'streak').map(badge).join('')}</ul>`;
+    growBars($('#milestones'), '.ms-bar span');
+  }
+
+  async function celebrateMilestones() {
+    const d = ms.data;
+    if (!d) return;
+    const unseen = d.items.filter((m) => m.achieved && !d.seen.includes(m.id));
+    if (!unseen.length) return;
+    const top = [...unseen].sort((a, b) => (b.at || '').localeCompare(a.at || '') || b.value - a.value);
+    const main = top[0];
+    const dlg = $('#milestone-dialog');
+    $('#ms-dlg-body').innerHTML = `${CLOSE_BTN()}
+      <div class="ms-dlg-hero"><div class="ms-dlg-fx"></div><span class="ms-dlg-ico">${MS_ICON[main.kind]}</span></div>
+      <div class="ms-dlg-text">
+        <p class="tour-step">${esc(t('ms.reached'))}</p>
+        <h2 id="ms-dlg-title">${esc(unseen.length === 1 ? msName(main) : t('ms.reachedMany', { n: unseen.length }))}</h2>
+        ${unseen.length === 1
+          ? `<p class="muted">${esc(main.at ? t('ms.reachedOn', { d: dateFmtYear.format(parseDay(main.at)) }) : '')}</p>`
+          : `<ul class="ms-dlg-list">${top.slice(0, 6).map((m) => `<li><span>${MS_ICON[m.kind]}</span>${esc(msName(m))}<small>${m.at ? esc(dateFmtYear.format(parseDay(m.at))) : ''}</small></li>`).join('')}</ul>`}
+        <button type="button" class="btn btn-primary" data-close-dialog>${esc(t('ms.great'))}</button>
+      </div>`;
+    dlg.showModal();
+    setTimeout(() => confetti($('.ms-dlg-fx', dlg), 40), 150);
+    d.seen = [...d.seen, ...unseen.map((m) => m.id)];
+    postJSON('/api/milestones/seen', { ids: unseen.map((m) => m.id) }).catch(() => {});
+  }
+
+  // ================================================================ Playlist aus der Statistik
+  const pl = { range: '30d', size: 25, name: '', nameEdited: false, busy: false, result: null };
+  const plDefaultName = () => t('pl.defaultName', { n: pl.size, p: periodName(pl.range) });
+
+  function renderPlaylistDialog(recent = null) {
+    const needsReauth = state.spotify?.missing_scopes?.includes('playlist-modify-private');
+    const body = $('#pl-body');
+    if (pl.result) {
+      const r = pl.result;
+      body.innerHTML = `${CLOSE_BTN()}
+        <div class="pl-done"><div class="pl-fx"></div>
+          <div class="pl-done-cover">${imgOrPlaceholder(r.image, r.name)}</div>
+          <h2 id="pl-title">${esc(t('pl.done'))}</h2>
+          <p class="muted">${esc(t('pl.doneText', { name: r.name, n: r.count }))}</p>
+          <a class="btn btn-primary" href="${esc(r.url)}" target="_blank" rel="noopener">${LINK_ICON}<span>${esc(t('np.open'))}</span></a>
+          <button type="button" class="btn btn-ghost" data-pl="again">${esc(t('pl.again'))}</button>
+        </div>`;
+      return;
+    }
+    if (!pl.nameEdited) pl.name = plDefaultName();
+    const chip = (attr, val, label, cur) => `<button type="button" class="chip-btn" data-${attr}="${val}" aria-pressed="${String(val) === String(cur)}">${esc(label)}</button>`;
+    body.innerHTML = `${CLOSE_BTN()}
+      <header class="pl-head"><span class="pl-ico" aria-hidden="true">🎶</span><div><h2 id="pl-title">${esc(t('pl.title'))}</h2><p class="muted small">${esc(t('pl.sub'))}</p></div></header>
+      ${needsReauth ? `<div class="notice inline"><span class="notice-icon">✨</span><div class="notice-text"><p class="small">${esc(t('pl.reauth'))}</p></div><a class="btn btn-primary btn-xs" href="/auth/login">${esc(t('btn.reconnect'))}</a></div>` : ''}
+      <h3 class="pl-label">${esc(t('pl.period'))}</h3>
+      <div class="chips">${PERIODS.map((r) => chip('pl-range', r, periodName(r), pl.range)).join('')}</div>
+      <h3 class="pl-label">${esc(t('pl.size'))}</h3>
+      <div class="chips">${[10, 25, 50, 100].map((n) => chip('pl-size', n, t('pl.songs', { n }), pl.size)).join('')}</div>
+      <h3 class="pl-label">${esc(t('pl.name'))}</h3>
+      <input class="pl-name" id="pl-name" type="text" maxlength="100" value="${esc(pl.name)}" />
+      <p class="muted small">${esc(t('pl.privateNote'))}</p>
+      <button type="button" class="btn btn-primary pl-create" data-pl="create" ${needsReauth || pl.busy ? 'disabled' : ''}>${esc(t(pl.busy ? 'pl.creating' : 'pl.create'))}</button>
+      <div class="pl-recent" id="pl-recent">${recent ? renderRecentPlaylists(recent) : ''}</div>`;
+    $('#pl-name').addEventListener('input', (e) => { pl.name = e.target.value; pl.nameEdited = true; });
+  }
+
+  const renderRecentPlaylists = (items) => (items.length
+    ? `<h3 class="pl-label">${esc(t('pl.recent'))}</h3><ul class="pl-list">${items.map((p) => `
+        <li><a href="${esc(p.url)}" target="_blank" rel="noopener"><b>${esc(p.name)}</b><small>${esc(t('pl.songs', { n: p.track_count }))} · ${esc(relTime(p.created_at))}</small></a></li>`).join('')}</ul>`
+    : '');
+
+  async function openPlaylistDialog() {
+    Object.assign(pl, { range: state.range, size: 25, nameEdited: false, busy: false, result: null });
+    renderPlaylistDialog();
+    $('#playlist-dialog').showModal();
+    try {
+      const r = await api('/api/playlists');
+      pl.recent = r.items;
+      const box = $('#pl-recent');
+      if (box) box.innerHTML = renderRecentPlaylists(r.items);
+    } catch { /* egal */ }
+  }
+
+  async function createPlaylist() {
+    if (pl.busy) return;
+    pl.busy = true;
+    pl.name = $('#pl-name')?.value || pl.name;
+    renderPlaylistDialog(pl.recent);
+    try {
+      pl.result = await postJSON('/api/playlists', {
+        range: pl.range,
+        size: pl.size,
+        name: pl.name.trim() || plDefaultName(),
+        description: t('pl.description', { p: periodName(pl.range), d: dateFmtYear.format(new Date()) }),
+      });
+      pl.busy = false;
+      renderPlaylistDialog();
+      setTimeout(() => confetti($('#pl-body .pl-fx'), 30), 100);
+    } catch (err) {
+      pl.busy = false;
+      if (err.key === 'needsReauth' && state.spotify) {
+        state.spotify.missing_scopes = [...new Set([...(state.spotify.missing_scopes || []), 'playlist-modify-private'])];
+      }
+      renderPlaylistDialog(pl.recent);
+      toast(errMsg(err), true);
+    }
+  }
+
+  // ================================================================ Jahresrückblick
+  const wr = { data: null, loading: false };
+
+  function defaultWrappedYear() {
+    const d = new Date();
+    return d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear(); // im Januar: das abgelaufene Jahr
+  }
+
+  async function loadWrapped(year = wr.data?.year || defaultWrappedYear()) {
+    if (wr.loading) return;
+    wr.loading = true;
+    if (!wr.data || wr.data.year !== year) {
+      $('#wrapped').innerHTML = skCard(`${skBlock(26, 'w40')}${skBlock(16, 'w60')}${skBlock(48, 'w30')}`)
+        + `<div class="kpis">${'<article class="card kpi"><span class="sk sk-line short"></span><span class="sk sk-num"></span></article>'.repeat(5)}</div>`
+        + skCard(`<ul class="rank-bars">${skRows(5)}</ul>`);
+    }
+    try {
+      let d = await api(`/api/wrapped?year=${year}`);
+      if (d.empty && d.years.length && !d.years.includes(year)) d = await api(`/api/wrapped?year=${d.years[0]}`);
+      wr.data = d;
+      if (state.panel === 'wrapped') renderWrapped();
+    } catch (err) {
+      $('#wrapped').innerHTML = `<section class="card"><p class="empty">${esc(errMsg(err))}</p></section>`;
+    } finally {
+      wr.loading = false;
+    }
+  }
+
+  const wrList = (items, kind) => {
+    const val = (x) => (kind === 'artist' ? x.minutes : x.plays);
+    const max = Math.max(1, ...items.map(val));
+    return `<ol class="rank-bars">${items.map((x, i) => `
+      <li class="rb" ${kind === 'artist' ? `data-detail-artist="${esc(x.name)}"` : `data-detail-track="${esc(x.id)}"`}>
+        <span class="num">${i + 1}</span>
+        <div class="cover${kind === 'artist' ? ' round' : ''}">${imgOrPlaceholder(x.image, x.name)}</div>
+        <div class="rb-main"><div class="rb-title">${esc(x.name)}</div>
+          ${kind === 'track' ? `<div class="rb-sub">${esc(x.artists)}</div>` : ''}
+          <div class="rb-bar"><span data-w="${Math.max(3, (val(x) / max) * 100)}"></span></div></div>
+        <div class="rb-val">${kind === 'artist' ? `${fmt(x.minutes)}<small>${esc(t('unit.min'))}</small>` : `${fmt(x.plays)}×<small>${fmt(x.minutes)} ${esc(t('unit.min'))}</small>`}</div>
+      </li>`).join('')}</ol>`;
+  };
+
+  function renderWrapped() {
+    const d = wr.data;
+    const el = $('#wrapped');
+    if (!d) return;
+    const chips = d.years.length > 1
+      ? `<div class="chips year-chips">${d.years.map((y) => `<button type="button" class="chip-btn" data-wrapped-year="${y}" aria-pressed="${y === d.year}">${y}</button>`).join('')}</div>` : '';
+    if (d.empty) {
+      el.innerHTML = `<section class="card wrapped-hero"><div class="wh-content"><span class="wh-kicker">Spotlfy · ${d.year}</span>
+        <h2>${esc(t('wrapped.title', { year: d.year }))}</h2><p>${esc(t('wrapped.empty'))}</p></div>${chips}</section>`;
+      return;
+    }
+    const monthName = (m) => new Intl.DateTimeFormat(LOCALE, { month: 'long' }).format(new Date(2024, m - 1, 15));
+    const delta = d.previousYearMinutes ? Math.round(((d.minutes - d.previousYearMinutes) / d.previousYearMinutes) * 100) : null;
+    el.innerHTML = `
+      <section class="card wrapped-hero">
+        <div class="wh-art" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="wh-content">
+          <span class="wh-kicker">Spotlfy · ${d.year}</span>
+          <h2>${esc(t('wrapped.title', { year: d.year }))}</h2>
+          <p>${esc(t('wrapped.lead', { min: fmt(d.minutes), artists: fmt(d.artists) }))}</p>
+          <button type="button" class="btn btn-primary btn-lg" data-story-start>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg><span>${esc(t('wrapped.start'))}</span>
+          </button>
+        </div>
+        ${chips}
+      </section>
+      <div class="kpis wrapped-kpis">
+        <article class="card kpi kpi-hero"><span class="kpi-label">${esc(t('kpi.minutes'))}</span><strong class="kpi-value" data-wk="minutes">0</strong>
+          <span class="kpi-sub">${delta != null ? `<span class="delta ${delta >= 0 ? 'up' : 'down'}">${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)} %</span> ${esc(t('wrapped.vsYear', { y: d.year - 1 }))}` : esc(t('kpi.hours', { n: fmt(d.minutes / 60) }))}</span></article>
+        <article class="card kpi"><span class="kpi-label">${esc(t('kpi.plays'))}</span><strong class="kpi-value" data-wk="plays">0</strong><span class="kpi-sub">${esc(t('kpi.onDays', { n: fmt(d.activeDays) }))}</span></article>
+        <article class="card kpi"><span class="kpi-label">${esc(t('kpi.artists'))}</span><strong class="kpi-value" data-wk="artists">0</strong><span class="kpi-sub">${esc(t('kpi.newOf', { n: fmt(d.newArtists) }))}</span></article>
+        <article class="card kpi"><span class="kpi-label">${esc(t('kpi.songs'))}</span><strong class="kpi-value" data-wk="tracks">0</strong><span class="kpi-sub">${esc(t('kpi.different'))}</span></article>
+        <article class="card kpi"><span class="kpi-label">${esc(t('wrapped.streak'))}</span><strong class="kpi-value" data-wk="streak">0</strong><span class="kpi-sub">${esc(tn('unit.dayWord', d.streak.len))} ${esc(t('insight.inARow'))}</span></article>
+      </div>
+      <div class="grid-2">
+        <section class="card"><header class="card-head"><h2>${esc(t('overview.topArtists'))}</h2></header>${wrList(d.topArtists, 'artist')}</section>
+        <section class="card"><header class="card-head"><h2>${esc(t('overview.topSongs'))}</h2></header>${wrList(d.topTracks, 'track')}</section>
+      </div>
+      <section class="card">
+        <header class="card-head"><div><h2>${esc(t('wrapped.months'))}</h2><p class="muted small">${esc(t('wrapped.topMonth', { m: monthName(d.topMonth) }))}</p></div></header>
+        <div class="chart-wrap short"><canvas id="wrapped-chart" role="img" aria-label="${esc(t('wrapped.months'))}"></canvas></div>
+      </section>
+      <div class="insights">
+        ${insight('clock', 'insight.peakTime', hourRange(d.peakHour))}
+        ${insight('calendar', 'insight.favDay', DAYS_LONG[d.peakWeekday])}
+        ${d.bestDay ? insight('star', 'insight.bestDay', dateFmt.format(parseDay(d.bestDay.day)), `${fmt(d.bestDay.minutes)} ${t('unit.min')}`) : ''}
+        ${d.topDiscovery ? insight('spark', 'wrapped.discovery', d.topDiscovery.name, `${fmt(d.topDiscovery.minutes)} ${t('unit.min')}`) : insight('spark', 'insight.discovered', fmt(d.newArtists))}
+      </div>
+      ${d.genres.length ? `<section class="card"><header class="card-head"><h2>${esc(t('wrapped.genreMix'))}</h2></header>
+        <ul class="wr-genres">${d.genres.map((g) => `<li><span class="wr-g-name">${esc(genreName(g.genre))}</span>
+          <span class="wr-g-bar"><span data-w="${Math.max(2, g.share * 100)}" style="background:${genreColor(g.genre)}"></span></span><b>${Math.round(g.share * 100)} %</b></li>`).join('')}</ul></section>` : ''}
+      ${d.firstSong ? `<section class="card wr-first" data-detail-track="${esc(d.firstSong.id)}">
+        <div class="cover">${imgOrPlaceholder(d.firstSong.image, d.firstSong.name)}</div>
+        <div><span class="muted small">${esc(t('wrapped.firstSong', { year: d.year }))} · ${esc(dateFmt.format(new Date(d.firstSong.local_time)))}</span>
+        <strong>${esc(d.firstSong.name)}</strong><span class="muted small">${esc(d.firstSong.artists)}</span></div></section>` : ''}`;
+    for (const [k, v] of Object.entries({ minutes: d.minutes, plays: d.plays, artists: d.artists, tracks: d.tracks, streak: d.streak.len })) countUp($(`[data-wk="${k}"]`, el), v);
+    growBars(el, '.rb-bar span, .wr-g-bar span');
+    const labels = d.monthly.map((_, i) => new Intl.DateTimeFormat(LOCALE, { month: 'short' }).format(new Date(2024, i, 15)));
+    intensityBars('wrapped', $('#wrapped-chart'), labels, d.monthly, (i) => `${monthName(i + 1)} ${d.year}`);
+    decoratePanel('wrapped');
+  }
+
+  // ---------------------------------------------------------------- Story (Vollbild, Slides)
+  const story = { i: 0, slides: [], raf: 0, start: 0, elapsed: 0, paused: false };
+  const STORY_MS = 6500;
+
+  function buildSlides(d) {
+    const monthName = (m) => new Intl.DateTimeFormat(LOCALE, { month: 'long' }).format(new Date(2024, m - 1, 15));
+    const a1 = d.topArtists[0];
+    const s1 = d.topTracks[0];
+    const delta = d.previousYearMinutes ? Math.round(((d.minutes - d.previousYearMinutes) / d.previousYearMinutes) * 100) : null;
+    const mini = (list, kind) => `<ol class="st-mini">${list.slice(1, 5).map((x, i) => `<li><span>${i + 2}</span>${imgOrPlaceholder(x.image, x.name)}<b>${esc(x.name)}</b><small>${kind === 'artist' ? `${fmt(x.minutes)} ${esc(t('unit.min'))}` : `${fmt(x.plays)}×`}</small></li>`).join('')}</ol>`;
+    const slides = [
+      { cls: 'st-intro', html: `<div class="st-logo"><img src="/assets/logo-animated.svg" alt="" width="96" height="96"></div>
+          <p class="st-kicker">Spotlfy · ${d.year}</p><h2 id="story-title">${esc(t('story.introTitle', { year: d.year }))}</h2><p class="st-text">${esc(t('story.introText'))}</p>` },
+      { cls: 'st-minutes', html: `<p class="st-kicker">${esc(t('story.minutesKicker'))}</p>
+          <div class="st-num" data-count="${d.minutes}">0</div><p class="st-unit">${esc(t('story.minutesUnit'))}</p>
+          <p class="st-text">${esc(t('story.minutesDays', { n: (d.minutes / 1440).toFixed(1).replace('.', decSep) }))}</p>
+          ${delta != null ? `<p class="st-pill">${delta >= 0 ? '▲' : '▼'} ${esc(t('story.vsYear', { p: `${Math.abs(delta)} %`, y: d.year - 1 }))}</p>` : ''}` },
+    ];
+    if (a1) slides.push({ cls: 'st-artist', html: `<p class="st-kicker">${esc(t('story.artistKicker'))}</p>
+          <div class="st-photo round">${imgOrPlaceholder(a1.image, a1.name)}</div><h2>${esc(a1.name)}</h2>
+          <p class="st-text">${esc(t('story.artistText', { n: fmt(a1.minutes) }))}</p>${mini(d.topArtists, 'artist')}` });
+    if (s1) slides.push({ cls: 'st-song', html: `<p class="st-kicker">${esc(t('story.songKicker'))}</p>
+          <div class="st-photo">${imgOrPlaceholder(s1.image, s1.name)}</div><h2>${esc(s1.name)}</h2>
+          <p class="st-text">${esc(s1.artists)} · ${esc(t('story.songText', { n: fmt(s1.plays) }))}</p>${mini(d.topTracks, 'track')}` });
+    if (d.genres.length) slides.push({ cls: 'st-genres', html: `<p class="st-kicker">${esc(t('story.genreKicker'))}</p>
+          <h2>${esc(genreName(d.genres[0].genre))}</h2>
+          <ul class="st-bars">${d.genres.map((g, i) => `<li style="--i:${i}"><span>${esc(genreName(g.genre))}</span><i><b style="width:${Math.max(3, g.share * 100)}%;background:${genreColor(g.genre)}"></b></i><em>${Math.round(g.share * 100)} %</em></li>`).join('')}</ul>` });
+    slides.push({ cls: 'st-rhythm', html: `<p class="st-kicker">${esc(t('story.rhythmKicker'))}</p><h2>${esc(t('story.rhythmTitle'))}</h2>
+          <div class="st-tiles">
+            <div style="--i:0"><span>${esc(t('story.topMonth'))}</span><b>${esc(monthName(d.topMonth))}</b></div>
+            <div style="--i:1"><span>${esc(t('insight.peakTime'))}</span><b>${esc(hourRange(d.peakHour))}</b></div>
+            <div style="--i:2"><span>${esc(t('insight.favDay'))}</span><b>${esc(DAYS_LONG[d.peakWeekday])}</b></div>
+            ${d.bestDay ? `<div style="--i:3"><span>${esc(t('insight.bestDay'))}</span><b>${esc(dateFmt.format(parseDay(d.bestDay.day)))}</b><small>${fmt(d.bestDay.minutes)} ${esc(t('unit.min'))}</small></div>` : ''}
+          </div>` });
+    slides.push({ cls: 'st-streak', html: `<p class="st-kicker">${esc(t('story.streakKicker'))}</p>
+          <div class="st-num" data-count="${d.streak.len}">0</div><p class="st-unit">${esc(tn('unit.dayWord', d.streak.len))} ${esc(t('insight.inARow'))}</p>
+          ${d.streak.from ? `<p class="st-text">${esc(dateFmt.format(parseDay(d.streak.from)))} – ${esc(dateFmt.format(parseDay(d.streak.to)))}</p>` : ''}
+          <div class="st-split"><div><b>${fmt(d.newArtists)}</b><span>${esc(t('story.newArtists'))}</span></div>
+          ${d.topDiscovery ? `<div class="st-disc">${imgOrPlaceholder(d.topDiscovery.image, d.topDiscovery.name)}<span>${esc(t('wrapped.discovery'))}</span><b>${esc(d.topDiscovery.name)}</b></div>` : ''}</div>` });
+    if (d.firstSong) slides.push({ cls: 'st-first', html: `<p class="st-kicker">${esc(t('wrapped.firstSong', { year: d.year }))}</p>
+          <div class="st-photo spin">${imgOrPlaceholder(d.firstSong.image, d.firstSong.name)}</div><h2>${esc(d.firstSong.name)}</h2>
+          <p class="st-text">${esc(d.firstSong.artists)} · ${esc(dateFmt.format(new Date(d.firstSong.local_time)))}, ${esc(timeFmt.format(new Date(d.firstSong.local_time)))}</p>` });
+    slides.push({ cls: 'st-outro', outro: true, html: `<div class="st-fx"></div><p class="st-kicker">Spotlfy · ${d.year}</p><h2>${esc(t('story.outroTitle'))}</h2>
+          <div class="st-summary">
+            <div><span>${esc(t('kpi.minutes'))}</span><b>${fmt(d.minutes)}</b></div>
+            <div><span>${esc(t('kpi.artists'))}</span><b>${fmt(d.artists)}</b></div>
+            ${a1 ? `<div class="wide"><span>${esc(t('story.artistKicker'))}</span><b>${esc(a1.name)}</b></div>` : ''}
+            ${s1 ? `<div class="wide"><span>${esc(t('story.songKicker'))}</span><b>${esc(s1.name)}</b></div>` : ''}
+            ${d.genres[0] ? `<div class="wide"><span>${esc(t('insight.topGenre'))}</span><b>${esc(genreName(d.genres[0].genre))}</b></div>` : ''}
+          </div>
+          <div class="st-actions"><button type="button" class="btn btn-primary" data-story="share">${esc(t('story.share'))}</button>
+          <button type="button" class="btn btn-ghost st-ghost" data-story="restart">${esc(t('story.restart'))}</button></div>` });
+    return slides;
+  }
+
+  function openStory() {
+    const d = wr.data;
+    if (!d || d.empty) return;
+    story.slides = buildSlides(d);
+    $('#story-body').innerHTML = `
+      <div class="st-bars-top">${story.slides.map(() => '<span><i></i></span>').join('')}</div>
+      <button type="button" class="st-close" data-close-dialog aria-label="${esc(t('tour.close'))}">✕</button>
+      <div class="st-stage">${story.slides.map((s, i) => `<section class="st-slide ${s.cls}" data-i="${i}" aria-hidden="true"><div class="st-content">${s.html}</div></section>`).join('')}</div>
+      <button type="button" class="st-nav prev" data-story="prev" aria-label="${esc(t('tour.back'))}"></button>
+      <button type="button" class="st-nav next" data-story="next" aria-label="${esc(t('tour.next'))}"></button>`;
+    const dlg = $('#story');
+    dlg.showModal();
+    storyGo(0);
+  }
+
+  function storyGo(i) {
+    const n = story.slides.length;
+    if (i >= n) { closeStory(); return; }
+    story.i = Math.max(0, i);
+    story.elapsed = 0;
+    story.start = performance.now();
+    $$('#story .st-slide').forEach((s, k) => {
+      const on = k === story.i;
+      s.classList.toggle('active', on);
+      s.setAttribute('aria-hidden', String(!on));
+    });
+    $$('#story .st-bars-top i').forEach((b, k) => { b.style.width = k < story.i ? '100%' : '0%'; });
+    const slide = $(`#story .st-slide[data-i="${story.i}"]`);
+    $$('.st-num', slide).forEach((el) => { el.dataset.value = 0; countUp(el, Number(el.dataset.count)); });
+    if (story.slides[story.i].outro) setTimeout(() => confetti($('.st-fx', slide), 50), 300);
+    cancelAnimationFrame(story.raf);
+    story.raf = requestAnimationFrame(storyTick);
+  }
+
+  function storyTick(now) {
+    const dlg = $('#story');
+    if (!dlg.open) return;
+    const outro = story.slides[story.i]?.outro;
+    if (!story.paused && !outro) story.elapsed += now - story.start;
+    story.start = now;
+    const bar = $$('#story .st-bars-top i')[story.i];
+    if (bar) bar.style.width = `${outro ? 100 : Math.min(100, (story.elapsed / STORY_MS) * 100)}%`;
+    if (!outro && story.elapsed >= STORY_MS) { storyGo(story.i + 1); return; }
+    story.raf = requestAnimationFrame(storyTick);
+  }
+
+  function closeStory() {
+    cancelAnimationFrame(story.raf);
+    const dlg = $('#story');
+    if (dlg.open) dlg.close();
+  }
+
+  async function shareWrapped() {
+    const d = wr.data;
+    const text = t('story.shareText', { year: d.year, min: fmt(d.minutes), a: d.topArtists[0]?.name || '–', s: d.topTracks[0]?.name || '–' });
+    try {
+      if (navigator.share) await navigator.share({ title: `Spotlfy ${d.year}`, text });
+      else { await navigator.clipboard.writeText(text); toast(t('story.copied')); }
+    } catch { /* abgebrochen */ }
+  }
+
+  function bindStory() {
+    const dlg = $('#story');
+    dlg.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-story]');
+      if (!b) return;
+      const act = b.dataset.story;
+      if (act === 'next') storyGo(story.i + 1);
+      else if (act === 'prev') storyGo(story.i - 1);
+      else if (act === 'share') shareWrapped();
+      else if (act === 'restart') storyGo(0);
+    });
+    // Gedrückt halten = pausieren
+    dlg.addEventListener('pointerdown', (e) => { if (e.target.closest('.st-nav')) story.paused = true; });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => dlg.addEventListener(ev, () => { story.paused = false; }));
+    dlg.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); storyGo(story.i + 1); }
+      if (e.key === 'ArrowLeft') storyGo(story.i - 1);
+    });
+    dlg.addEventListener('close', () => cancelAnimationFrame(story.raf));
+  }
+
+  // Hinweis im Dezember/Januar: „Dein Rückblick ist da“
+  function renderWrappedPromo() {
+    const el = $('#wrapped-promo');
+    const now = T.effectiveDate();
+    const m = now.getMonth();
+    const year = m === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const key = `wrapped-promo-${year}`;
+    if (!(m === 11 || m === 0) || !state.spotify || store.get(key)) { el.hidden = true; return; }
+    el.innerHTML = `<span class="wp-ico" aria-hidden="true">🎁</span>
+      <div><strong>${esc(t('wrapped.promoTitle', { year }))}</strong><span>${esc(t('wrapped.promoText'))}</span></div>
+      <button type="button" class="btn btn-primary btn-xs" data-goto="wrapped">${esc(t('wrapped.open'))}</button>
+      <button type="button" class="fest-close" data-promo-dismiss="${key}" aria-label="${esc(t('fest.dismiss'))}">✕</button>`;
+    el.hidden = false;
+  }
+
+  // ================================================================ Freunde & Vergleich
+  const fr = { data: null, compareId: null, compareRange: '90d', compare: null };
+  const avatarOf = (url, name) => (url
+    ? `<img class="avatar-sm" src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`
+    : `<div class="placeholder avatar-ph" aria-hidden="true">${initials(name)}</div>`);
+
+  async function loadFriends() {
+    if (!fr.data) $('#friend-list').innerHTML = skRows(3);
+    try {
+      fr.data = await api('/api/friends');
+      renderFriends();
+      if (fr.compareId && fr.data.friends.some((f) => f.id === fr.compareId)) { if (!fr.compare) loadCompare(fr.compareId); }
+      else { fr.compareId = null; fr.compare = null; $('#compare').innerHTML = ''; }
+    } catch (err) {
+      $('#friend-list').innerHTML = `<li class="empty">${esc(errMsg(err))}</li>`;
+    }
+  }
+
+  function renderFriends() {
+    const d = fr.data;
+    const req = (f, incoming) => `
+      <li class="friend-row pending">
+        ${avatarOf(f.avatar_url, f.username)}
+        <div class="t-main"><div class="t-title">${esc(f.username)}</div><div class="t-sub">${esc(t(incoming ? 'friends.wantsToBe' : 'friends.waiting'))}</div></div>
+        <div class="friend-actions">
+          ${incoming ? `<button type="button" class="btn btn-primary btn-xs" data-friend-act="accept" data-id="${f.id}">${esc(t('friends.accept'))}</button>` : ''}
+          <button type="button" class="btn btn-ghost btn-xs" data-friend-act="${incoming ? 'decline' : 'cancel'}" data-id="${f.id}">${esc(t(incoming ? 'friends.decline' : 'friends.cancel'))}</button>
+        </div>
+      </li>`;
+    $('#friend-requests').innerHTML = d.incoming.length || d.outgoing.length
+      ? `<h3 class="ms-h">${esc(t('friends.requests'))}</h3><ul class="friend-list">${d.incoming.map((f) => req(f, true)).join('')}${d.outgoing.map((f) => req(f, false)).join('')}</ul>`
+      : '';
+    $('#friend-list').innerHTML = d.friends.length
+      ? `${d.friends.map((f) => `
+        <li class="friend-row${fr.compareId === f.id ? ' active' : ''}">
+          ${avatarOf(f.avatar_url, f.username)}
+          <div class="t-main"><div class="t-title">${esc(f.username)}</div>
+            <div class="t-sub">${f.connected ? esc(t('friends.since', { d: dateFmtYear.format(new Date(f.accepted_at || f.created_at)) })) : esc(t('friends.noSpotify'))}</div></div>
+          <div class="friend-actions">
+            <button type="button" class="btn btn-primary btn-xs" data-compare="${f.id}" ${f.connected ? '' : 'disabled'}>${esc(t('friends.compare'))}</button>
+            <button type="button" class="btn btn-ghost btn-xs icon" data-friend-act="remove" data-id="${f.id}" aria-label="${esc(t('friends.remove'))}" title="${esc(t('friends.remove'))}">✕</button>
+          </div>
+        </li>`).join('')}`
+      : `<li class="empty">${esc(t('friends.empty'))}</li>`;
+    $('#panel-tabs [data-panel="friends"]').dataset.badge = d.incoming.length || '';
+  }
+
+  async function addFriend(e) {
+    e.preventDefault();
+    const input = $('#friend-input');
+    const username = input.value.trim();
+    if (!username) return;
+    try {
+      const r = await postJSON('/api/friends', { username });
+      toast(t(r.status === 'accepted' ? 'friends.nowFriends' : 'friends.sent', { n: r.username }));
+      input.value = '';
+      await loadFriends();
+    } catch (err) {
+      toast(errMsg(err), true);
+    }
+  }
+
+  async function friendAction(act, id) {
+    const f = [...(fr.data?.friends || []), ...(fr.data?.incoming || []), ...(fr.data?.outgoing || [])].find((x) => x.id === id);
+    try {
+      if (act === 'accept') {
+        await api(`/api/friends/${id}/accept`, { method: 'POST' });
+        toast(t('friends.nowFriends', { n: f?.username || '' }));
+      } else {
+        if (act === 'remove' && !confirm(t('friends.confirmRemove', { n: f?.username || '' }))) return;
+        await api(`/api/friends/${id}`, { method: 'DELETE' });
+        if (fr.compareId === id) { fr.compareId = null; fr.compare = null; }
+      }
+      await loadFriends();
+    } catch (err) {
+      toast(errMsg(err), true);
+    }
+  }
+
+  async function loadCompare(id) {
+    fr.compareId = id;
+    const box = $('#compare');
+    box.innerHTML = skCard(`<div class="cmp-people">${skBlock(64, 'sk-circle-64')}${skBlock(120, 'sk-circle-120')}${skBlock(64, 'sk-circle-64')}</div>`)
+      + skCard(`<ul class="rank-bars">${skRows(4)}</ul>`);
+    $$('#friend-list .friend-row').forEach((r) => r.classList.toggle('active', Boolean($(`[data-compare="${id}"]`, r))));
+    try {
+      fr.compare = await api(`/api/friends/${id}/compare?range=${fr.compareRange}`);
+      renderCompare();
+    } catch (err) {
+      fr.compare = null;
+      box.innerHTML = `<section class="card"><p class="empty">${esc(errMsg(err))}</p></section>`;
+    }
+  }
+
+  function matchLabel(p) {
+    return t(p >= 80 ? 'cmp.l80' : p >= 60 ? 'cmp.l60' : p >= 40 ? 'cmp.l40' : p >= 20 ? 'cmp.l20' : 'cmp.l0');
+  }
+
+  function renderCompare() {
+    const c = fr.compare;
+    const box = $('#compare');
+    const meName = state.account.username;
+    const meAv = state.spotify?.avatar_url;
+    const duel = (label, a, b) => {
+      const max = Math.max(1, a, b);
+      return `<li class="duel"><span class="duel-v me">${fmt(a)}</span>
+        <span class="duel-bar me"><span data-w="${(a / max) * 100}"></span></span>
+        <span class="duel-label">${esc(label)}</span>
+        <span class="duel-bar them"><span data-w="${(b / max) * 100}"></span></span>
+        <span class="duel-v them">${fmt(b)}</span></li>`;
+    };
+    const shared = c.sharedArtists.length
+      ? `<ul class="shared-list">${c.sharedArtists.map((a) => {
+          const tot = a.me.minutes + a.friend.minutes || 1;
+          return `<li data-detail-artist="${esc(a.name)}"><div class="cover round">${imgOrPlaceholder(a.image, a.name)}</div>
+            <div class="t-main"><div class="t-title">${esc(a.name)}</div>
+              <div class="split-bar"><span class="me" style="width:${(a.me.minutes / tot) * 100}%"></span><span class="them"></span></div>
+              <div class="t-sub">${esc(t('cmp.youMin', { n: fmt(a.me.minutes) }))} · ${esc(t('cmp.themMin', { name: c.friend.username, n: fmt(a.friend.minutes) }))}</div></div></li>`;
+        }).join('')}</ul>`
+      : `<p class="empty">${esc(t('cmp.noShared'))}</p>`;
+    const sharedTracks = c.sharedTracks.length
+      ? `<ul class="shared-list">${c.sharedTracks.map((x) => `<li data-detail-track="${esc(x.id)}"><div class="cover">${imgOrPlaceholder(x.image, x.name)}</div>
+          <div class="t-main"><div class="t-title">${esc(x.name)}</div><div class="t-sub">${esc(x.artists)}</div>
+          <div class="t-sub">${esc(t('cmp.youPlays', { n: fmt(x.me.plays) }))} · ${esc(t('cmp.themPlays', { name: c.friend.username, n: fmt(x.friend.plays) }))}</div></div></li>`).join('')}</ul>`
+      : `<p class="empty">${esc(t('cmp.noSharedSongs'))}</p>`;
+    const gmax = Math.max(0.01, ...c.genres.flatMap((g) => [g.me, g.them]));
+    const top5 = (side, name) => `<ol class="cmp-top">${side.topArtists.map((a, i) => `<li data-detail-artist="${esc(a.name)}"><span>${i + 1}</span>${imgOrPlaceholder(a.image, a.name)}<b>${esc(a.name)}</b></li>`).join('') || `<li class="empty">–</li>`}</ol>`;
+    box.innerHTML = `
+      <section class="card compare-head">
+        <div class="cmp-people">
+          <div class="cmp-person">${avatarOf(meAv, meName)}<b>${esc(t('cmp.you'))}</b></div>
+          <div class="match-ring" style="--p:${c.match}">
+            <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="mr-bg" cx="60" cy="60" r="52" /><circle class="mr-fg" cx="60" cy="60" r="52" pathLength="100" /></svg>
+            <div class="mr-text"><b data-match="${c.match}">0</b><span>${esc(t('cmp.match'))}</span></div>
+          </div>
+          <div class="cmp-person">${avatarOf(c.friend.avatar_url, c.friend.username)}<b>${esc(c.friend.username)}</b></div>
+        </div>
+        <p class="cmp-label">${esc(matchLabel(c.match))}</p>
+        <p class="muted small cmp-shared-count">${esc(t('cmp.sharedCount', { n: c.sharedArtistCount }))}</p>
+        <div class="chips">${PERIODS.map((r) => `<button type="button" class="chip-btn" data-cmp-range="${r}" aria-pressed="${r === fr.compareRange}">${esc(periodName(r))}</button>`).join('')}</div>
+      </section>
+      <section class="card">
+        <header class="card-head"><h2>${esc(t('cmp.duel'))}</h2><div class="duel-legend"><span class="me">${esc(t('cmp.you'))}</span><span class="them">${esc(c.friend.username)}</span></div></header>
+        <ul class="duel-list">
+          ${duel(t('kpi.minutes'), c.me.minutes, c.them.minutes)}
+          ${duel(t('kpi.plays'), c.me.plays, c.them.plays)}
+          ${duel(t('kpi.artists'), c.me.artists, c.them.artists)}
+          ${duel(t('kpi.songs'), c.me.tracks, c.them.tracks)}
+        </ul>
+      </section>
+      <div class="grid-2">
+        <section class="card"><header class="card-head"><div><h2>${esc(t('cmp.sharedArtists'))}</h2><p class="muted small">${esc(t('cmp.sharedSub'))}</p></div></header>${shared}</section>
+        <section class="card"><header class="card-head"><div><h2>${esc(t('cmp.sharedSongs'))}</h2><p class="muted small">${esc(t('cmp.sharedSub'))}</p></div></header>${sharedTracks}</section>
+      </div>
+      ${c.genres.length ? `<section class="card"><header class="card-head"><h2>${esc(t('cmp.genres'))}</h2><div class="duel-legend"><span class="me">${esc(t('cmp.you'))}</span><span class="them">${esc(c.friend.username)}</span></div></header>
+        <ul class="duel-list genres">${c.genres.map((g) => `<li class="duel"><span class="duel-v me">${Math.round(g.me * 100)} %</span>
+          <span class="duel-bar me"><span data-w="${(g.me / gmax) * 100}"></span></span><span class="duel-label">${esc(genreName(g.genre))}</span>
+          <span class="duel-bar them"><span data-w="${(g.them / gmax) * 100}"></span></span><span class="duel-v them">${Math.round(g.them * 100)} %</span></li>`).join('')}</ul></section>` : ''}
+      <div class="grid-2">
+        <section class="card"><header class="card-head"><h2>${esc(t('cmp.yourTop'))}</h2></header>${top5(c.me)}</section>
+        <section class="card"><header class="card-head"><h2>${esc(t('cmp.theirTop', { name: c.friend.username }))}</h2></header>${top5(c.them)}</section>
+      </div>`;
+    growBars(box, '.duel-bar span');
+    countUp($('[data-match]', box), c.match);
+  }
+
+  function bindFriends() {
+    $('#friend-form').addEventListener('submit', addFriend);
+  }
+
+  // ================================================================ Admin: Backup & Rechtliches
+  async function loadBackupInfo() {
+    try {
+      const [b, legal] = await Promise.all([api('/api/admin/backup/info'), fetch('/api/legal').then((r) => r.json())]);
+      const el = $('#backup-status');
+      const old = !b.last || Date.now() - new Date(b.last) > 7 * 864e5;
+      el.className = `backup-status${old ? ' warn' : ' ok'}`;
+      el.innerHTML = `<span class="status-dot ${old ? 'bad' : 'ok'}"></span>${esc(b.last ? t('backup.last', { d: dateTimeFmt.format(new Date(b.last)), r: relTime(b.last) }) : t('backup.never'))}${old ? ` · ${esc(t('backup.recommend'))}` : ''}`;
+      const sys = $('#admin-system');
+      if (sys && !$('[data-legal-row]', sys)) {
+        sys.insertAdjacentHTML('beforeend', `<dt data-legal-row>${esc(t('legal.imprint'))}</dt><dd>${legal.configured
+          ? `<span class="status-dot ok"></span>${esc(t('legal.ok'))}` : `<span class="status-dot bad"></span>${esc(t('legal.missing'))}`}</dd>`);
+      }
+    } catch { /* egal */ }
+  }
+
+  async function restoreFromFile(file) {
+    if (!file) return;
+    if (!confirm(t('backup.confirm', { f: file.name }))) return;
+    const log = $('#restore-log');
+    log.innerHTML = `<li><span>${esc(file.name)}</span><span class="muted">${esc(t('import.running'))}</span></li>`;
+    try {
+      const r = await api('/api/admin/restore', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: file });
+      const rows = Object.entries(r.tables);
+      const added = rows.reduce((a, [, v]) => a + v.inserted, 0);
+      log.innerHTML = `<li><span>${esc(file.name)}${r.created_at ? ` · ${esc(dateTimeFmt.format(new Date(r.created_at)))}` : ''}</span><span class="ok">${esc(t('backup.restored', { n: fmt(added) }))}</span></li>`
+        + rows.map(([k, v]) => `<li><span class="muted">${esc(k)}</span><span>${esc(t('backup.tableRow', { n: fmt(v.inserted), m: fmt(v.rows) }))}</span></li>`).join('');
+      toast(t('backup.restored', { n: fmt(added) }));
+      loadAdmin();
+    } catch (err) {
+      log.innerHTML = `<li><span>${esc(file.name)}</span><span class="err">${esc(errMsg(err))}</span></li>`;
+    }
+  }
+
+  function bindBackup() {
+    $('#restore-file').addEventListener('change', (e) => { restoreFromFile(e.target.files[0]); e.target.value = ''; });
+    $('#backup-download').addEventListener('click', () => setTimeout(loadBackupInfo, 4000));
   }
 
   // ================================================================ Start
@@ -1758,6 +2666,38 @@
     bindImport();
     bindTour();
     document.addEventListener('click', (e) => {
+      const cd = e.target.closest('[data-close-dialog]');
+      if (cd) { cd.closest('dialog')?.close(); return; }
+      const dtr = e.target.closest('[data-detail-track]');
+      if (dtr) { openDetail('track', dtr.dataset.detailTrack); return; }
+      const dar = e.target.closest('[data-detail-artist]');
+      if (dar) { openDetail('artist', dar.dataset.detailArtist); return; }
+      if (e.target.closest('[data-story-start]')) { openStory(); return; }
+      const wy = e.target.closest('[data-wrapped-year]');
+      if (wy) { loadWrapped(Number(wy.dataset.wrappedYear)); return; }
+      const pd = e.target.closest('[data-promo-dismiss]');
+      if (pd) { store.set(pd.dataset.promoDismiss, '1'); $('#wrapped-promo').hidden = true; return; }
+      const cmp = e.target.closest('[data-compare]');
+      if (cmp) {
+        fr.compare = null;
+        loadCompare(Number(cmp.dataset.compare));
+        setTimeout(() => $('#compare').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' }), 60);
+        return;
+      }
+      const cr = e.target.closest('[data-cmp-range]');
+      if (cr) { fr.compareRange = cr.dataset.cmpRange; loadCompare(fr.compareId); return; }
+      const fa = e.target.closest('[data-friend-act]');
+      if (fa) { friendAction(fa.dataset.friendAct, Number(fa.dataset.id)); return; }
+      const plr = e.target.closest('[data-pl-range]');
+      if (plr) { pl.name = $('#pl-name')?.value ?? pl.name; pl.range = plr.dataset.plRange; renderPlaylistDialog(pl.recent); return; }
+      const pls = e.target.closest('[data-pl-size]');
+      if (pls) { pl.name = $('#pl-name')?.value ?? pl.name; pl.size = Number(pls.dataset.plSize); renderPlaylistDialog(pl.recent); return; }
+      const pla = e.target.closest('[data-pl]');
+      if (pla) {
+        if (pla.dataset.pl === 'create') createPlaylist();
+        else { pl.result = null; pl.nameEdited = false; renderPlaylistDialog(pl.recent); }
+        return;
+      }
       const tog = e.target.closest('[data-toggle-day]');
       if (tog) {
         const day = tog.dataset.toggleDay;
@@ -1787,6 +2727,17 @@
       if (b) ({ password: changePassword, disconnect: disconnectSpotify, delete: deleteAccount })[b.dataset.action]?.();
     });
     $('#festive-switch').addEventListener('click', toggleFestive);
+    bindSearch();
+    bindStory();
+    bindFriends();
+    bindBackup();
+    $('#playlist-btn').addEventListener('click', openPlaylistDialog);
+    $('#privacy-accept').addEventListener('click', acceptPrivacy);
+    $('#scope-dismiss').addEventListener('click', () => { store.set('scope-dismiss', String(Date.now() + 7 * 864e5)); renderNotices(); });
+    ['#detail-dialog', '#playlist-dialog', '#milestone-dialog'].forEach((sel) => {
+      const dlg = $(sel);
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    });
     $('#birthday-save').addEventListener('click', () => saveBirthday($('#birthday-input').value));
     $('#birthday-clear').addEventListener('click', () => saveBirthday(''));
     $('#admin-refresh').addEventListener('click', loadAdmin);

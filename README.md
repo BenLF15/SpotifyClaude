@@ -21,6 +21,15 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
 - **Festliche Effekte** (im Profil ein-/ausschaltbar): Zu Fasching (Weiberfastnacht bis Faschingsdienstag und am 11.11.), Ostern (Karfreitag bis Ostermontag), Midsommar, Weihnachten (24.–26.12.), Neujahr (31.12.–1.1.) und zum **eigenen Geburtstag** (im Profil eintragbar) erscheinen kleine Animationen: ein Gruß-Banner, Deko an Logo, Überschriften, Podium, Genre-Diagramm, Heatmap und Profil sowie ein kurzer Partikel-Effekt beim ersten Öffnen jedes Tabs. Admins können jedes Event über ein Test-Datum ausprobieren. Beim Einschalten (und einmalig beim ersten Besuch) erklärt ein kurzer Walkthrough Schritt für Schritt alle Events – durchklicken oder direkt mit ✕ schließen.
 - **Sprachen**: Deutsch, Englisch, Französisch, Spanisch, Italienisch, Schwedisch und Dänisch – die gesamte Oberfläche inkl. Datums- und Zahlenformaten. Wählbar im Profil und auf der Login-Seite.
 - Als App installierbar (PWA), ohne Browserleiste und ohne Zoomen.
+- **Ladezustände**: Platzhalter („Skeletons“) beim ersten Laden, beim Zeitraumwechsel bleibt der alte Stand ausgegraut sichtbar.
+- **Jahresrückblick** (Tab „Rückblick“): Jahresübersicht mit Top-Künstlern und -Songs, Monaten, Genre-Mix, Rekorden und ersten Song des Jahres – plus eine Vollbild-Story zum Durchtippen (teilbar). Im Dezember und Januar weist die Übersicht darauf hin.
+- **Freunde vergleichen** (Tab „Freunde“): Anfrage per Benutzername, nach Bestätigung Match-Wert in %, gemeinsame Künstler und Songs, Genres und Kennzahlen im direkten Vergleich. Freunde sehen nur Top-Listen, Genres und Summen, nie den Verlauf.
+- **Suche im Verlauf**: Songs, Künstler und Alben suchen. Ein Klick auf einen Song oder Künstler (überall in der App) öffnet die Detailansicht: erste und letzte Wiedergabe, Plays, Minuten, Rang, Lieblingszeit und Verlauf pro Monat.
+- **Meilensteine** (Profil): Hörminuten (500 bis 1 Mio.) und Tagesserien (3 bis 365 Tage) mit Fortschritt und einer kleinen Feier, wenn ein neuer erreicht wird.
+- **Als Playlist speichern** (Top-Listen): Die meistgehörten 10–100 Songs eines Zeitraums als private Playlist direkt in Spotify.
+- **Aktuell läuft**: Der gerade gespielte Song mit Fortschritt und wie oft du ihn schon gehört hast.
+- **Datenschutz & Impressum** (`/datenschutz`, `/impressum`): Zustimmung bei der Registrierung, Hinweis für bestehende Konten, Datenexport als JSON im Profil.
+- **Backup** (Admin): Komplette Datenbank als `.json.gz` herunterladen und wiederherstellen (ergänzt nur fehlende Daten, überschreibt nichts).
 - **Eigene Konten**: Jeder registriert sich mit Benutzername und Passwort, verbindet danach sein Spotify-Konto und sieht nur die eigenen Werte.
 - **Admin-Tab „Admin“**: Wer Admin ist, sieht oben „Meine Statistik | Admin“. Dort gibt es:
 
@@ -186,7 +195,28 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | `CRON_SECRET` | – | Aktiviert `/cron/run?key=…` für externe Trigger |
 | `ENRICH_LIMIT` | – | Tracks bzw. Künstler, die pro Lauf angereichert werden (Standard 150) |
 | `MIN_PLAY_MS` | – | Mindestdauer für importierte Plays (Standard 30000) |
+| `OPERATOR_NAME` | für öffentliche Nutzung | Name des Betreibers (Impressum & Datenschutz) |
+| `OPERATOR_ADDRESS` | für öffentliche Nutzung | Ladungsfähige Anschrift, Zeilen mit `|` trennen, z. B. `Musterstraße 1 \| 12345 Musterstadt` |
+| `OPERATOR_EMAIL` | für öffentliche Nutzung | Kontakt-E-Mail |
+| `OPERATOR_PHONE` | – | Telefon (optional) |
+| `HOSTING_PROVIDER` / `DATABASE_PROVIDER` | – | Angaben in der Datenschutzerklärung überschreiben (Standard: Render bzw. automatisch aus `DATABASE_URL`) |
 | `PGSSL` | – | `true`/`false` erzwingt TLS für Postgres (sonst automatisch: an für externe Hosts wie Neon/Supabase) |
+
+## Nach dem Update: einmal Spotify neu verbinden
+
+„Aktuell läuft“ und „Als Playlist speichern“ brauchen zwei zusätzliche Spotify-Berechtigungen (`user-read-currently-playing`, `playlist-modify-private`). Bestehende Nutzer sehen dafür einen Hinweis und verbinden Spotify einmal neu. Die Hördaten bleiben dabei erhalten. Im Development Mode muss der Besitzer der Spotify-App Premium haben, damit Playlists angelegt werden können.
+
+## Impressum & Datenschutz
+
+Die Seiten `/impressum` und `/datenschutz` sind ohne Login erreichbar und auf der Login-Seite, in der App-Fußzeile und im Profil verlinkt. Trage in Render `OPERATOR_NAME`, `OPERATOR_ADDRESS` und `OPERATOR_EMAIL` ein, sonst zeigen beide Seiten einen Warnhinweis (der Admin-Tab zeigt den Status ebenfalls). Die Texte sind eine sorgfältige Vorlage für ein privates, nicht-kommerzielles Projekt, aber **keine Rechtsberatung**. Prüfe sie, bevor du Spotlfy öffentlich anbietest.
+
+## Backups
+
+Im Admin-Tab unter **Backup**:
+
+- **Backup herunterladen** erzeugt eine `spotlfy-backup-JJJJ-MM-TT.json.gz` mit allen Tabellen. Die Datei enthält Passwort-Hashes und Spotify-Tokens, bewahre sie also privat auf. Der Tab zeigt, wann zuletzt gesichert wurde, und erinnert nach 7 Tagen.
+- **Backup wiederherstellen** spielt eine solche Datei ein. Es werden nur fehlende Zeilen ergänzt, vorhandene bleiben unverändert. So lässt sich nach einem Datenbank-Verlust (z. B. abgelaufene Free-Postgres auf Render) eine neue, leere Datenbank vollständig wiederherstellen: neue `DATABASE_URL` setzen, deployen, als erster Nutzer registrieren (wird Admin), Backup einspielen.
+- Zusätzlich bietet Neon eine Wiederherstellung auf einen früheren Zeitpunkt (Point-in-time Restore) in der Neon-Konsole.
 
 ## Lokale Entwicklung
 
@@ -211,6 +241,8 @@ Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an.
 | `src/sync.js` | Recently Played, Snapshots, Anreicherung, Duplikat-Schutz |
 | `src/importer.js` | Parser für `Streaming_History_Audio_*.json` |
 | `src/stats.js` | SQL-Auswertungen |
+| `src/features.js` | Rückblick, Suche & Details, Meilensteine, Freunde, Playlist, Aktuell läuft, Datenexport |
+| `src/backup.js` | Backup (gestreamt, gzip) und Wiederherstellung |
 | `src/schema.sql` | Idempotentes Schema |
 | `public/` | Frontend (Vanilla JS + Chart.js, ohne Build-Schritt) |
 
@@ -220,5 +252,5 @@ Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an.
 - **Genres (eigene Einordnung)**: Spotlfy übernimmt keine Genres von Spotify. Für jeden Künstler holt die App im Hintergrund die offenen Genre-Tags von [MusicBrainz](https://musicbrainz.org) (ohne API-Key, max. 1 Anfrage/s, ca. 20 Künstler pro Minute) und ordnet sie selbst einer festen Liste von Hauptgenres zu: Pop, Hip-Hop & Rap, Rock, Electronic & Dance, R&B & Soul, Indie & Alternative, Jazz, Klassik, Country & Folk, Metal, Latin, Reggae & Dancehall, Blues, Schlager & Volksmusik, Soundtrack. Jeder Song zählt für das Hauptgenre seines Hauptkünstlers. Die Regeln stehen in `src/genres.js`.
 - **Snapshots** entstehen beim ersten Sync eines Tages in `TIMEZONE`. Der Rangverlauf wird also nach einigen Tagen interessant.
 - **Sicherheit**:
-  - Alles außer `/login`, `/auth/*`, `/healthz` und dem optionalen `/cron/run` erfordert eine Anmeldung mit Spotify. Jeder Nutzer sieht nur die eigenen Daten, `/api/admin/*` nur Admins.
+  - Alles außer `/login`, `/impressum`, `/datenschutz`, `/healthz` und dem optionalen `/cron/run` erfordert eine Anmeldung. Jeder Nutzer sieht nur die eigenen Daten (Freunde nur zusammengefasste Werte nach gegenseitiger Bestätigung), `/api/admin/*` nur Admins.
   - Eine strenge Content-Security-Policy verhindert externe Skripte.

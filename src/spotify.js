@@ -111,12 +111,29 @@ export async function getAccessToken(userId, { force = false } = {}) {
 }
 
 /** GET gegen die Web API im Namen eines Nutzers – mit Token-Refresh bei 401 und Backoff bei 429/5xx. */
-export async function spotifyGet(userId, pathOrUrl, { retries = 4 } = {}) {
+export function spotifyGet(userId, pathOrUrl, opts = {}) {
+  return spotifyRequest(userId, 'GET', pathOrUrl, undefined, opts);
+}
+
+/** POST (JSON) gegen die Web API, z. B. Playlist anlegen. */
+export function spotifyPost(userId, pathOrUrl, body, opts = {}) {
+  return spotifyRequest(userId, 'POST', pathOrUrl, body, { retries: 2, ...opts });
+}
+
+async function spotifyRequest(userId, method, pathOrUrl, body, { retries = 4 } = {}) {
   const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API}${pathOrUrl}`;
   let token = await getAccessToken(userId);
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.ok) return res.status === 204 ? null : res.json();
+    const res = await fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    if (res.ok) {
+      if (res.status === 204) return null;
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    }
 
     if (attempt >= retries) {
       const text = await res.text().catch(() => '');
@@ -126,6 +143,10 @@ export async function spotifyGet(userId, pathOrUrl, { retries = 4 } = {}) {
     }
     if (res.status === 401) {
       token = await getAccessToken(userId, { force: true });
+    } else if (res.status === 429 && method !== 'GET' && attempt >= 1) {
+      const err = new Error('Spotify-Rate-Limit');
+      err.status = 429;
+      throw err;
     } else if (res.status === 429) {
       const wait = Math.min(Number.parseInt(res.headers.get('retry-after') || '5', 10), 120);
       console.warn(`[spotify] Rate-Limit – warte ${wait}s`);
@@ -147,3 +168,9 @@ export const bestImage = (images) => {
   const sorted = [...images].sort((a, b) => (b.width || 0) - (a.width || 0));
   return (sorted.find((i) => (i.width || 0) <= 320) || sorted[sorted.length - 1] || sorted[0]).url;
 };
+
+/** Fehlende Berechtigungen (Scopes) eines Nutzers – z. B. nach neuen Funktionen. */
+export function missingScopes(scopeString, needed) {
+  const have = new Set(String(scopeString || '').split(/\s+/).filter(Boolean));
+  return needed.filter((sc) => !have.has(sc));
+}

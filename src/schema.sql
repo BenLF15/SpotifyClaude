@@ -183,3 +183,34 @@ ALTER TABLE accounts ADD COLUMN IF NOT EXISTS theme text NOT NULL DEFAULT 'dark'
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS lang text;
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS festive boolean NOT NULL DEFAULT true;
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS birthday date;
+
+-- ---------------------------------------------------------------- Datenschutz, Meilensteine
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS privacy_accepted_at timestamptz;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS milestones_seen text[] NOT NULL DEFAULT '{}';
+
+-- ---------------------------------------------------------------- Freunde (gegenseitig bestätigt)
+CREATE TABLE IF NOT EXISTS friendships (
+  requester_id  bigint NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  addressee_id  bigint NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  status        text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted')),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  accepted_at   timestamptz,
+  PRIMARY KEY (requester_id, addressee_id),
+  CHECK (requester_id <> addressee_id)
+);
+CREATE INDEX IF NOT EXISTS friendships_addressee_idx ON friendships (addressee_id);
+
+-- ---------------------------------------------------------------- Aus der Statistik erstellte Playlists
+CREATE TABLE IF NOT EXISTS created_playlists (
+  id                   bigserial PRIMARY KEY,
+  account_id           bigint NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  spotify_playlist_id  text NOT NULL,
+  name                 text NOT NULL,
+  url                  text,
+  track_count          integer NOT NULL DEFAULT 0,
+  created_at           timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS created_playlists_account_idx ON created_playlists (account_id, created_at DESC);
+
+-- Suche im Verlauf (Künstler-/Songnamen)
+CREATE INDEX IF NOT EXISTS tracks_name_lower_idx ON tracks (lower(name));

@@ -67,7 +67,8 @@
       if (mode) show(mode, { focus: false });
       return;
     }
-    const b = e.target.closest('[data-mode]');
+    // nur Buttons: <html> trägt selbst data-mode (Hell/Dunkel), das darf nicht als Auswahl zählen
+    const b = e.target.closest('button[data-mode]');
     if (b) show(b.dataset.mode);
   });
   $('#auth-back').addEventListener('click', () => show(null));
@@ -95,6 +96,7 @@
       if (!/^[A-Za-z0-9_.-]{3,24}$/.test(username)) return showError(t('err.usernameInvalid'));
       if (password.length < 8) return showError(t('err.passwordShort'));
       if (password !== $('#password2').value) return showError(t('pw.mismatch'));
+      if (!$('#privacy-consent').checked) return showError(t('err.privacyRequired'));
     }
     btn.disabled = true;
     showError('');
@@ -103,7 +105,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ username, password, lang: I.lang }),
+        body: JSON.stringify({ username, password, lang: I.lang, privacy: mode === 'register' && $('#privacy-consent').checked }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(errText(data, res.status));

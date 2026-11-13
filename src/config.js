@@ -35,7 +35,10 @@ export const config = {
       'SPOTIFY_REDIRECT_URI',
       externalUrl ? `${externalUrl}/auth/callback` : `http://127.0.0.1:${int('PORT', 3000)}/auth/callback`,
     ),
-    scopes: ['user-read-recently-played', 'user-top-read', 'user-read-private', 'user-read-email'],
+    scopes: [
+      'user-read-recently-played', 'user-top-read', 'user-read-private', 'user-read-email',
+      'user-read-currently-playing', 'playlist-modify-private',
+    ],
   },
   // Neue Registrierungen erlauben (true/false)
   allowRegistration: bool('ALLOW_REGISTRATION', true),
@@ -48,6 +51,15 @@ export const config = {
   syncIntervalMinutes: Math.max(5, int('SYNC_INTERVAL_MINUTES', 30)),
   keepAliveUrl: bool('KEEP_ALIVE', Boolean(externalUrl)) && externalUrl ? `${externalUrl}/healthz` : null,
   cronSecret: env('CRON_SECRET'),
+  // Impressum/Datenschutz: Angaben des Betreibers (nur über Umgebungsvariablen, nie im Code)
+  legal: {
+    name: env('OPERATOR_NAME'),
+    address: env('OPERATOR_ADDRESS'), // Zeilen mit „|“ oder „\n“ trennen
+    email: env('OPERATOR_EMAIL'),
+    phone: env('OPERATOR_PHONE'),
+    hosting: env('HOSTING_PROVIDER', 'Render Services, Inc., 525 Brannan Street, San Francisco, CA 94107, USA'),
+    database: env('DATABASE_PROVIDER'),
+  },
   isProduction: env('NODE_ENV') === 'production' || Boolean(externalUrl),
 };
 

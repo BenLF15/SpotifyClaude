@@ -35,3 +35,10 @@ services:
         sync: false
       - key: TIMEZONE
         value: Europe/Berlin
+      # Impressum & Datenschutz (Betreiberangaben)
+      - key: OPERATOR_NAME
+        sync: false
+      - key: OPERATOR_ADDRESS
+        sync: false
+      - key: OPERATOR_EMAIL
+        sync: false

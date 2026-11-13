@@ -9,6 +9,8 @@ import { importHistory } from './importer.js';
 import { authorizeUrl, exchangeCode } from './spotify.js';
 import * as users from './users.js';
 import * as stats from './stats.js';
+import * as features from './features.js';
+import { lastBackup, restoreBackup, streamBackup } from './backup.js';
 import { startScheduler, syncAllDue, triggerSync } from './scheduler.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -163,6 +165,29 @@ app.get('/cron/run', async (req, res) => {
   }
 });
 
+// Impressum & Datenschutz: öffentlich erreichbar (auch ohne Login)
+app.get(['/impressum', '/datenschutz'], (_req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(publicDir, 'legal.html'));
+});
+app.get('/api/legal', (_req, res) => {
+  const L = config.legal;
+  const host = (() => { try { return new URL(config.databaseUrl).hostname; } catch { return ''; } })();
+  const database = L.database
+    || (/neon\.tech$/.test(host) ? 'Neon (Databricks, Inc.), USA'
+      : /render\.com$/.test(host) ? 'Render Services, Inc., USA'
+      : null);
+  res.json({
+    name: L.name || null,
+    address: L.address ? L.address.split(/\s*(?:\||\\n|\n)\s*/).filter(Boolean) : [],
+    email: L.email || null,
+    phone: L.phone || null,
+    hosting: L.hosting,
+    database,
+    configured: Boolean(L.name && L.address && L.email),
+  });
+});
+
 app.get('/login', (req, res) => {
   if (sessionAccountId(req)) return res.redirect('/');
   res.set('Cache-Control', 'no-store');
@@ -203,7 +228,7 @@ app.post(
       if (blocked(`reg:${req.ip}`)) {
         return res.status(429).json({ error: 'Zu viele Registrierungen – bitte später erneut versuchen.', key: 'tooManyRegs' });
       }
-      const account = await users.registerAccount(req.body?.username, req.body?.password);
+      const account = await users.registerAccount(req.body?.username, req.body?.password, { privacy: req.body?.privacy === true });
       if (users.LANGS.includes(req.body?.lang)) await users.updateSettings(account.id, { lang: req.body.lang });
       fail(`reg:${req.ip}`); // zählt Registrierungen pro IP (max. 10 / 15 Min.)
       await users.recordLogin(account.id, req.get('user-agent'));
@@ -274,6 +299,7 @@ api.get(
       account: {
         id: a.id, username: a.username, is_admin: a.is_admin, created_at: a.created_at,
         theme: a.theme, lang: a.lang, festive: a.festive, birthday: a.birthday,
+        privacy_accepted: Boolean(a.privacy_accepted_at),
       },
       spotify: a.spotify_user_id
         ? {
@@ -284,6 +310,7 @@ api.get(
             country: a.country,
             product: a.product,
             auth_expired: Boolean(a.auth_error),
+            missing_scopes: a.spotify_user_id ? features.missingScopesFor(a.scope) : [],
           }
         : null,
     };
@@ -310,6 +337,56 @@ api.post(
   wrap(async (req, res) => {
     const { theme, lang, festive, birthday } = req.body || {};
     await users.updateSettings(req.account.id, { theme, lang, festive, birthday });
+    res.json({ ok: true });
+  }),
+);
+
+// Datenschutzerklärung bestätigen (bestehende Konten)
+api.post(
+  '/me/privacy',
+  wrap(async (req, res) => {
+    await users.acceptPrivacy(req.account.id);
+    res.json({ ok: true });
+  }),
+);
+
+// Eigene Daten exportieren (DSGVO Art. 15/20)
+api.get(
+  '/me/export',
+  wrap(async (req, res) => {
+    const date = new Date().toISOString().slice(0, 10);
+    res.set({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="spotlfy-export-${date}.json"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(JSON.stringify(await features.exportData(req.account.id), null, 1));
+  }),
+);
+
+// ---------------------------------------------------------------- Freunde (Kontoebene)
+const idParam = (req) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw new users.UserError('Ungültige ID.', 400, 'notFound');
+  return id;
+};
+api.get('/friends', wrap(async (req, res) => res.json(await features.listFriends(req.account.id))));
+api.post(
+  '/friends',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => res.json(await features.requestFriend(req.account.id, req.body?.username))),
+);
+api.post(
+  '/friends/:id/accept',
+  wrap(async (req, res) => {
+    await features.acceptFriend(req.account.id, idParam(req));
+    res.json({ ok: true });
+  }),
+);
+api.delete(
+  '/friends/:id',
+  wrap(async (req, res) => {
+    await features.removeFriend(req.account.id, idParam(req));
     res.json({ ok: true });
   }),
 );
@@ -395,6 +472,35 @@ admin.delete(
   }),
 );
 
+// Backup (gzip-JSON, enthält Passwort-Hashes und Spotify-Tokens → sicher aufbewahren)
+admin.get('/backup', async (req, res) => {
+  const date = new Date().toISOString().slice(0, 10);
+  res.set({
+    'Content-Type': 'application/gzip',
+    'Content-Disposition': `attachment; filename="spotlfy-backup-${date}.json.gz"`,
+    'Cache-Control': 'no-store',
+  });
+  try {
+    await streamBackup(res);
+    console.log(`[backup] von ${req.account.username} heruntergeladen`);
+  } catch (err) {
+    console.error('[backup]', err);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+    else res.destroy(err);
+  }
+});
+admin.get('/backup/info', wrap(async (_req, res) => res.json({ last: await lastBackup() })));
+admin.post(
+  '/restore',
+  express.raw({ type: () => true, limit: '300mb' }),
+  wrap(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || !req.body.length) throw new users.UserError('Leere Datei.', 400, 'backupInvalid');
+    const r = await restoreBackup(req.body);
+    console.log(`[backup] Wiederherstellung durch ${req.account.username}:`, JSON.stringify(r.tables));
+    res.json(r);
+  }),
+);
+
 api.use('/admin', admin);
 
 // ---------------------------------------------------------------- Statistik (braucht Spotify)
@@ -437,6 +543,46 @@ api.get(
     const kind = req.query.kind === 'tracks' ? 'tracks' : 'artists';
     const range = ['short_term', 'medium_term', 'long_term'].includes(req.query.range) ? req.query.range : 'short_term';
     res.json(await stats.spotifyTop(req.sid, kind, range));
+  }),
+);
+
+// ---------------------------------------------------------------- Rückblick, Suche, Meilensteine, Vergleich, Playlist
+const yearParam = (v) => {
+  const y = Number(v);
+  return Number.isInteger(y) && y >= 2000 && y <= 2100 ? y : null;
+};
+api.get(
+  '/wrapped',
+  wrap(async (req, res) => {
+    const years = await features.wrappedYears(req.sid);
+    const year = yearParam(req.query.year) || years[0] || new Date().getFullYear();
+    res.json({ years, ...(await features.wrapped(req.sid, year)) });
+  }),
+);
+api.get('/search', wrap(async (req, res) => res.json(await features.search(req.sid, req.query.q))));
+api.get('/track/:id', wrap(async (req, res) => res.json(await features.trackDetail(req.sid, String(req.params.id).slice(0, 64)))));
+api.get('/artist', wrap(async (req, res) => res.json(await features.artistDetail(req.sid, String(req.query.name || '').slice(0, 200)))));
+api.get('/milestones', wrap(async (req, res) => res.json(await features.milestones(req.sid, req.account.milestones_seen || []))));
+api.post(
+  '/milestones/seen',
+  express.json({ limit: '4kb' }),
+  wrap(async (req, res) => {
+    await features.markMilestonesSeen(req.account.id, req.body?.ids);
+    res.json({ ok: true });
+  }),
+);
+api.get('/friends/:id/compare', wrap(async (req, res) => res.json(await features.compare(req.account, idParam(req), rangeDays(req)))));
+api.get('/now-playing', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await features.nowPlaying(req.sid));
+}));
+api.get('/playlists', wrap(async (req, res) => res.json({ items: await features.recentPlaylists(req.account.id) })));
+api.post(
+  '/playlists',
+  express.json({ limit: '2kb' }),
+  wrap(async (req, res) => {
+    const days = stats.RANGE_DAYS[req.body?.range] ?? 30;
+    res.json(await features.createPlaylist(req.account, { days, size: req.body?.size, name: req.body?.name, description: req.body?.description }));
   }),
 );
 

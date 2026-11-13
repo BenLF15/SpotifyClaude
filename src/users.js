@@ -60,9 +60,10 @@ function validateCredentials(username, password) {
  * Registriert ein neues Konto. Gibt es noch keinen Admin (frische Installation oder nach dem
  * Admin-Reset), wird das neue Konto automatisch Admin mit allen Funktionen.
  */
-export async function registerAccount(username, password) {
+export async function registerAccount(username, password, { privacy = false } = {}) {
   if (!config.allowRegistration) throw new UserError('Neue Registrierungen sind derzeit deaktiviert.', 403, 'registrationClosed');
   const u = validateCredentials(username, password);
+  if (!privacy) throw new UserError('Bitte bestätige die Datenschutzerklärung.', 400, 'privacyRequired');
   const passwordHash = await hashPassword(password);
   try {
     return await withTransaction(async (db) => {
@@ -70,7 +71,7 @@ export async function registerAccount(username, password) {
       await db.query('SELECT pg_advisory_xact_lock(424242)');
       const { rows: admins } = await db.query('SELECT 1 FROM accounts WHERE is_admin LIMIT 1');
       const { rows } = await db.query(
-        'INSERT INTO accounts (username, password_hash, is_admin) VALUES ($1, $2, $3) RETURNING id, username, is_admin',
+        'INSERT INTO accounts (username, password_hash, is_admin, privacy_accepted_at) VALUES ($1, $2, $3, now()) RETURNING id, username, is_admin',
         [u, passwordHash, admins.length === 0],
       );
       if (rows[0].is_admin) console.log(`[admin] „${rows[0].username}“ ist als erster Nutzer Admin geworden.`);
@@ -108,8 +109,8 @@ export async function recordLogin(accountId, userAgent) {
 export async function getAccount(id) {
   const { rows } = await query(
     `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at, a.theme, a.lang, a.festive,
-            to_char(a.birthday, 'YYYY-MM-DD') AS birthday,
-            u.display_name, u.email, u.avatar_url, u.country, u.product, u.auth_error
+            to_char(a.birthday, 'YYYY-MM-DD') AS birthday, a.privacy_accepted_at, a.milestones_seen,
+            u.display_name, u.scope, u.email, u.avatar_url, u.country, u.product, u.auth_error
        FROM accounts a LEFT JOIN users u ON u.id = a.spotify_user_id
       WHERE a.id = $1`,
     [id],
@@ -353,4 +354,9 @@ export async function accountsCsv() {
   };
   const lines = [cols.map((c) => c[1]).join(';'), ...accounts.map((u) => cols.map(([k]) => cell(u[k])).join(';'))];
   return '﻿' + lines.join('\r\n');
+}
+
+/** Datenschutzerklärung bestätigt (bestehende Konten). */
+export async function acceptPrivacy(accountId) {
+  await query('UPDATE accounts SET privacy_accepted_at = now() WHERE id = $1 AND privacy_accepted_at IS NULL', [accountId]);
 }

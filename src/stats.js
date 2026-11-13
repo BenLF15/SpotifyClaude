@@ -16,7 +16,7 @@ const PLAYS_CTE = `
   )`;
 
 // Bild/Genres eines Künstlers: zuerst über die ID, sonst über den Namen (Import-Daten).
-const ARTIST_LOOKUP = (nameCol, idCol) => `
+export const ARTIST_LOOKUP = (nameCol, idCol) => `
   LEFT JOIN LATERAL (
     SELECT * FROM (
       SELECT a.image_url, a.genres, 0 AS prio FROM artists a WHERE a.id = ${idCol}
