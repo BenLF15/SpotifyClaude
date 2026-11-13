@@ -1281,3 +1281,212 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 #wrapped, #compare { display: flex; flex-direction: column; gap: 14px; }
 #compare:empty { display: none; }
 @media (min-width: 900px) { #wrapped, #compare { gap: 16px; } }
+
+/* ================================================================== Plattensammlung */
+/* ---------- Musiknoten (Münzen) */
+.note {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; flex: none;
+  font-size: 12px; font-weight: 900; line-height: 1; color: rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 2px 5px -1px rgba(0, 0, 0, 0.35);
+}
+.n-bronze { background: radial-gradient(circle at 35% 30%, #f3c39a, #cd7f32 55%, #8a4f1c); }
+.n-silver { background: radial-gradient(circle at 35% 30%, #ffffff, #c4cbd4 55%, #7e8792); }
+.n-gold { background: radial-gradient(circle at 35% 30%, #fff3b0, #f5c542 55%, #b07d09); }
+.n-platinum { background: radial-gradient(circle at 35% 30%, #ffffff, #b9e8f2 45%, #8f9fd8 75%, #5d6aa8); color: rgba(20, 30, 70, 0.6); }
+.note-balance { display: flex; gap: 6px; flex-wrap: wrap; }
+.note-balance .nb { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px 4px 5px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--border); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.note-balance.big .nb { flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: 14px; min-width: 72px; }
+.note-balance.big .note { width: 28px; height: 28px; font-size: 16px; }
+.note-balance.big b { font-size: 1.1rem; }
+.note-balance.big small { font-size: 0.65rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+.note-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.note-chip .note { width: 16px; height: 16px; font-size: 10px; }
+.src-reward { display: inline-flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- Seltenheit */
+.rarity-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.rarity-badge.r-common { background: rgba(var(--ink-rgb), 0.08); color: var(--text-2); }
+.rarity-badge.r-rare { background: rgba(57, 135, 229, 0.18); color: #5fa3f0; }
+.rarity-badge.r-epic { background: rgba(155, 93, 229, 0.2); color: #b78af5; }
+.rarity-badge.r-legendary { background: linear-gradient(90deg, #f5c542, #ff8c42); color: #2b1600; }
+
+/* ---------- Schallplatte (Hülle + herausschauende Platte) */
+.rec { --s: 74px; position: relative; display: block; width: var(--s); height: var(--s); margin-right: calc(var(--s) * 0.28); }
+.rec.lg { --s: 120px; }
+.rec-sleeve {
+  position: absolute; inset: 0; z-index: 2; border-radius: 4px; overflow: hidden; background: var(--surface-3);
+  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.rec-sleeve img, .rec-sleeve .placeholder { width: 100%; height: 100%; object-fit: cover; }
+.rec-sleeve::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255, 255, 255, 0.18), transparent 40%); pointer-events: none; }
+.rec-disc {
+  position: absolute; z-index: 1; top: 4%; left: 30%; width: 92%; height: 92%; border-radius: 50%;
+  background: repeating-radial-gradient(circle, #111 0 1.5px, #1d1d1d 1.5px 3px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  display: grid; place-items: center; transition: left 0.4s var(--ease), transform 0.6s var(--ease);
+}
+.rec-label { width: 36%; height: 36%; border-radius: 50%; overflow: hidden; background: #c33; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.4); }
+.rec-label img { width: 100%; height: 100%; object-fit: cover; }
+.rec.r-rare .rec-disc { background: repeating-radial-gradient(circle, hsla(var(--hue), 80%, 55%, 0.95) 0 1.5px, hsla(var(--hue), 80%, 45%, 0.95) 1.5px 3px); }
+.rec.r-epic .rec-disc { background: conic-gradient(from 0deg, #ff5d8f, #ffd23f, #3ec5ff, #b892ff, #ff5d8f); }
+.rec.r-legendary .rec-disc { background: repeating-radial-gradient(circle, #1a1405 0 1.5px, #2a210a 1.5px 3px); box-shadow: 0 0 0 2px #f5c542, 0 0 14px rgba(245, 197, 66, 0.6); }
+.rec.r-rare .rec-sleeve { box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.7), 0 0 0 2px #3987e5; }
+.rec.r-epic .rec-sleeve { box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.7), 0 0 0 2px #9b5de5, 0 0 12px rgba(155, 93, 229, 0.5); }
+.rec.r-legendary .rec-sleeve { box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.7), 0 0 0 2px #f5c542, 0 0 18px rgba(245, 197, 66, 0.55); }
+.rec.r-legendary .rec-sleeve::after { background: linear-gradient(115deg, transparent 20%, rgba(255, 236, 160, 0.5) 45%, transparent 60%); background-size: 250% 100%; animation: shine 3.2s ease-in-out infinite; }
+@keyframes shine { 0% { background-position: 150% 0; } 60%, 100% { background-position: -100% 0; } }
+.rec-sign { position: absolute; left: 10%; right: 10%; bottom: 10%; height: 22%; z-index: 3;
+  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'%3E%3Cpath d='M4 22c8-14 14-16 12-6s6 2 10-6 6 10 12 0 4 8 10 2 8-8 12-2 6 6 14-4 10 0 18-6' fill='none' stroke='%23fff6d5' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+
+/* ---------- Plattenschrank */
+.cabinet {
+  --row: 112px; position: relative; border-radius: 16px; padding: 14px 14px 6px;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.25), transparent 6%, transparent 94%, rgba(0, 0, 0, 0.25)),
+    repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #5b3a22, #3f2716);
+  box-shadow: inset 0 0 0 6px #6e4728, inset 0 0 0 8px #2c1a0d, 0 18px 40px -22px rgba(0, 0, 0, 0.8);
+}
+.cabinet.mini { --row: 100px; }
+.cabinet-inner {
+  position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); grid-auto-rows: var(--row);
+  align-items: end; min-height: calc(var(--row) * var(--rows));
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0, transparent 30px, transparent calc(var(--row) - 12px), #7a4f2c calc(var(--row) - 12px), #4b2e19 var(--row));
+  padding: 0 4px;
+}
+.cabinet.mini .cabinet-inner { max-height: calc(var(--row) * var(--rows)); overflow: hidden; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+.cabinet.mini .rec { --s: 66px; }
+.cab-item { position: relative; justify-self: center; margin-bottom: 14px; padding: 0; border: 0; background: none; cursor: pointer; animation: cab-in 0.5s var(--ease) both; animation-delay: calc(min(var(--i), 20) * 40ms); }
+@keyframes cab-in { from { opacity: 0; transform: translateY(-14px); } }
+.cab-item .rec { transform: perspective(300px) rotateY(-8deg); transition: transform 0.3s var(--ease); }
+.cab-item:hover .rec, .cab-item:focus-visible .rec { transform: perspective(300px) rotateY(0) translateY(-6px); }
+.cab-item:hover .rec-disc { left: 46%; transform: rotate(40deg); }
+.cabinet-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; color: #f3dfc8; padding: 20px; }
+.cabinet-empty span { font-size: 2rem; opacity: 0.8; }
+.cabinet-empty small { color: rgba(243, 223, 200, 0.75); max-width: 300px; }
+.records-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.records-card .card-head { align-items: center; }
+.rec-cta { display: flex; justify-content: center; margin-top: 14px; }
+
+/* ---------- Kopf der Sammlung */
+.rec-head { display: flex; flex-direction: column; gap: 12px; }
+.rec-back { align-self: flex-start; }
+.rec-head-main { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rec-head h2 { font-size: 1.3rem; }
+.rec-stats { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Laden */
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }
+.shop-item {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 12px 12px; border-radius: 16px; text-align: center;
+  background: var(--surface-2); border: 1px solid var(--border); overflow: hidden;
+}
+.shop-item::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.5; }
+.shop-item.r-rare::before { background: radial-gradient(120% 60% at 50% 0%, rgba(57, 135, 229, 0.25), transparent 70%); }
+.shop-item.r-epic::before { background: radial-gradient(120% 60% at 50% 0%, rgba(155, 93, 229, 0.3), transparent 70%); }
+.shop-item.r-legendary { border-color: rgba(245, 197, 66, 0.55); }
+.shop-item.r-legendary::before { background: radial-gradient(120% 60% at 50% 0%, rgba(245, 197, 66, 0.35), transparent 70%); opacity: 1; animation: legend-glow 3s ease-in-out infinite; }
+@keyframes legend-glow { 50% { opacity: 0.55; } }
+.shop-item.owned { opacity: 0.65; }
+.si-art { padding: 0; border: 0; background: none; cursor: pointer; margin-bottom: 4px; }
+.si-art:hover .rec-disc { left: 48%; transform: rotate(60deg); }
+.si-text { display: flex; flex-direction: column; min-width: 0; width: 100%; }
+.si-text b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.si-text small { color: var(--text-3); font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.si-variant { color: var(--text-2) !important; font-style: italic; }
+.si-buy { width: 100%; margin-top: auto; }
+.si-buy .note { width: 16px; height: 16px; font-size: 10px; }
+.si-owned { margin-top: auto; font-size: 0.78rem; font-weight: 700; color: var(--accent); padding: 6px 0; }
+.ex-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ex-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border-strong);
+  background: var(--surface-2); color: var(--text); font: inherit; font-size: 0.85rem; cursor: pointer;
+}
+.ex-btn:hover:not(:disabled) { border-color: var(--accent); }
+.ex-btn:disabled { opacity: 0.45; cursor: default; }
+.rarity-legend { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.rarity-legend li { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.rarity-legend span { font-weight: 600; font-size: 0.85rem; }
+.rarity-legend small { color: var(--text-3); }
+
+/* ---------- Noten verdienen */
+.earn-grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .earn-grid { grid-template-columns: 1fr 1fr; gap: 16px; } }
+.src-list, .ledger { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.src-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 6px; border-radius: 10px; }
+.src-row.done { background: rgba(var(--accent-rgb), 0.07); }
+.src-done { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 0.75rem; font-weight: 900; }
+.src-open { color: var(--text-3); text-align: center; }
+.src-main { display: flex; flex-direction: column; min-width: 0; }
+.src-main b { font-size: 0.86rem; }
+.src-main small { color: var(--text-3); font-size: 0.74rem; }
+.src-bar { display: block; height: 5px; border-radius: 4px; background: rgba(var(--ink-rgb), 0.07); margin-top: 5px; overflow: hidden; }
+.src-bar span { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+.src-prog { font-variant-numeric: tabular-nums; }
+.ledger li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 4px; font-size: 0.84rem; border-bottom: 1px solid var(--border); }
+.ledger li span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ledger small { color: var(--text-3); white-space: nowrap; }
+
+/* ---------- Platten-Detail mit drehender Schallplatte */
+.record-dialog { width: min(560px, calc(100vw - 24px)); }
+.rd-inner { position: relative; }
+.record-dialog .tour-close { background: rgba(0, 0, 0, 0.35); color: #fff; z-index: 5; }
+.rd-stage { position: relative; padding: 34px 20px 26px; overflow: hidden; background: radial-gradient(120% 100% at 30% 0%, #3a2a1a, #120d08); }
+.rd-stage.r-rare { background: radial-gradient(120% 100% at 30% 0%, #1b3a66, #0a1220); }
+.rd-stage.r-epic { background: radial-gradient(120% 100% at 30% 0%, #4a2577, #12081f); }
+.rd-stage.r-legendary { background: radial-gradient(120% 100% at 30% 0%, #6b4b0a, #1a1205); }
+.rd-fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 4; }
+.rd-new { position: relative; z-index: 3; text-align: center; margin: -10px 0 14px; color: #fff; font-weight: 800; animation: tour-in 0.6s var(--ease) both; }
+.rd-player { position: relative; height: 210px; max-width: 380px; margin: 0 auto; }
+.rd-sleeve {
+  position: absolute; left: 0; top: 0; width: 210px; height: 210px; z-index: 2; border-radius: 6px; overflow: hidden;
+  background: var(--surface-3); box-shadow: 0 20px 40px -16px rgba(0, 0, 0, 0.85); animation: rd-sleeve 0.8s var(--ease) both;
+}
+.rd-sleeve img, .rd-sleeve .placeholder { width: 100%; height: 100%; object-fit: cover; }
+.rd-vinyl {
+  position: absolute; top: 5px; left: 40px; width: 200px; height: 200px; z-index: 1; border-radius: 50%; overflow: hidden;
+  background: repeating-radial-gradient(circle, #0d0d0d 0 1.6px, #1e1e1e 1.6px 3.2px);
+  box-shadow: 0 14px 30px -10px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  display: grid; place-items: center;
+  animation: rd-out 1s var(--ease) 0.35s both, rd-spin 1.8s linear 1.35s infinite;
+}
+.rd-vinyl::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 30deg, transparent, rgba(255, 255, 255, 0.12) 8%, transparent 16%, transparent 50%, rgba(255, 255, 255, 0.1) 58%, transparent 66%); }
+.rd-vinyl.r-rare { background: repeating-radial-gradient(circle, hsla(var(--hue), 85%, 55%, 0.92) 0 1.6px, hsla(var(--hue), 85%, 42%, 0.92) 1.6px 3.2px); }
+.rd-vinyl.r-legendary { box-shadow: 0 0 0 3px #f5c542, 0 0 26px rgba(245, 197, 66, 0.6); }
+.rd-picture { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.95; }
+.rd-label { position: relative; z-index: 1; width: 34%; height: 34%; border-radius: 50%; overflow: hidden; background: #b22; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5); }
+.rd-label::after { content: ''; position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px; border-radius: 50%; background: #0d0d0d; }
+.rd-label img { width: 100%; height: 100%; object-fit: cover; }
+.rd-vinyl.r-legendary .rd-label { box-shadow: 0 0 0 3px #f5c542; }
+@keyframes rd-sleeve { from { opacity: 0; transform: translateX(-30px) rotate(-6deg); } }
+@keyframes rd-out { from { left: 5px; } to { left: 150px; } }
+@keyframes rd-spin { to { transform: rotate(360deg); } }
+.rd-vinyl { left: 150px; }
+@media (max-width: 480px) {
+  .rd-player { height: 170px; max-width: 300px; }
+  .rd-sleeve { width: 170px; height: 170px; }
+  .rd-vinyl { width: 160px; height: 160px; left: 115px; }
+  @keyframes rd-out { from { left: 5px; } to { left: 115px; } }
+}
+.rd-info { padding: 18px 20px 20px; }
+.rd-info h2 { margin: 8px 0 2px; font-size: 1.35rem; overflow-wrap: anywhere; }
+.rd-artist { margin: 0 0 12px; }
+.rd-info .note { width: 16px; height: 16px; font-size: 10px; vertical-align: -3px; }
+
+/* ---------- Noten-Einblendung */
+.note-toast {
+  position: fixed; z-index: 70; left: 50%; bottom: calc(18px + var(--safe-bottom)); width: min(520px, calc(100vw - 24px));
+  display: flex; align-items: center; gap: 12px; padding: 12px 40px 12px 14px; border-radius: 18px; transform: translateX(-50%);
+  background: linear-gradient(120deg, var(--surface-3), var(--surface)); border: 1px solid rgba(245, 197, 66, 0.45);
+  box-shadow: 0 20px 50px -18px rgba(0, 0, 0, 0.8), 0 0 24px -10px rgba(245, 197, 66, 0.6);
+}
+.note-toast.in { animation: nt-in 0.6s var(--ease) both; }
+@keyframes nt-in { from { opacity: 0; transform: translate(-50%, 30px) scale(0.96); } }
+.nt-coins { position: relative; width: 44px; height: 44px; flex: none; }
+.nt-coins .note { position: absolute; left: calc(var(--i) * 7px); top: calc(var(--i) * 3px); width: 30px; height: 30px; font-size: 17px; animation: nt-coin 0.9s var(--ease) both; animation-delay: calc(var(--i) * 120ms); }
+@keyframes nt-coin { 0% { opacity: 0; transform: translateY(-40px) rotateY(0); } 60% { opacity: 1; transform: translateY(4px) rotateY(540deg); } 100% { transform: translateY(0) rotateY(720deg); } }
+.nt-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nt-text span { font-size: 0.8rem; color: var(--text-2); }
+.nt-text .src-reward { justify-content: flex-start; }
+.note-toast .fest-close { top: 50%; margin-top: -15px; background: var(--surface-3); color: var(--text); }
+@media (prefers-reduced-motion: reduce) { .rd-vinyl { animation: none; } }

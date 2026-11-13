@@ -1,11 +1,10 @@
-/* Spotlfy – Datenschutzerklärung & Impressum (Deutsch maßgeblich, Englisch als Übersetzung) */
+/* Spotlfy – Datenschutzerklärung (Deutsch maßgeblich, Englisch als Übersetzung) */
 (() => {
   const I = window.SpotlfyI18n;
   const de = I.lang === 'de';
-  const page = location.pathname.startsWith('/impressum') ? 'imprint' : 'privacy';
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const el = document.getElementById('legal');
-  document.querySelectorAll('.legal-nav a').forEach((a) => a.classList.toggle('active', a.getAttribute('href') === `/${page === 'imprint' ? 'impressum' : 'datenschutz'}`));
+  document.querySelectorAll('.legal-nav a').forEach((a) => a.classList.add('active'));
 
   const L = (deText, enText) => (de ? deText : enText);
 
@@ -18,25 +17,6 @@
     }
     return `<address>${esc(c.name)}<br>${c.address.map(esc).join('<br>')}<br>
       ${L('E-Mail', 'Email')}: <a href="mailto:${esc(c.email)}">${esc(c.email)}</a>${c.phone ? `<br>${L('Telefon', 'Phone')}: ${esc(c.phone)}` : ''}</address>`;
-  }
-
-  function imprint(c) {
-    return `
-      <h1>${L('Impressum', 'Legal notice')}</h1>
-      <h2>${L('Angaben gemäß § 5 DDG', 'Information pursuant to § 5 DDG (German Digital Services Act)')}</h2>
-      ${operator(c)}
-      <h2>${L('Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV', 'Responsible for content pursuant to § 18 (2) MStV')}</h2>
-      <p>${c.configured ? esc(c.name) : '–'}</p>
-      <h2>${L('Hinweis', 'Note')}</h2>
-      <p>${L(
-        'Spotlfy ist ein privates, nicht-kommerzielles Projekt und steht in keiner Verbindung zu Spotify AB. Spotify ist eine Marke der Spotify AB. Die Musikdaten stammen über die offizielle Spotify Web API aus deinem eigenen Spotify-Konto.',
-        'Spotlfy is a private, non-commercial project and is not affiliated with Spotify AB. Spotify is a trademark of Spotify AB. Music data comes from your own Spotify account via the official Spotify Web API.',
-      )}</p>
-      <h2>${L('Haftung für Links', 'Liability for links')}</h2>
-      <p>${L(
-        'Für Inhalte externer Seiten, auf die verlinkt wird (z. B. Spotify), sind ausschließlich deren Betreiber verantwortlich.',
-        'The operators of linked external pages (e.g. Spotify) are solely responsible for their content.',
-      )}</p>`;
   }
 
   function privacy(c) {
@@ -127,8 +107,8 @@
     .then((r) => r.json())
     .then((c) => {
       const note = !de ? `<p class="legal-note">${esc(I.t('legal.enNote'))}</p>` : '';
-      el.innerHTML = note + (page === 'imprint' ? imprint(c) : privacy(c));
-      document.title = `${page === 'imprint' ? L('Impressum', 'Legal notice') : L('Datenschutz', 'Privacy')} · Spotlfy`;
+      el.innerHTML = note + privacy(c);
+      document.title = `${L('Datenschutz', 'Privacy')} · Spotlfy`;
     })
     .catch(() => { el.textContent = 'Error'; });
 })();

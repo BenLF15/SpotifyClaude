@@ -28,7 +28,8 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
 - **Meilensteine** (Profil): Hörminuten (500 bis 1 Mio.) und Tagesserien (3 bis 365 Tage) mit Fortschritt und einer kleinen Feier, wenn ein neuer erreicht wird.
 - **Als Playlist speichern** (Top-Listen): Die meistgehörten 10–100 Songs eines Zeitraums als private Playlist direkt in Spotify.
 - **Aktuell läuft**: Der gerade gespielte Song mit Fortschritt und wie oft du ihn schon gehört hast.
-- **Datenschutz & Impressum** (`/datenschutz`, `/impressum`): Zustimmung bei der Registrierung, Hinweis für bestehende Konten, Datenexport als JSON im Profil.
+- **Plattensammlung** (Übersicht): Ein Plattenschrank, der anfangs leer ist. Mit verdienten **Musiknoten** (Bronze, Silber, Gold, Platin) kaufst du im **Plattenladen** Schallplatten deiner Lieblingskünstler. Details siehe unten.
+- **Datenschutz** (`/datenschutz`): Zustimmung bei der Registrierung, Hinweis für bestehende Konten, Datenexport als JSON im Profil.
 - **Backup** (Admin): Komplette Datenbank als `.json.gz` herunterladen und wiederherstellen (ergänzt nur fehlende Daten, überschreibt nichts).
 - **Eigene Konten**: Jeder registriert sich mit Benutzername und Passwort, verbindet danach sein Spotify-Konto und sieht nur die eigenen Werte.
 - **Admin-Tab „Admin“**: Wer Admin ist, sieht oben „Meine Statistik | Admin“. Dort gibt es:
@@ -195,7 +196,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | `CRON_SECRET` | – | Aktiviert `/cron/run?key=…` für externe Trigger |
 | `ENRICH_LIMIT` | – | Tracks bzw. Künstler, die pro Lauf angereichert werden (Standard 150) |
 | `MIN_PLAY_MS` | – | Mindestdauer für importierte Plays (Standard 30000) |
-| `OPERATOR_NAME` | für öffentliche Nutzung | Name des Betreibers (Impressum & Datenschutz) |
+| `OPERATOR_NAME` | für öffentliche Nutzung | Name des Verantwortlichen (Datenschutzerklärung) |
 | `OPERATOR_ADDRESS` | für öffentliche Nutzung | Ladungsfähige Anschrift, Zeilen mit `|` trennen, z. B. `Musterstraße 1 \| 12345 Musterstadt` |
 | `OPERATOR_EMAIL` | für öffentliche Nutzung | Kontakt-E-Mail |
 | `OPERATOR_PHONE` | – | Telefon (optional) |
@@ -206,9 +207,44 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 
 „Aktuell läuft“ und „Als Playlist speichern“ brauchen zwei zusätzliche Spotify-Berechtigungen (`user-read-currently-playing`, `playlist-modify-private`). Bestehende Nutzer sehen dafür einen Hinweis und verbinden Spotify einmal neu. Die Hördaten bleiben dabei erhalten. Im Development Mode muss der Besitzer der Spotify-App Premium haben, damit Playlists angelegt werden können.
 
-## Impressum & Datenschutz
+## Plattensammlung & Musiknoten
 
-Die Seiten `/impressum` und `/datenschutz` sind ohne Login erreichbar und auf der Login-Seite, in der App-Fußzeile und im Profil verlinkt. Trage in Render `OPERATOR_NAME`, `OPERATOR_ADDRESS` und `OPERATOR_EMAIL` ein, sonst zeigen beide Seiten einen Warnhinweis (der Admin-Tab zeigt den Status ebenfalls). Die Texte sind eine sorgfältige Vorlage für ein privates, nicht-kommerzielles Projekt, aber **keine Rechtsberatung**. Prüfe sie, bevor du Spotlfy öffentlich anbietest.
+**Plattenschrank**: In der Übersicht steht dein Plattenschrank, anfangs leer. Ein Klick auf eine Platte zeigt Hülle und drehende Schallplatte.
+
+**Plattenladen**: Jede Woche (ab Montag) gibt es 8 Schallplatten von Alben deiner 25 meistgehörten Künstler. Jede Platte hat eine feste Kalenderwoche und kehrt deshalb **jedes Jahr in derselben Woche** zurück. Seltenheiten:
+
+| Seltenheit | Ausführung | Preis |
+|---|---|---|
+| Gewöhnlich | Schwarzes Vinyl | 2–4 Bronze |
+| Selten | Farbiges Vinyl | 1–2 Silber |
+| Episch | Limitierte Picture Disc | 1–2 Gold |
+| Legendär | Signierte Erstpressung | 1 Platin |
+
+Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen.
+
+**Musiknoten verdienen**:
+
+| Kategorie | Belohnung |
+|---|---|
+| Startguthaben (erstes Öffnen) | 5 Bronze, 2 Silber, 1 Gold |
+| Spotify verbunden / Geburtstag eingetragen / History importiert | 3 Bronze / 1 Silber / 1 Gold |
+| Hörminuten 500 … 1 Mio. | 2 Bronze … 5 Platin |
+| Tagesserie 3 … 365 Tage | 2 Bronze … 3 Platin |
+| Vielfalt: 25 / 100 / 250 / 500 Künstler | 1 Silber / 1 Gold / 2 Gold / 1 Platin |
+| Freunde: erster / 5 | 1 Silber / 1 Gold |
+| Playlists: erste / 5 | 1 Silber / 1 Gold |
+| Sammler: 1 / 10 / 25 / 50 Platten, erste legendäre | 2 Bronze / 1 Silber / 1 Gold / 1 Platin, 1 Gold |
+| Täglicher Besuch | 1 Bronze pro Tag |
+| Wochenhörer (120 Min. in einer Kalenderwoche) | 2 Bronze pro Woche |
+| Entdecker des Monats (5 neue Künstler) | 1 Silber pro Monat |
+| Geburtstagsgeschenk | 1 Gold pro Jahr |
+| Jahresrückblick bis zum Ende angesehen | 1 Silber pro Jahr |
+
+Bereits erreichte Meilensteine werden beim ersten Öffnen nachträglich gutgeschrieben; wöchentliche und monatliche Belohnungen zählen ab dann. Alle Buchungen stehen im Noten-Verlauf.
+
+## Datenschutz
+
+Die Seite `/datenschutz` ist ohne Login erreichbar und auf der Login-Seite und in der App-Fußzeile verlinkt. Trage in Render `OPERATOR_NAME`, `OPERATOR_ADDRESS` und `OPERATOR_EMAIL` ein (Abschnitt „Verantwortlicher“), sonst zeigt die Seite einen Warnhinweis. Der Text ist eine sorgfältige Vorlage für ein privates, nicht-kommerzielles Projekt, aber **keine Rechtsberatung**.
 
 ## Backups
 
@@ -242,6 +278,7 @@ Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an.
 | `src/importer.js` | Parser für `Streaming_History_Audio_*.json` |
 | `src/stats.js` | SQL-Auswertungen |
 | `src/features.js` | Rückblick, Suche & Details, Meilensteine, Freunde, Playlist, Aktuell läuft, Datenexport |
+| `src/records.js` | Plattensammlung: Musiknoten, Belohnungen, wöchentlicher Laden, Kauf & Tausch |
 | `src/backup.js` | Backup (gestreamt, gzip) und Wiederherstellung |
 | `src/schema.sql` | Idempotentes Schema |
 | `public/` | Frontend (Vanilla JS + Chart.js, ohne Build-Schritt) |
@@ -252,5 +289,5 @@ Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an.
 - **Genres (eigene Einordnung)**: Spotlfy übernimmt keine Genres von Spotify. Für jeden Künstler holt die App im Hintergrund die offenen Genre-Tags von [MusicBrainz](https://musicbrainz.org) (ohne API-Key, max. 1 Anfrage/s, ca. 20 Künstler pro Minute) und ordnet sie selbst einer festen Liste von Hauptgenres zu: Pop, Hip-Hop & Rap, Rock, Electronic & Dance, R&B & Soul, Indie & Alternative, Jazz, Klassik, Country & Folk, Metal, Latin, Reggae & Dancehall, Blues, Schlager & Volksmusik, Soundtrack. Jeder Song zählt für das Hauptgenre seines Hauptkünstlers. Die Regeln stehen in `src/genres.js`.
 - **Snapshots** entstehen beim ersten Sync eines Tages in `TIMEZONE`. Der Rangverlauf wird also nach einigen Tagen interessant.
 - **Sicherheit**:
-  - Alles außer `/login`, `/impressum`, `/datenschutz`, `/healthz` und dem optionalen `/cron/run` erfordert eine Anmeldung. Jeder Nutzer sieht nur die eigenen Daten (Freunde nur zusammengefasste Werte nach gegenseitiger Bestätigung), `/api/admin/*` nur Admins.
+  - Alles außer `/login`, `/datenschutz`, `/healthz` und dem optionalen `/cron/run` erfordert eine Anmeldung. Jeder Nutzer sieht nur die eigenen Daten (Freunde nur zusammengefasste Werte nach gegenseitiger Bestätigung), `/api/admin/*` nur Admins.
   - Eine strenge Content-Security-Policy verhindert externe Skripte.

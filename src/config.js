@@ -51,7 +51,7 @@ export const config = {
   syncIntervalMinutes: Math.max(5, int('SYNC_INTERVAL_MINUTES', 30)),
   keepAliveUrl: bool('KEEP_ALIVE', Boolean(externalUrl)) && externalUrl ? `${externalUrl}/healthz` : null,
   cronSecret: env('CRON_SECRET'),
-  // Impressum/Datenschutz: Angaben des Betreibers (nur über Umgebungsvariablen, nie im Code)
+  // Datenschutz: Angaben des Verantwortlichen (nur über Umgebungsvariablen, nie im Code)
   legal: {
     name: env('OPERATOR_NAME'),
     address: env('OPERATOR_ADDRESS'), // Zeilen mit „|“ oder „\n“ trennen

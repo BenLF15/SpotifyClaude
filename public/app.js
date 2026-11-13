@@ -29,7 +29,7 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* egal */ } },
   };
 
-  const PANELS = ['overview', 'top', 'times', 'genres', 'trends', 'history', 'wrapped', 'friends', 'admin', 'profile'];
+  const PANELS = ['overview', 'top', 'times', 'genres', 'trends', 'history', 'wrapped', 'friends', 'records', 'admin', 'profile'];
   const RANGE_PANELS = new Set(['overview', 'top', 'times', 'genres']);
 
   const state = {
@@ -504,6 +504,7 @@
     if (panel === 'history') { if (history.days.length) renderHistory(); else loadHistory(true); return; }
     if (panel === 'wrapped') { if (wr.data) renderWrapped(); else loadWrapped(); return; }
     if (panel === 'friends') { if (fr.data) renderFriends(); loadFriends(); return; }
+    if (panel === 'records') { renderRecords(); return; }
     if (!d) return;
     if (panel === 'overview') {
       renderKpis(d.overview, d.timeline.daily);
@@ -1542,7 +1543,7 @@
     state.trends = null;
     state.ranking = null;
     history.days = [];
-    const jobs = [loadDashboard(), loadFriends()];
+    const jobs = [loadDashboard(), loadFriends(), loadRecords()];
     if (state.panel === 'history') jobs.push(loadHistory(true));
     if (state.panel === 'trends') jobs.push(loadTrends(), loadRanking());
     await Promise.all(jobs);
@@ -2373,7 +2374,13 @@
     $$('#story .st-bars-top i').forEach((b, k) => { b.style.width = k < story.i ? '100%' : '0%'; });
     const slide = $(`#story .st-slide[data-i="${story.i}"]`);
     $$('.st-num', slide).forEach((el) => { el.dataset.value = 0; countUp(el, Number(el.dataset.count)); });
-    if (story.slides[story.i].outro) setTimeout(() => confetti($('.st-fx', slide), 50), 300);
+    if (story.slides[story.i].outro) {
+      setTimeout(() => confetti($('.st-fx', slide), 50), 300);
+      // Rückblick bis zum Ende angesehen → Musiknoten (einmal pro Jahr)
+      postJSON('/api/records/event', { type: 'wrapped', year: wr.data.year })
+        .then((r) => { if (r.fresh?.length) { rec.data && (rec.data.balance = r.balance); setTimeout(() => showNoteToast(r.fresh), 1500); } })
+        .catch(() => {});
+    }
     cancelAnimationFrame(story.raf);
     story.raf = requestAnimationFrame(storyTick);
   }
@@ -2621,7 +2628,7 @@
       el.innerHTML = `<span class="status-dot ${old ? 'bad' : 'ok'}"></span>${esc(b.last ? t('backup.last', { d: dateTimeFmt.format(new Date(b.last)), r: relTime(b.last) }) : t('backup.never'))}${old ? ` · ${esc(t('backup.recommend'))}` : ''}`;
       const sys = $('#admin-system');
       if (sys && !$('[data-legal-row]', sys)) {
-        sys.insertAdjacentHTML('beforeend', `<dt data-legal-row>${esc(t('legal.imprint'))}</dt><dd>${legal.configured
+        sys.insertAdjacentHTML('beforeend', `<dt data-legal-row>${esc(t('legal.operator'))}</dt><dd>${legal.configured
           ? `<span class="status-dot ok"></span>${esc(t('legal.ok'))}` : `<span class="status-dot bad"></span>${esc(t('legal.missing'))}`}</dd>`);
       }
     } catch { /* egal */ }
@@ -2648,6 +2655,314 @@
   function bindBackup() {
     $('#restore-file').addEventListener('change', (e) => { restoreFromFile(e.target.files[0]); e.target.value = ''; });
     $('#backup-download').addEventListener('click', () => setTimeout(loadBackupInfo, 4000));
+  }
+
+  // ================================================================ Plattensammlung & Musiknoten
+  const TIERS = ['bronze', 'silver', 'gold', 'platinum'];
+  const RARITIES = ['common', 'rare', 'epic', 'legendary'];
+  const rec = { data: null, tab: 'collection', filter: 'all', busy: false };
+  const noteIcon = (tier, cls = '') => `<span class="note n-${tier} ${cls}" aria-hidden="true">♪</span>`;
+  const rewardChips = (r) => TIERS.filter((tr) => r[tr]).map((tr) =>
+    `<span class="note-chip" title="${esc(t(`note.${tr}`))}">${noteIcon(tr)}<b>${r[tr] > 0 ? '+' : ''}${fmt(r[tr])}</b></span>`).join('');
+  const balanceHTML = (b, big = false) => `<div class="note-balance${big ? ' big' : ''}">${TIERS.map((tr) =>
+    `<span class="nb" title="${esc(t(`note.${tr}`))}">${noteIcon(tr)}<b data-note="${tr}">${fmt(b[tr])}</b>${big ? `<small>${esc(t(`note.${tr}`))}</small>` : ''}</span>`).join('')}</div>`;
+  const rarityBadge = (r) => `<span class="rarity-badge r-${r}">${esc(t(`rec.r.${r}`))}</span>`;
+  const realAlbum = (id) => /^[0-9A-Za-z]{22}$/.test(id || '');
+
+  async function loadRecords({ silent = true } = {}) {
+    if (!state.spotify) return;
+    try {
+      rec.data = await api('/api/records');
+      renderRecordsCard();
+      if (state.panel === 'records') renderRecords();
+      if (rec.data.fresh?.length) showNoteToast(rec.data.fresh);
+    } catch (err) {
+      if (!silent) toast(errMsg(err), true);
+    }
+  }
+
+  // Schallplatte: Hülle mit herausschauender Platte (Farbe je Seltenheit)
+  function recordArt(r, { size = '' } = {}) {
+    return `<span class="rec ${size} r-${r.rarity}" style="--hue:${r.hue ?? 0}">
+      <span class="rec-disc"><span class="rec-label">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}</span></span>
+      <span class="rec-sleeve">${imgOrPlaceholder(r.image, r.album)}${r.rarity === 'legendary' ? '<span class="rec-sign" aria-hidden="true"></span>' : ''}</span>
+    </span>`;
+  }
+
+  function cabinetHTML(records, { rows = 3, mini = false } = {}) {
+    const empty = !records.length;
+    return `<div class="cabinet${mini ? ' mini' : ''}${empty ? ' empty' : ''}" style="--rows:${rows}">
+      <div class="cabinet-inner">
+        ${records.map((r, i) => `<button type="button" class="cab-item" data-record="${esc(r.id)}" style="--i:${i}" title="${esc(`${r.album} · ${r.artist}`)}">${recordArt(r)}</button>`).join('')}
+      </div>
+      ${empty ? `<div class="cabinet-empty"><span aria-hidden="true">🪹</span><b>${esc(t('rec.emptyTitle'))}</b><small>${esc(t('rec.emptyText'))}</small></div>` : ''}
+    </div>`;
+  }
+
+  function renderRecordsCard() {
+    const d = rec.data;
+    const card = $('#records-card');
+    if (!d) { card.hidden = true; return; }
+    card.hidden = false;
+    const n = d.collection.length;
+    $('#records-sub').textContent = n ? t('rec.count', { n: fmt(n) }) : t('rec.subEmpty');
+    $('#note-balance-mini').innerHTML = balanceHTML(d.balance);
+    $('#cabinet-mini').innerHTML = cabinetHTML(d.collection.slice(0, 16), { rows: 2, mini: true });
+  }
+
+  function collectionStats(list) {
+    const by = Object.fromEntries(RARITIES.map((r) => [r, list.filter((x) => x.rarity === r).length]));
+    return RARITIES.filter((r) => by[r]).map((r) => `${rarityBadge(r)} <b>${fmt(by[r])}</b>`).join(' ');
+  }
+
+  function countdown(day) {
+    const ms = new Date(`${day}T00:00:00`) - Date.now();
+    const d = Math.max(0, Math.floor(ms / 864e5));
+    const h = Math.max(0, Math.floor((ms % 864e5) / 36e5));
+    return t('rec.resetIn', { d, h });
+  }
+
+  function renderRecords() {
+    const d = rec.data;
+    const el = $('#records');
+    if (!d) {
+      el.innerHTML = skCard(`${skBlock(30, 'w40')}${skBlock(40, 'w60')}`) + skCard(skBlock(300));
+      loadRecords({ silent: false });
+      return;
+    }
+    const tabs = ['collection', 'shop', 'earn'].map((k) =>
+      `<button type="button" class="chip-btn" data-rec-tab="${k}" aria-pressed="${rec.tab === k}">${esc(t(`rec.tab.${k}`))}</button>`).join('');
+    let body = '';
+    if (rec.tab === 'collection') {
+      const list = rec.filter === 'all' ? d.collection : d.collection.filter((r) => r.rarity === rec.filter);
+      body = `<section class="card">
+        <header class="card-head"><div><h2>${esc(t('rec.cabinet'))}</h2><p class="muted small rec-stats">${d.collection.length ? collectionStats(d.collection) : esc(t('rec.subEmpty'))}</p></div>
+          <div class="chips">${['all', ...RARITIES].map((r) => `<button type="button" class="chip-btn" data-rec-filter="${r}" aria-pressed="${rec.filter === r}">${esc(r === 'all' ? t('rec.all') : t(`rec.r.${r}`))}</button>`).join('')}</div></header>
+        ${cabinetHTML(list, { rows: Math.max(3, Math.ceil(list.length / 6)) })}
+        ${d.collection.length ? '' : `<div class="rec-cta"><button type="button" class="btn btn-primary" data-rec-tab="shop">🛍️ ${esc(t('rec.toShop'))}</button></div>`}
+      </section>`;
+    } else if (rec.tab === 'shop') {
+      const b = d.balance;
+      const items = d.shop.map((it) => {
+        const lack = Math.max(0, it.price.amount - b[it.price.tier]);
+        const btn = it.owned
+          ? `<span class="si-owned">✓ ${esc(t('rec.owned'))}</span>`
+          : `<button type="button" class="btn ${lack ? 'btn-ghost' : 'btn-primary'} btn-xs si-buy" data-buy="${esc(it.id)}" ${lack || rec.busy ? 'disabled' : ''}>
+              ${noteIcon(it.price.tier)} ${fmt(it.price.amount)} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${it.price.tier}`) }) : t('rec.buy'))}</button>`;
+        return `<article class="shop-item r-${it.rarity}${it.owned ? ' owned' : ''}">
+          <button type="button" class="si-art" data-preview="${esc(it.id)}" aria-label="${esc(it.album)}">${recordArt(it, { size: 'lg' })}</button>
+          ${rarityBadge(it.rarity)}
+          <div class="si-text"><b title="${esc(it.album)}">${esc(it.album)}</b><small>${esc(it.artist)}</small><small class="si-variant">${esc(t(`rec.v.${it.rarity}`))}</small></div>
+          ${btn}
+        </article>`;
+      }).join('');
+      const ex = TIERS.slice(0, 3).map((tr, i) => {
+        const to = TIERS[i + 1];
+        return `<button type="button" class="ex-btn" data-exchange="${tr}" ${b[tr] < d.exchangeRate ? 'disabled' : ''}>
+          ${noteIcon(tr)}<b>${d.exchangeRate}</b> → ${noteIcon(to)}<b>1</b></button>`;
+      }).join('');
+      body = `<section class="card shop-card">
+          <header class="card-head"><div><h2>🛍️ ${esc(t('rec.shopTitle', { w: d.week.week }))}</h2>
+            <p class="muted small">${esc(countdown(d.week.resetsOn))} · ${esc(t('rec.yearly'))}</p></div></header>
+          ${d.shop.length ? `<div class="shop-grid">${items}</div>` : `<p class="empty">${esc(t('rec.shopEmpty'))}</p>`}
+        </section>
+        <section class="card"><header class="card-head"><div><h2>${esc(t('rec.exchangeTitle'))}</h2><p class="muted small">${esc(t('rec.exchangeSub', { n: d.exchangeRate }))}</p></div></header>
+          <div class="ex-row">${ex}</div></section>
+        <section class="card"><header class="card-head"><h2>${esc(t('rec.rarityTitle'))}</h2></header>
+          <ul class="rarity-legend">${RARITIES.map((r) => `<li>${rarityBadge(r)}<span>${esc(t(`rec.v.${r}`))}</span><small>${esc(t(`rec.price.${r}`))}</small></li>`).join('')}</ul></section>`;
+    } else {
+      const groups = ['start', 'social', 'minutes', 'streak', 'variety', 'collector', 'recurring'];
+      const srcTitle = (s) => {
+        const n = s.key.split('-')[1];
+        if (s.key.startsWith('min-')) return t('ms.minutesName', { n: fmt(Number(n)) });
+        if (s.key.startsWith('streak-')) return t('ms.streakName', { n: fmt(Number(n)) });
+        if (s.key.startsWith('artists-')) return t('src.artists', { n: fmt(Number(n)) });
+        if (s.key.startsWith('coll-')) return Number(n) === 1 ? t('src.coll1') : t('src.coll', { n: fmt(Number(n)) });
+        return t(`src.${s.key}`);
+      };
+      const srcDesc = (s) => {
+        if (s.key === 'week') return t('src.week.d', { n: s.goal });
+        if (s.key === 'discover') return t('src.discover.d', { n: s.goal });
+        if (s.key === 'bday') return s.birthday ? t('src.bday.d') : t('src.bday.none');
+        return I.D[`src.${s.key}.d`] ? t(`src.${s.key}.d`) : '';
+      };
+      const row = (s) => {
+        const prog = s.goal && !s.done ? `<span class="src-bar"><span style="width:${Math.round((s.cur / s.goal) * 100)}%"></span></span><small class="src-prog">${fmt(s.cur)} / ${fmt(s.goal)}</small>` : '';
+        const status = s.done
+          ? `<span class="src-done" title="${s.at ? esc(dateFmtYear.format(new Date(s.at))) : ''}">✓</span>`
+          : '<span class="src-open" aria-hidden="true">○</span>';
+        return `<li class="src-row${s.done ? ' done' : ''}">${status}
+          <div class="src-main"><b>${esc(srcTitle(s))}</b>${srcDesc(s) ? `<small>${esc(srcDesc(s))}</small>` : ''}${prog}</div>
+          <span class="src-reward">${rewardChips(s.reward)}</span></li>`;
+      };
+      const ledgerTitle = (l) => {
+        if (!l.key) return t('led.exchange');
+        if (l.key.startsWith('buy:')) {
+          const r = d.collection.find((x) => x.id === l.key.slice(4));
+          return r ? t('led.buy', { a: r.album }) : t('led.buyShort');
+        }
+        const base = l.key.split(':')[0];
+        if (l.key.includes(':')) return t(`src.${base}`);
+        return srcTitle({ key: l.key });
+      };
+      body = `<div class="earn-grid">${groups.map((g) => {
+          const list = d.sources.filter((s) => s.group === g);
+          const done = list.filter((s) => s.done).length;
+          return `<section class="card"><header class="card-head"><div><h2>${esc(t(`rec.group.${g}`))}</h2>
+            <p class="muted small">${g === 'recurring' ? esc(t('rec.recurringSub')) : esc(t('rec.doneOf', { n: done, m: list.length }))}</p></div></header>
+            <ul class="src-list">${list.map(row).join('')}</ul></section>`;
+        }).join('')}</div>
+        <section class="card"><header class="card-head"><h2>${esc(t('rec.ledger'))}</h2></header>
+          <ul class="ledger">${d.ledger.map((l) => `<li><span>${esc(ledgerTitle(l))}</span><small>${esc(relTime(l.created_at))}</small>
+            <span class="src-reward">${rewardChips(l)}</span></li>`).join('') || `<li class="empty">–</li>`}</ul></section>`;
+    }
+    el.innerHTML = `
+      <section class="card rec-head">
+        <button type="button" class="link-btn rec-back" data-goto="overview">← ${esc(t('nav.overview'))}</button>
+        <div class="rec-head-main">
+          <div><h2>💿 ${esc(t('rec.title'))}</h2><p class="muted small">${esc(d.collection.length ? t('rec.count', { n: fmt(d.collection.length) }) : t('rec.subEmpty'))}</p></div>
+          ${balanceHTML(d.balance, true)}
+        </div>
+        <div class="chips rec-tabs">${tabs}</div>
+      </section>
+      ${body}`;
+    decoratePanel('records');
+  }
+
+  function openRecordsTab(tab) {
+    rec.tab = tab;
+    if (state.panel !== 'records') showPanel('records');
+    else renderRecords();
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
+
+  // Detail einer Platte: rotierende Schallplatte neben der Hülle
+  function openRecord(r, { owned = true, isNew = false } = {}) {
+    const dlg = $('#record-dialog');
+    const variant = t(`rec.v.${r.rarity}`);
+    const lack = !owned && rec.data ? Math.max(0, r.price.amount - rec.data.balance[r.price.tier]) : 0;
+    $('#record-body').innerHTML = `${CLOSE_BTN()}
+      <div class="rd-stage r-${r.rarity}${isNew ? ' is-new' : ''}">
+        <div class="rd-fx"></div>
+        ${isNew ? `<p class="rd-new">✨ ${esc(t('rec.newIn'))}</p>` : ''}
+        <div class="rd-player">
+          <div class="rd-sleeve">${imgOrPlaceholder(r.image, r.album)}${r.rarity === 'legendary' ? '<span class="rec-sign" aria-hidden="true"></span>' : ''}</div>
+          <div class="rd-vinyl r-${r.rarity}" style="--hue:${r.hue ?? 0}">
+            ${r.rarity === 'epic' && r.image ? `<img class="rd-picture" src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" />` : ''}
+            <span class="rd-label">${r.image ? `<img src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" />` : ''}</span>
+          </div>
+        </div>
+      </div>
+      <div class="rd-info">
+        ${rarityBadge(r.rarity)} <span class="muted small">${esc(variant)}</span>
+        <h2 id="record-title">${esc(r.album)}</h2>
+        <p class="rd-artist"><button type="button" class="link-btn inline" data-detail-artist="${esc(r.artist)}">${esc(r.artist)}</button></p>
+        <dl class="sys-list">
+          ${owned && r.acquired_at ? `<dt>${esc(t('rec.acquired'))}</dt><dd>${esc(dateFmtYear.format(new Date(r.acquired_at)))}</dd>` : ''}
+          <dt>${esc(t('rec.price'))}</dt><dd>${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}</dd>
+          <dt>${esc(t('rec.returns'))}</dt><dd>${esc(t('rec.returnsWeek', { w: r.week }))}</dd>
+        </dl>
+        <div class="profile-actions">
+          ${!owned ? `<button type="button" class="btn btn-primary" data-buy="${esc(r.id)}" ${lack ? 'disabled' : ''}>${noteIcon(r.price.tier)} ${fmt(r.price.amount)} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${r.price.tier}`) }) : t('rec.buy'))}</button>` : ''}
+          ${realAlbum(r.album_id) ? `<a class="btn btn-ghost" href="https://open.spotify.com/album/${esc(r.album_id)}" target="_blank" rel="noopener">${LINK_ICON}<span>${esc(t('rec.listen'))}</span></a>` : ''}
+        </div>
+      </div>`;
+    if (!dlg.open) dlg.showModal();
+    if (isNew) setTimeout(() => confetti($('.rd-fx', dlg), r.rarity === 'legendary' ? 70 : 40), 250);
+  }
+
+  async function buyRecord(id) {
+    const d = rec.data;
+    const it = d?.shop.find((x) => x.id === id);
+    if (!it || rec.busy) return;
+    if (['epic', 'legendary'].includes(it.rarity) && !confirm(t('rec.confirmBuy', { a: it.album, n: it.price.amount, tier: t(`note.${it.price.tier}`) }))) return;
+    rec.busy = true;
+    try {
+      const r = await postJSON('/api/records/buy', { id });
+      d.balance = r.balance;
+      it.owned = true;
+      const owned = { ...r.record, acquired_at: new Date().toISOString() };
+      d.collection.unshift(owned);
+      rec.busy = false;
+      renderRecordsCard();
+      if (state.panel === 'records') renderRecords();
+      openRecord(owned, { isNew: true });
+      if (r.fresh?.length) setTimeout(() => showNoteToast(r.fresh), 1200);
+      loadRecords(); // Quellen & Verlauf aktualisieren
+    } catch (err) {
+      rec.busy = false;
+      toast(errMsg(err), true);
+      loadRecords();
+    }
+  }
+
+  async function exchangeNotes(from) {
+    try {
+      const r = await postJSON('/api/records/exchange', { from });
+      rec.data.balance = r.balance;
+      renderRecords();
+      renderRecordsCard();
+      const i = TIERS.indexOf(from);
+      toast(t('rec.exchanged', { a: rec.data.exchangeRate, from: t(`note.${from}`), to: t(`note.${TIERS[i + 1]}`) }));
+      loadRecords();
+    } catch (err) {
+      toast(errMsg(err), true);
+    }
+  }
+
+  // Kleine Einblendung für neu verdiente Noten (nicht blockierend)
+  let noteToastTimer;
+  function showNoteToast(fresh) {
+    const sum = { bronze: 0, silver: 0, gold: 0, platinum: 0 };
+    for (const f of fresh) for (const tr of TIERS) sum[tr] += f[tr];
+    if (!TIERS.some((tr) => sum[tr] > 0)) return;
+    const el = $('#note-toast');
+    const label = (k) => {
+      const base = k.split(':')[0];
+      const n = k.split('-')[1];
+      if (k.startsWith('min-')) return t('ms.minutesName', { n: fmt(Number(n)) });
+      if (k.startsWith('streak-')) return t('ms.streakName', { n: fmt(Number(n)) });
+      if (k.startsWith('artists-')) return t('src.artists', { n: fmt(Number(n)) });
+      if (k.startsWith('coll-')) return Number(n) === 1 ? t('src.coll1') : t('src.coll', { n: fmt(Number(n)) });
+      return t(`src.${base}`);
+    };
+    el.innerHTML = `<div class="nt-coins" aria-hidden="true">${TIERS.filter((tr) => sum[tr]).map((tr, i) => noteIcon(tr, 'fly').replace('class="note', `style="--i:${i}" class="note`)).join('')}</div>
+      <div class="nt-text"><b>${esc(t('rec.earned'))}</b><span>${esc(fresh.length === 1 ? label(fresh[0].key) : t('rec.earnedMany', { n: fresh.length }))}</span>
+      <span class="src-reward">${rewardChips(sum)}</span></div>
+      <button type="button" class="btn btn-ghost btn-xs" data-records-tab="earn">${esc(t('rec.view'))}</button>
+      <button type="button" class="fest-close" data-note-toast-close aria-label="${esc(t('tour.close'))}">✕</button>`;
+    el.hidden = false;
+    el.classList.remove('in');
+    void el.offsetWidth;
+    el.classList.add('in');
+    clearTimeout(noteToastTimer);
+    noteToastTimer = setTimeout(() => { el.hidden = true; }, 9000);
+  }
+
+  function bindRecords() {
+    document.addEventListener('click', (e) => {
+      const tb = e.target.closest('[data-records-tab]');
+      if (tb) { $('#note-toast').hidden = true; openRecordsTab(tb.dataset.recordsTab); return; }
+      const rt = e.target.closest('[data-rec-tab]');
+      if (rt) { rec.tab = rt.dataset.recTab; renderRecords(); return; }
+      const rf = e.target.closest('[data-rec-filter]');
+      if (rf) { rec.filter = rf.dataset.recFilter; renderRecords(); return; }
+      const rb = e.target.closest('[data-record]');
+      if (rb) { const r = rec.data?.collection.find((x) => x.id === rb.dataset.record); if (r) openRecord(r); return; }
+      const pv = e.target.closest('[data-preview]');
+      if (pv) {
+        const it = rec.data?.shop.find((x) => x.id === pv.dataset.preview);
+        if (it) openRecord(rec.data.collection.find((x) => x.id === it.id) || it, { owned: it.owned });
+        return;
+      }
+      const by = e.target.closest('[data-buy]');
+      if (by) { $('#record-dialog').close(); buyRecord(by.dataset.buy); return; }
+      const ex = e.target.closest('[data-exchange]');
+      if (ex) { exchangeNotes(ex.dataset.exchange); return; }
+      if (e.target.closest('[data-note-toast-close]')) { $('#note-toast').hidden = true; }
+    });
+    const dlg = $('#record-dialog');
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
   }
 
   // ================================================================ Start
@@ -2731,6 +3046,7 @@
     bindStory();
     bindFriends();
     bindBackup();
+    bindRecords();
     $('#playlist-btn').addEventListener('click', openPlaylistDialog);
     $('#privacy-accept').addEventListener('click', acceptPrivacy);
     $('#scope-dismiss').addEventListener('click', () => { store.set('scope-dismiss', String(Date.now() + 7 * 864e5)); renderNotices(); });

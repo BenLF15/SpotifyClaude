@@ -11,6 +11,7 @@ import * as users from './users.js';
 import * as stats from './stats.js';
 import * as features from './features.js';
 import { lastBackup, restoreBackup, streamBackup } from './backup.js';
+import * as records from './records.js';
 import { startScheduler, syncAllDue, triggerSync } from './scheduler.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -165,8 +166,8 @@ app.get('/cron/run', async (req, res) => {
   }
 });
 
-// Impressum & Datenschutz: öffentlich erreichbar (auch ohne Login)
-app.get(['/impressum', '/datenschutz'], (_req, res) => {
+// Datenschutz: öffentlich erreichbar (auch ohne Login)
+app.get('/datenschutz', (_req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(publicDir, 'legal.html'));
 });
@@ -584,6 +585,24 @@ api.post(
     const days = stats.RANGE_DAYS[req.body?.range] ?? 30;
     res.json(await features.createPlaylist(req.account, { days, size: req.body?.size, name: req.body?.name, description: req.body?.description }));
   }),
+);
+
+// ---------------------------------------------------------------- Plattensammlung
+api.get('/records', wrap(async (req, res) => res.json(await records.overviewFor(req.account))));
+api.post(
+  '/records/buy',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => res.json(await records.buy(req.account, req.body?.id))),
+);
+api.post(
+  '/records/exchange',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => res.json(await records.exchange(req.account, req.body?.from))),
+);
+api.post(
+  '/records/event',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => res.json(await records.event(req.account, req.body || {}))),
 );
 
 api.post(

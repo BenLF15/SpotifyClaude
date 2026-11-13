@@ -214,3 +214,35 @@ CREATE INDEX IF NOT EXISTS created_playlists_account_idx ON created_playlists (a
 
 -- Suche im Verlauf (Künstler-/Songnamen)
 CREATE INDEX IF NOT EXISTS tracks_name_lower_idx ON tracks (lower(name));
+
+-- ---------------------------------------------------------------- Plattensammlung & Musiknoten
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS notes_started_at timestamptz;
+-- Noten-Konto: positive Zeilen = verdient, negative = ausgegeben/getauscht.
+-- Einmalige Belohnungen haben einen eindeutigen Schlüssel (z. B. 'starter', 'streak-7', 'week:2026-W46').
+CREATE TABLE IF NOT EXISTS note_ledger (
+  id          bigserial PRIMARY KEY,
+  account_id  bigint NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  key         text,
+  bronze      integer NOT NULL DEFAULT 0,
+  silver      integer NOT NULL DEFAULT 0,
+  gold        integer NOT NULL DEFAULT 0,
+  platinum    integer NOT NULL DEFAULT 0,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS note_ledger_key_uq ON note_ledger (account_id, key) WHERE key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS note_ledger_account_idx ON note_ledger (account_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS record_collection (
+  account_id   bigint NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  record_id    text NOT NULL,
+  rarity       text NOT NULL CHECK (rarity IN ('common', 'rare', 'epic', 'legendary')),
+  artist       text NOT NULL,
+  album        text NOT NULL,
+  album_id     text,
+  image        text,
+  hue          integer,
+  week         integer,
+  price        jsonb,
+  acquired_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_id, record_id)
+);

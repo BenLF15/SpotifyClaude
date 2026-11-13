@@ -629,7 +629,7 @@ export async function exportData(accountId) {
   const a = acc[0];
   if (!a) throw new UserError('Konto nicht gefunden.', 404, 'accountNotFound');
   const sid = a.spotify_user_id;
-  const [sp, plays, snaps, friends, playlists, logins] = await Promise.all([
+  const [sp, plays, snaps, friends, playlists, logins, notes, records] = await Promise.all([
     sid
       ? query('SELECT id, display_name, email, country, product, avatar_url, scope, created_at, last_login_at FROM users WHERE id = $1', [sid])
       : { rows: [] },
@@ -650,6 +650,8 @@ export async function exportData(accountId) {
     listFriends(accountId),
     query('SELECT spotify_playlist_id, name, url, track_count, created_at FROM created_playlists WHERE account_id = $1', [accountId]),
     query('SELECT at, user_agent FROM login_events WHERE account_id = $1 ORDER BY at DESC', [accountId]),
+    query('SELECT key, bronze, silver, gold, platinum, created_at FROM note_ledger WHERE account_id = $1 ORDER BY id', [accountId]),
+    query('SELECT record_id, rarity, artist, album, acquired_at FROM record_collection WHERE account_id = $1 ORDER BY acquired_at', [accountId]),
   ]);
   delete a.spotify_user_id;
   return {
@@ -664,6 +666,8 @@ export async function exportData(accountId) {
     },
     created_playlists: playlists.rows,
     logins: logins.rows,
+    music_notes: notes.rows,
+    record_collection: records.rows,
     top_snapshots: snaps.rows,
     plays: plays.rows,
   };

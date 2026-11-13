@@ -16,11 +16,11 @@
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
   <title>Spotlfy</title>
-  <script src="/assets/theme.js?v=20261113a"></script>
-  <script src="/assets/i18n.js?v=20261113a"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20261113a" />
+  <script src="/assets/theme.js?v=20261113b"></script>
+  <script src="/assets/i18n.js?v=20261113b"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261113b" />
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261113a" defer></script>
+  <script src="/app.js?v=20261113b" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
@@ -125,6 +125,20 @@
         </div>
 
         <div class="insights" id="insights"></div>
+
+        <!-- Plattensammlung -->
+        <section class="card records-card" id="records-card" hidden>
+          <header class="card-head">
+            <div><h2 data-i18n="rec.title" data-fest-title></h2><p class="muted small" id="records-sub"></p></div>
+            <div id="note-balance-mini"></div>
+          </header>
+          <div id="cabinet-mini"></div>
+          <div class="records-actions">
+            <button type="button" class="btn btn-primary" data-records-tab="shop">🛍️ <span data-i18n="rec.toShop"></span></button>
+            <button type="button" class="btn btn-ghost" data-records-tab="collection" data-i18n="rec.openCollection"></button>
+            <button type="button" class="btn btn-ghost" data-records-tab="earn" data-i18n="rec.tab.earn"></button>
+          </div>
+        </section>
 
         <section class="card">
           <header class="card-head">
@@ -253,6 +267,11 @@
         </section>
         <div class="history" id="history"></div>
         <button class="btn btn-ghost history-more" id="history-more" type="button" hidden data-i18n="history.more"></button>
+      </section>
+
+      <!-- ================================================= Plattensammlung (über die Übersicht erreichbar) -->
+      <section class="panel" data-panel="records" hidden>
+        <div id="records"></div>
       </section>
 
       <!-- ================================================= Rückblick -->
@@ -442,8 +461,6 @@
     </div>
     <footer class="app-footer">
       <a href="/datenschutz" target="_blank" rel="noopener" data-i18n="legal.privacy"></a>
-      <span aria-hidden="true">·</span>
-      <a href="/impressum" target="_blank" rel="noopener" data-i18n="legal.imprint"></a>
     </footer>
   </main>
 
@@ -462,6 +479,10 @@
   <dialog id="milestone-dialog" class="dialog ms-dialog" aria-labelledby="ms-dlg-title">
     <div class="ms-dlg-inner" id="ms-dlg-body"></div>
   </dialog>
+  <dialog id="record-dialog" class="dialog record-dialog" aria-labelledby="record-title">
+    <div class="rd-inner" id="record-body"></div>
+  </dialog>
+  <div class="note-toast" id="note-toast" role="status" aria-live="polite" hidden></div>
   <dialog id="story" class="story" aria-labelledby="story-title">
     <div class="story-inner" id="story-body"></div>
   </dialog>
