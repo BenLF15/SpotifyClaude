@@ -1987,3 +1987,20 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
   .gift-box { display: none; }
   .gift-reveal, .gift-rays { animation: none; opacity: 1; transform: none; }
 }
+
+
+/* ================================================================== Höranstoß im Laden */
+.shop-item.discover { border-style: dashed; border-color: rgba(127, 216, 255, 0.55); }
+.shop-item.discover::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(120% 50% at 50% 0%, rgba(127, 216, 255, 0.16), transparent 70%);
+}
+.disc-badge {
+  position: absolute; z-index: 3; top: 8px; left: 8px; padding: 3px 8px; border-radius: 999px; font-size: 0.62rem; font-weight: 800;
+  letter-spacing: 0.03em; color: #062033; background: linear-gradient(90deg, #7fd8ff, #c6b8ff); box-shadow: 0 3px 10px rgba(127, 216, 255, 0.35);
+  animation: tag-wiggle 4s ease-in-out infinite;
+}
+.si-listen { font-size: 0.75rem; font-weight: 700; color: #7fd8ff; text-decoration: none; margin-top: -2px; }
+.si-listen:hover { text-decoration: underline; }
+.rd-discover { margin: -6px 0 12px; padding: 8px 10px; border-radius: 10px; font-size: 0.82rem; background: rgba(127, 216, 255, 0.1); border: 1px dashed rgba(127, 216, 255, 0.45); }
+@media (prefers-reduced-motion: reduce) { .disc-badge { animation: none; } }

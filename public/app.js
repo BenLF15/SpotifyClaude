@@ -3049,11 +3049,14 @@
           ? `<span class="si-owned">✓ ${esc(t('rec.owned'))}</span>`
           : `<button type="button" class="btn ${lack ? 'btn-ghost' : 'btn-primary'} btn-xs si-buy" data-buy="${esc(it.id)}" ${lack || rec.busy ? 'disabled' : ''}>
               ${d.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(it.price.tier)} ${fmt(it.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${it.price.tier}`) }) : t('rec.buy'))}</button>`;
-        return `<article class="shop-item r-${it.rarity}${it.owned ? ' owned' : ''}${it.kind === 'cd' ? ' is-cd' : ''}">
+        const listen = it.discover && realAlbum(it.album_id)
+          ? `<a class="si-listen" href="https://open.spotify.com/${it.kind === 'cd' ? 'track' : 'album'}/${esc(it.album_id)}" target="_blank" rel="noopener">▶ ${esc(t('rec.preview'))}</a>` : '';
+        return `<article class="shop-item r-${it.rarity}${it.owned ? ' owned' : ''}${it.kind === 'cd' ? ' is-cd' : ''}${it.discover ? ' discover' : ''}">
+          ${it.discover ? `<span class="disc-badge" title="${esc(t('rec.discoverHint'))}">✨ ${esc(t('rec.discover'))}</span>` : ''}
           <button type="button" class="si-art" data-preview="${esc(it.id)}" aria-label="${esc(it.album)}">${itemArt(it, { size: 'lg' })}</button>
           ${rarityBadge(it.rarity)}
           <div class="si-text"><b title="${esc(it.album)}">${esc(it.album)}</b><small>${esc(it.artist)}</small><small class="si-variant">${esc(variantName(it))}</small></div>
-          ${btn}
+          ${listen}${btn}
         </article>`;
       }).join('');
       const ex = TIERS.slice(0, 3).map((tr, i) => {
@@ -3166,6 +3169,7 @@
         ${rarityBadge(r.rarity)} <span class="muted small">${esc(variant)}</span>
         <h2 id="record-title">${esc(r.album)}</h2>
         <p class="rd-artist"><button type="button" class="link-btn inline" data-detail-artist="${esc(r.artist)}">${esc(r.artist)}</button></p>
+        ${r.discover || r.price?.discover ? `<p class="rd-discover">✨ ${esc(t('rec.discoverHint'))}</p>` : ''}
         <dl class="sys-list">
           ${owned && r.acquired_at ? `<dt>${esc(t('rec.acquired'))}</dt><dd>${esc(dateFmtYear.format(new Date(r.acquired_at)))}</dd>` : ''}
           <dt>${esc(t('rec.price'))}</dt><dd>${r.price.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}`}</dd>

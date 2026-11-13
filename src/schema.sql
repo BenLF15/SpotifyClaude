@@ -250,3 +250,13 @@ CREATE TABLE IF NOT EXISTS record_collection (
 -- ---------------------------------------------------------------- CD-Singles & Gratis-Laden (Admin)
 ALTER TABLE record_collection ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'record';
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS free_shop boolean NOT NULL DEFAULT false;
+
+-- ---------------------------------------------------------------- Höranstoß im Laden (wöchentlicher Cache der Spotify-Suche)
+CREATE TABLE IF NOT EXISTS discover_cache (
+  user_id     text NOT NULL,
+  week        text NOT NULL,
+  items       jsonb NOT NULL DEFAULT '{}',
+  ok          boolean NOT NULL DEFAULT true,
+  fetched_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, week)
+);

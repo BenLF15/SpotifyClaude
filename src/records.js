@@ -8,6 +8,7 @@ import { config } from './config.js';
 import { query, withTransaction } from './db.js';
 import { milestones, MINUTE_STEPS, STREAK_STEPS, wrappedYears } from './features.js';
 import { UserError } from './users.js';
+import { bestImage, spotifyGet } from './spotify.js';
 
 export const TIERS = ['bronze', 'silver', 'gold', 'platinum'];
 export const RARITIES = ['common', 'rare', 'epic', 'legendary'];
@@ -362,9 +363,9 @@ export async function overviewFor(account) {
   ]);
   const free = Boolean(freeRow.rows[0]?.free_shop);
   const owned = new Set(collection.rows.map((r) => r.id));
-  const seed = shopSeed(account, year, week);
-  const shop = weeklyShop(pool, seed).map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
-  const singles = weeklyShop(tpool, `${seed}#cd`, CD_SHOP_SIZE).map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
+  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool);
+  const shop = shopList.map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
+  const singles = singleList.map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
   return {
     balance,
     fresh,
@@ -395,8 +396,8 @@ export async function buy(account, recordId) {
     query('SELECT free_shop FROM accounts WHERE id = $1', [account.id]),
   ]);
   const free = Boolean(freeRow.rows[0]?.free_shop);
-  const seed = shopSeed(account, year, week);
-  const item = [...weeklyShop(pool, seed), ...weeklyShop(tpool, `${seed}#cd`, CD_SHOP_SIZE)].find((it) => it.id === String(recordId));
+  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool);
+  const item = [...shopList, ...singleList].find((it) => it.id === String(recordId));
   if (!item) throw new UserError('Diese Platte gibt es diese Woche nicht.', 404, 'recordNotInShop');
   const result = await withTransaction(async (db) => {
     await db.query('SELECT pg_advisory_xact_lock($1)', [900000 + Number(account.id)]);
@@ -414,7 +415,7 @@ export async function buy(account, recordId) {
       `INSERT INTO record_collection (account_id, record_id, kind, rarity, artist, album, album_id, image, hue, week, price)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [account.id, item.id, item.kind, item.rarity, item.artist, item.album, item.album_id, item.image, item.hue, item.week,
-        JSON.stringify(free ? { ...item.price, free: true } : item.price)],
+        JSON.stringify({ ...item.price, ...(free ? { free: true } : {}), ...(item.discover ? { discover: true } : {}) })],
     );
     return item;
   });
@@ -659,4 +660,148 @@ export async function openEgg(account, eggId) {
   const { rows } = await query('SELECT key FROM note_ledger WHERE account_id = $1 AND key = ANY($2)', [account.id, eggs.map((e) => `egg:${e.id}`)]);
   const giftOut = gift ? (({ tie, ...g }) => ({ ...g, acquired_at: new Date().toISOString(), price: { ...g.price, free: true, gift: true } }))(gift) : null;
   return { ok: result, reward, gift: giftOut, left: eggs.length - rows.length, fresh, balance: await balanceOf(account.id) };
+}
+
+
+// ================================================================ Höranstoß: Songs & Alben, die man noch nie gehört hat
+const DISCOVER_RECORDS = 4; // von SHOP_SIZE
+const DISCOVER_CDS = 8; // von CD_SHOP_SIZE
+
+async function favouriteArtists(userId, limit) {
+  const { rows } = await query(
+    `SELECT min(t.artist_names[1]) AS name, (array_agg(t.artist_ids[1]) FILTER (WHERE t.artist_ids[1] IS NOT NULL))[1] AS id
+       FROM plays pl JOIN tracks t ON t.id = pl.track_id
+      WHERE pl.user_id = $1 AND t.artist_names[1] IS NOT NULL
+      GROUP BY lower(t.artist_names[1]) ORDER BY sum(pl.ms_played) DESC LIMIT $2`,
+    [userId, limit],
+  );
+  return rows;
+}
+
+/** Spotify-Suche nach Songs und Alben der Lieblingskünstler (einmal pro Woche, gecacht). */
+async function fetchDiscover(userId) {
+  const artists = await favouriteArtists(userId, 6);
+  const tracks = [];
+  const albums = [];
+  for (const a of artists) {
+    const params = new URLSearchParams({ q: `artist:"${a.name}"`, type: 'track,album', limit: '10', market: 'from_token' });
+    const r = await spotifyGet(userId, `/search?${params}`, { retries: 1 });
+    const same = (x) => (x?.artists?.[0]?.name || '').toLowerCase() === a.name.toLowerCase();
+    for (const tr of r?.tracks?.items || []) {
+      if (!same(tr) || !tr.id) continue;
+      tracks.push({ id: tr.id, name: tr.name, artist: a.name, image: bestImage(tr.album?.images), album: tr.album?.name || null });
+    }
+    for (const al of r?.albums?.items || []) {
+      if (!same(al) || !al.id || al.album_type === 'compilation') continue;
+      albums.push({ id: al.id, name: al.name, artist: a.name, image: bestImage(al.images) });
+    }
+  }
+  return { tracks, albums };
+}
+
+/** Kandidaten aus dem eigenen Katalog (z. B. von Freunden gehört), falls die Suche nicht klappt. */
+async function catalogDiscover(userId) {
+  const fav = (await favouriteArtists(userId, 25)).map((a) => a.name.toLowerCase());
+  const { rows: tracks } = await query(
+    `SELECT t.id, t.name, t.artist_names[1] AS artist, t.album_image AS image, t.album_name AS album, t.album_id
+       FROM tracks t
+      WHERE lower(t.artist_names[1]) = ANY($2)
+        AND NOT EXISTS (SELECT 1 FROM plays pl WHERE pl.user_id = $1 AND pl.track_id = t.id)
+      ORDER BY t.id LIMIT 80`,
+    [userId, fav],
+  );
+  const { rows: albums } = await query(
+    `SELECT min(t.album_id) AS id, min(t.album_name) AS name, min(t.artist_names[1]) AS artist,
+            (array_agg(t.album_image) FILTER (WHERE t.album_image IS NOT NULL))[1] AS image
+       FROM tracks t
+      WHERE lower(t.artist_names[1]) = ANY($2) AND t.album_name IS NOT NULL
+      GROUP BY lower(t.artist_names[1]), lower(t.album_name)
+     HAVING NOT EXISTS (
+       SELECT 1 FROM plays pl JOIN tracks t2 ON t2.id = pl.track_id
+        WHERE pl.user_id = $1 AND lower(t2.artist_names[1]) = lower(min(t.artist_names[1])) AND lower(t2.album_name) = lower(min(t.album_name)))
+      LIMIT 40`,
+    [userId, fav],
+  );
+  return { tracks, albums };
+}
+
+/** Wöchentlicher Höranstoß-Pool: aus dem Cache, sonst neu (Suche, ersatzweise eigener Katalog). */
+async function discoverPool(userId, year, week) {
+  const wk = `${year}-W${String(week).padStart(2, '0')}`;
+  const { rows } = await query('SELECT items, ok, fetched_at FROM discover_cache WHERE user_id = $1 AND week = $2', [userId, wk]);
+  let data = rows[0]?.items;
+  const stale = rows[0] && !rows[0].ok && Date.now() - new Date(rows[0].fetched_at) > 6 * 36e5;
+  if (!rows[0] || stale) {
+    let ok = true;
+    let found = { tracks: [], albums: [] };
+    try {
+      found = await fetchDiscover(userId);
+    } catch (err) {
+      ok = false;
+      console.warn('[discover]', userId, err.message);
+    }
+    // Nur wirklich Ungehörtes behalten (Stand beim Erstellen des Angebots → stabil über die Woche)
+    const heard = await query(
+      `SELECT array_agg(DISTINCT pl.track_id) AS ids,
+              array_agg(DISTINCT lower(t.artist_names[1]) || '|' || lower(t.album_name)) AS albums
+         FROM plays pl JOIN tracks t ON t.id = pl.track_id WHERE pl.user_id = $1`,
+      [userId],
+    );
+    const heardIds = new Set(heard.rows[0].ids || []);
+    const heardAlbums = new Set(heard.rows[0].albums || []);
+    const fallback = found.tracks.length + found.albums.length < 6 ? await catalogDiscover(userId) : { tracks: [], albums: [] };
+    const uniq = (list, key) => [...new Map(list.map((x) => [key(x), x])).values()];
+    data = {
+      tracks: uniq([...found.tracks, ...fallback.tracks], (x) => x.id).filter((x) => !heardIds.has(x.id)),
+      albums: uniq([...found.albums, ...fallback.albums], (x) => `${x.artist}|${x.name}`.toLowerCase())
+        .filter((x) => !heardAlbums.has(`${x.artist}|${x.name}`.toLowerCase())),
+    };
+    await query(
+      `INSERT INTO discover_cache (user_id, week, items, ok, fetched_at) VALUES ($1, $2, $3, $4, now())
+       ON CONFLICT (user_id, week) DO UPDATE SET items = EXCLUDED.items, ok = EXCLUDED.ok, fetched_at = now()`,
+      [userId, wk, JSON.stringify(data), ok],
+    );
+  }
+  const items = [];
+  const variant = (seed, kind, base, rarityPrices, presence) => {
+    for (const rarity of RARITIES) {
+      if (hashInt(`${seed}#${rarity}#presence`) % 100 >= presence[rarity]) continue;
+      const [tier, lo, hi] = rarityPrices[rarity];
+      items.push({
+        ...base,
+        id: `${crypto.createHash('sha1').update(base.key).digest('hex').slice(0, 12)}-${kind === 'cd' ? 'cd-' : ''}${rarity}`,
+        kind, rarity, discover: true,
+        week: (hashInt(`${seed}#${rarity}#week`) % 52) + 1,
+        hue: hashInt(`${seed}#${rarity}#hue`) % 360,
+        price: { tier, amount: lo + (hashInt(`${seed}#${rarity}#price`) % (hi - lo + 1)) },
+        tie: hashInt(`${seed}#${rarity}#tie`),
+      });
+      delete items[items.length - 1].key;
+    }
+  };
+  for (const a of data.albums || []) {
+    // gleiche ID-Logik wie bei gehörten Alben (Künstler|Album)
+    variant(`disc#${a.artist}|${a.name}`, 'record', { key: `${a.artist.toLowerCase()}|${a.name.toLowerCase()}`, artist: a.artist, album: a.name, album_id: a.id || null, image: a.image || null }, PRICE, PRESENCE);
+  }
+  for (const tr of data.tracks || []) {
+    variant(`disc#${tr.id}`, 'cd', { key: tr.id, artist: tr.artist, album: tr.name, album_id: tr.id, image: tr.image || null }, CD_PRICE, CD_PRESENCE);
+  }
+  return {
+    records: items.filter((x) => x.kind === 'record'),
+    cds: items.filter((x) => x.kind === 'cd'),
+  };
+}
+
+/** Wochenangebot: gehörte Lieblinge plus ein paar ungehörte Höranstöße (je Album/Song höchstens einmal). */
+async function composeShop(account, year, week, pool, tpool) {
+  const seed = shopSeed(account, year, week);
+  const disc = await discoverPool(account.spotify_user_id, year, week);
+  const dRec = weeklyShop(disc.records, `${seed}#disc`, DISCOVER_RECORDS);
+  const dCd = weeklyShop(disc.cds, `${seed}#disc-cd`, DISCOVER_CDS);
+  const merge = (base, extra, size) => {
+    const ids = new Set(extra.map((x) => x.id.replace(/-(cd-)?(common|rare|epic|legendary)$/, '')));
+    const rest = weeklyShop(base.filter((x) => !ids.has(x.id.replace(/-(cd-)?(common|rare|epic|legendary)$/, ''))), seed + (size === CD_SHOP_SIZE ? '#cd' : ''), size - extra.length);
+    return [...extra, ...rest].sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || Number(Boolean(b.discover)) - Number(Boolean(a.discover)) || a.artist.localeCompare(b.artist));
+  };
+  return { shopList: merge(pool, dRec, SHOP_SIZE), singleList: merge(tpool, dCd, CD_SHOP_SIZE) };
 }
