@@ -2350,38 +2350,38 @@
     const films = Math.round(d.minutes / 120);
 
     const slides = [];
-    slides.push({ cls: 'st-intro', track: choose(tracks[1], m.month, s1), html: `<div class="st-logo"><img src="/assets/logo-animated.svg" alt="" width="96" height="96"></div>
+    slides.push({ cls: 'st-intro', tr: 'zoom', fx: 'fade', track: choose(tracks[1], m.month, s1), html: `<div class="st-logo"><img src="/assets/logo-animated.svg" alt="" width="96" height="96"></div>
           <p class="st-kicker">Spotlfy · ${d.year}</p><h2 id="story-title">${esc(t('story.introTitle', { year: d.year }))}</h2><p class="st-text">${esc(t('story.introText'))}</p>
           <p class="st-hint">🎧 ${esc(t('story.soundHint'))}</p>` });
-    slides.push({ cls: 'st-minutes', track: choose(m.month, tracks[2], tracks[1]), html: `<p class="st-kicker">${esc(t('story.minutesKicker'))}</p>
+    slides.push({ cls: 'st-minutes', tr: 'iris', fx: 'sweep', track: choose(m.month, tracks[2], tracks[1]), html: `<p class="st-kicker">${esc(t('story.minutesKicker'))}</p>
           <div class="st-num" data-count="${d.minutes}">0</div><p class="st-unit">${esc(t('story.minutesUnit'))}</p>
           <p class="st-text">${esc(t('story.minutesEquiv', { n: (d.minutes / 1440).toFixed(1).replace('.', decSep), f: fmt(films) }))}</p>
           ${monthsChart}
           ${delta != null ? `<p class="st-pill">${delta >= 0 ? '▲' : '▼'} ${esc(t('story.vsYear', { p: `${Math.abs(delta)} %`, y: d.year - 1 }))}</p>` : ''}` });
     if (a1) {
-      slides.push({ cls: 'st-artist', track: choose(m.artist, s1), bg: a1.image, html: `<p class="st-kicker">${esc(t('story.artistKicker'))}</p>
+      slides.push({ cls: 'st-artist', tr: 'ripple', fx: 'cut', track: choose(m.artist, s1), bg: a1.image, html: `<p class="st-kicker">${esc(t('story.artistKicker'))}</p>
           <div class="st-photo-wrap"><span class="st-ring"></span><span class="st-ring r2"></span><div class="st-photo round">${imgOrPlaceholder(a1.image, a1.name)}</div><span class="st-badge">#1</span></div>
           <h2>${esc(a1.name)}</h2>
           <p class="st-text">${esc(t('story.artistText', { n: fmt(a1.minutes) }))}</p>${mini(d.topArtists, 'artist')}` });
     }
     if (s1) {
-      slides.push({ cls: 'st-song', track: s1, bg: s1.image, html: `<p class="st-kicker">${esc(t('story.songKicker'))}</p>
+      slides.push({ cls: 'st-song', tr: 'spin', fx: 'sweep', track: s1, bg: s1.image, html: `<p class="st-kicker">${esc(t('story.songKicker'))}</p>
           <div class="st-turntable"><div class="st-vinyl"><div class="st-vlabel">${imgOrPlaceholder(s1.image, s1.name)}</div></div><div class="st-sleeve">${imgOrPlaceholder(s1.image, s1.name)}</div><span class="st-arm"></span></div>
           <h2>${esc(s1.name)}</h2>
           <p class="st-text">${esc(s1.artists)} · ${esc(t('story.songText', { n: fmt(s1.plays) }))}</p>${mini(tracks, 'track')}` });
     }
     if (d.genres.length) {
-      slides.push({ cls: 'st-genres', track: choose(m.genre, tracks[3]), html: `<p class="st-kicker">${esc(t('story.genreKicker'))}</p>
+      slides.push({ cls: 'st-genres', tr: 'wipe', fx: 'fade', track: choose(m.genre, tracks[3]), html: `<p class="st-kicker">${esc(t('story.genreKicker'))}</p>
           <h2>${esc(genreName(d.genres[0].genre))}</h2>${donut}
           <ul class="st-bars">${d.genres.map((g, i) => `<li style="--i:${i}"><span><i class="st-gdot" style="background:${genreColor(g.genre)}"></i>${esc(genreName(g.genre))}</span><i><b style="width:${Math.max(3, g.share * 100)}%;background:${genreColor(g.genre)}"></b></i><em>${Math.round(g.share * 100)} %</em></li>`).join('')}</ul>` });
     }
-    slides.push({ cls: 'st-rhythm', track: choose(m.night, tracks[4], tracks[2]), html: `<p class="st-kicker">${esc(t('story.rhythmKicker'))}</p><h2>${esc(t('story.rhythmTitle'))}</h2>
+    slides.push({ cls: 'st-rhythm', tr: 'drop', fx: 'sweep', track: choose(m.night, tracks[4], tracks[2]), html: `<p class="st-kicker">${esc(t('story.rhythmKicker'))}</p><h2>${esc(t('story.rhythmTitle'))}</h2>
           ${clock}${weekChart}
           <div class="st-tiles">
             <div style="--i:0"><span>${esc(t('story.topMonth'))}</span><b>${esc(monthName(d.topMonth))}</b></div>
             ${d.bestDay ? `<div style="--i:1"><span>${esc(t('insight.bestDay'))}</span><b>${esc(dateFmt.format(parseDay(d.bestDay.day)))}</b><small>${fmt(d.bestDay.minutes)} ${esc(t('unit.min'))}</small></div>` : `<div style="--i:1"><span>${esc(t('insight.favDay'))}</span><b>${esc(DAYS_LONG[d.peakWeekday])}</b></div>`}
           </div>` });
-    slides.push({ cls: 'st-streak', track: choose(m.discovery, tracks[3], tracks[1]), bg: d.topDiscovery?.image, html: `<p class="st-kicker">${esc(t('story.streakKicker'))}</p>
+    slides.push({ cls: 'st-streak', tr: 'rise', fx: 'cut', track: choose(m.discovery, tracks[3], tracks[1]), bg: d.topDiscovery?.image, html: `<p class="st-kicker">${esc(t('story.streakKicker'))}</p>
           <div class="st-flame" aria-hidden="true">🔥</div>
           <div class="st-num" data-count="${d.streak.len}">0</div><p class="st-unit">${esc(tn('unit.dayWord', d.streak.len))} ${esc(t('insight.inARow'))}</p>
           ${streakDots}
@@ -2389,12 +2389,12 @@
           <div class="st-split"><div><b>${fmt(d.newArtists)}</b><span>${esc(t('story.newArtists'))}</span></div>
           ${d.topDiscovery ? `<div class="st-disc">${imgOrPlaceholder(d.topDiscovery.image, d.topDiscovery.name)}<span>${esc(t('wrapped.discovery'))}</span><b>${esc(d.topDiscovery.name)}</b></div>` : ''}</div>` });
     if (d.firstSong) {
-      slides.push({ cls: 'st-first', track: d.firstSong, bg: d.firstSong.image, html: `<p class="st-kicker">${esc(t('wrapped.firstSong', { year: d.year }))}</p>
+      slides.push({ cls: 'st-first', tr: 'zoom', fx: 'fade', track: d.firstSong, bg: d.firstSong.image, html: `<p class="st-kicker">${esc(t('wrapped.firstSong', { year: d.year }))}</p>
           <div class="st-photo spin">${imgOrPlaceholder(d.firstSong.image, d.firstSong.name)}</div><h2>${esc(d.firstSong.name)}</h2>
           <p class="st-text">${esc(d.firstSong.artists)}</p>
           <p class="st-pill">📅 ${esc(dateFmt.format(new Date(d.firstSong.local_time)))}, ${esc(timeFmt.format(new Date(d.firstSong.local_time)))}</p>` });
     }
-    slides.push({ cls: 'st-outro', outro: true, track: s1, html: `${collage}<div class="st-fx"></div><p class="st-kicker">Spotlfy · ${d.year}</p><h2>${esc(t('story.outroTitle'))}</h2>
+    slides.push({ cls: 'st-outro', tr: 'burst', fx: 'sweep', outro: true, track: s1, html: `${collage}<div class="st-fx"></div><p class="st-kicker">Spotlfy · ${d.year}</p><h2>${esc(t('story.outroTitle'))}</h2>
           <div class="st-summary">
             <div><span>${esc(t('kpi.minutes'))}</span><b>${fmt(d.minutes)}</b></div>
             <div><span>${esc(t('kpi.artists'))}</span><b>${fmt(d.artists)}</b></div>
@@ -2408,52 +2408,135 @@
   }
 
   // ---------------------------------------------------------------- Story-Musik (30-s-Hörproben, stummschaltbar)
+  const TRANSITIONS = ['zoom', 'iris', 'ripple', 'spin', 'wipe', 'drop', 'rise', 'burst'];
   const music = {
-    el: null, cur: null, fade: 0, muted: store.get('story-muted') === '1', failed: new Set(),
-    audio() {
-      if (!this.el) {
-        this.el = new Audio();
-        this.el.preload = 'auto';
-        this.el.loop = true;
-        this.el.addEventListener('error', () => { if (this.cur) this.failed.add(this.cur.id); this.showChip(null); });
-        this.el.addEventListener('playing', () => this.showChip(this.cur));
+    // Zwei „Decks“ wie beim DJ: eins spielt, das andere lädt schon den nächsten Song vor.
+    // Übergänge laufen über Web Audio (Lautstärke + Tiefpass-Filter), das klappt auch auf iOS.
+    decks: [], active: 0, cur: null, muted: store.get('story-muted') === '1', failed: new Set(), ctx: null, master: null, gen: 0,
+    url: (track) => `/api/preview/${encodeURIComponent(track.id)}`,
+    init() {
+      if (this.decks.length) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      try { if (AC) { this.ctx = new AC(); this.master = this.ctx.createGain(); this.master.connect(this.ctx.destination); } } catch { this.ctx = null; }
+      for (let k = 0; k < 2; k++) {
+        const el = new Audio();
+        el.preload = 'auto';
+        el.loop = true;
+        const deck = { el, track: null, gain: null, filter: null };
+        if (this.ctx) {
+          try {
+            const src = this.ctx.createMediaElementSource(el);
+            deck.filter = this.ctx.createBiquadFilter();
+            deck.filter.type = 'lowpass';
+            deck.filter.frequency.value = 20000;
+            deck.gain = this.ctx.createGain();
+            deck.gain.gain.value = 0;
+            src.connect(deck.filter).connect(deck.gain).connect(this.master);
+          } catch { deck.gain = null; }
+        }
+        el.addEventListener('error', () => {
+          if (!deck.track) return;
+          this.failed.add(deck.track.id);
+          if (this.cur?.id === deck.track.id) { this.cur = null; this.showChip(null); }
+        });
+        el.addEventListener('playing', () => { if (this.decks[this.active] === deck) this.showChip(deck.track); });
+        this.decks.push(deck);
       }
-      return this.el;
+      this.applyMute();
     },
-    // Lautstärke weich ändern (iOS ignoriert volume – dort wird hart umgeschaltet)
-    ramp(to, ms, done) {
-      const a = this.audio();
-      cancelAnimationFrame(this.fade);
-      const from = a.volume;
-      const t0 = performance.now();
-      const step = (now) => {
-        const k = Math.min(1, (now - t0) / ms);
-        a.volume = Math.max(0, Math.min(1, from + (to - from) * k));
-        if (k < 1) this.fade = requestAnimationFrame(step); else done?.();
-      };
-      this.fade = requestAnimationFrame(step);
+    // Erster Aufruf im Klick (Nutzergeste): Audio entsperren und beide Decks vorbereiten
+    unlock() {
+      this.init();
+      this.ctx?.resume?.().catch(() => {});
+      this.decks.forEach((d, k) => {
+        if (k === this.active || !d.el.getAttribute('src')) return;
+        const p = d.el.play();
+        p?.then?.(() => { if (this.decks[this.active] !== d) d.el.pause(); }).catch(() => {});
+      });
     },
-    play(track) {
-      const a = this.audio();
-      if (!track?.id || this.failed.has(track.id)) { this.cur = null; this.ramp(0, 500, () => a.pause()); this.showChip(null); return; }
-      if (this.cur?.id === track.id && !a.paused) return; // gleicher Song läuft weiter
-      const start = () => {
-        this.cur = track;
-        a.src = `/api/preview/${encodeURIComponent(track.id)}`;
-        a.muted = this.muted;
-        a.volume = 0;
-        const p = a.play();
-        if (p?.catch) p.catch(() => {}); // Autoplay blockiert → still weiter
-        this.ramp(0.85, 900);
-      };
-      if (this.cur && !a.paused) this.ramp(0, 350, start); else start();
+    load(deck, track) {
+      if (deck.track?.id === track.id && deck.el.getAttribute('src')) return;
+      deck.track = track;
+      deck.el.src = this.url(track);
+      deck.el.load();
     },
-    stop() { cancelAnimationFrame(this.fade); if (this.el) { this.el.pause(); this.el.removeAttribute('src'); this.el.load(); } this.cur = null; },
+    // Lautstärke/Filter eines Decks über die Zeit führen
+    set(deck, vol, freq, sec) {
+      const now = this.ctx?.currentTime || 0;
+      if (deck.gain) {
+        const g = deck.gain.gain;
+        g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.linearRampToValueAtTime(vol, now + sec);
+        const f = deck.filter.frequency;
+        f.cancelScheduledValues(now); f.setValueAtTime(Math.max(40, f.value), now); f.exponentialRampToValueAtTime(freq, now + sec);
+      } else {
+        // ohne Web Audio: einfache Lautstärke-Rampe (iOS ignoriert sie, dort hart)
+        const from = deck.el.volume; const t0 = performance.now();
+        const step = (tt) => { const k = Math.min(1, (tt - t0) / (sec * 1000)); deck.el.volume = Math.max(0, Math.min(1, from + (vol - from) * k)); if (k < 1) requestAnimationFrame(step); };
+        requestAnimationFrame(step);
+      }
+    },
+    play(track, { next = null, style = 'fade' } = {}) {
+      this.init();
+      const gen = ++this.gen;
+      const out = this.decks[this.active];
+      if (!track?.id || this.failed.has(track.id)) {
+        this.cur = null; this.showChip(null);
+        this.set(out, 0, 500, 0.8);
+        setTimeout(() => { if (gen === this.gen) out.el.pause(); }, 900);
+        return;
+      }
+      if (this.cur?.id === track.id && !out.el.paused) { this.preload(next); return; } // läuft weiter
+      const inc = out.track?.id === track.id ? out : this.decks[1 - this.active];
+      const same = inc === out;
+      this.active = this.decks.indexOf(inc);
+      this.cur = track;
+      this.load(inc, track);
+      // Übergang passend zur Folie: „fade“ (weich), „sweep“ (Filter-Sweep wie beim DJ), „cut“ (kurz, mit Schwung)
+      const T = { fade: [1.4, 1.2], sweep: [1.8, 1.4], cut: [0.45, 0.6] }[style] || [1.4, 1.2];
+      if (!same && out.track) {
+        this.set(out, 0, style === 'sweep' ? 350 : style === 'cut' ? 12000 : 2500, T[0]);
+        setTimeout(() => { if (gen === this.gen) { out.el.pause(); this.preload(next); } }, T[0] * 1000 + 100);
+      } else this.preload(next);
+      if (inc.gain) { inc.gain.gain.value = 0; inc.filter.frequency.value = style === 'sweep' ? 500 : style === 'cut' ? 20000 : 3000; } else inc.el.volume = 0;
+      if (inc.el.paused) { try { inc.el.currentTime = 0; } catch { /* noch nicht geladen */ } }
+      const p = inc.el.play();
+      p?.catch?.(() => {}); // Autoplay blockiert → still weiter
+      this.set(inc, 0.85, 20000, T[1]);
+    },
+    preload(track) {
+      if (!track?.id || this.failed.has(track.id) || track.id === this.cur?.id) return;
+      const idle = this.decks[1 - this.active];
+      if (idle && idle.el.paused) this.load(idle, track);
+    },
+    // Gedrückt halten in der Story: Musik wird gedämpft wie durch eine Wand
+    duck(on) {
+      const d = this.decks[this.active];
+      if (!d?.gain || !this.cur) return;
+      this.set(d, on ? 0.35 : 0.85, on ? 700 : 20000, 0.35);
+    },
+    stop() {
+      this.gen++;
+      this.cur = null;
+      for (const d of this.decks) {
+        if (d.gain) { d.gain.gain.cancelScheduledValues(0); d.gain.gain.value = 0; }
+        d.el.pause();
+        d.el.removeAttribute('src'); d.el.load();
+        d.track = null;
+      }
+      this.showChip(null);
+      this.ctx?.suspend?.().catch(() => {});
+    },
+    applyMute() {
+      if (this.master) this.master.gain.value = this.muted ? 0 : 1;
+      for (const d of this.decks) d.el.muted = this.muted && !this.master;
+    },
     toggleMute() {
       this.muted = !this.muted;
       store.set('story-muted', this.muted ? '1' : '0');
-      if (this.el) this.el.muted = this.muted;
-      if (!this.muted && this.el?.paused && this.cur) this.el.play().catch(() => {});
+      this.applyMute();
+      this.ctx?.resume?.().catch(() => {});
+      const d = this.decks[this.active];
+      if (!this.muted && d?.el.paused && this.cur) d.el.play().catch(() => {});
       this.renderBtn();
     },
     renderBtn() {
@@ -2469,7 +2552,11 @@
       const c = $('#story .st-now');
       if (!c) return;
       if (!track) { c.classList.remove('on'); return; }
-      $('.st-now-t', c).textContent = `${track.name} · ${track.artists || ''}`;
+      const txt = $('.st-now-t', c);
+      if (c.classList.contains('on') && txt.textContent) {
+        c.classList.add('swap'); // Titel wechselt mit kleinem Wisch
+        setTimeout(() => { txt.textContent = `${track.name} · ${track.artists || ''}`; c.classList.remove('swap'); }, 220);
+      } else txt.textContent = `${track.name} · ${track.artists || ''}`;
       c.classList.add('on');
     },
   };
@@ -2489,24 +2576,34 @@
     music.renderBtn();
     const dlg = $('#story');
     dlg.showModal();
+    story.prev = null;
     storyGo(0);
+    music.unlock(); // im Klick: Audio entsperren, zweites Deck lädt schon den nächsten Song
   }
 
   function storyGo(i) {
     const n = story.slides.length;
     if (i >= n) { closeStory(); return; }
+    const from = story.prev;
     story.i = Math.max(0, i);
+    const back = from != null && story.i < from;
+    story.prev = story.i;
     story.elapsed = 0;
     story.start = performance.now();
+    const cur = story.slides[story.i];
+    // Folienübergang passend zur Folie (rückwärts: kurzes Zurückwischen)
     $$('#story .st-slide').forEach((s, k) => {
       const on = k === story.i;
+      s.classList.remove('leaving', 'back', ...TRANSITIONS.map((x) => `tr-${x}`));
+      if (on) { void s.offsetWidth; s.classList.add(back ? 'back' : `tr-${cur.tr || 'zoom'}`); }
+      if (k === from && !on) { s.classList.add('leaving'); clearTimeout(s._leave); s._leave = setTimeout(() => s.classList.remove('leaving'), 1000); }
       s.classList.toggle('active', on);
       s.setAttribute('aria-hidden', String(!on));
     });
     $$('#story .st-bars-top i').forEach((b, k) => { b.style.width = k < story.i ? '100%' : '0%'; });
     const slide = $(`#story .st-slide[data-i="${story.i}"]`);
     $$('.st-num', slide).forEach((el) => { el.dataset.value = 0; countUp(el, Number(el.dataset.count)); });
-    music.play(story.slides[story.i].track);
+    music.play(cur.track, { next: story.slides[story.i + 1]?.track, style: back ? 'cut' : cur.fx });
     if (story.slides[story.i].outro) {
       setTimeout(() => confetti($('.st-fx', slide), 50), 300);
       // Rückblick bis zum Ende angesehen → Musiknoten (einmal pro Jahr)
@@ -2559,8 +2656,27 @@
       else if (act === 'mute') music.toggleMute();
     });
     // Gedrückt halten = pausieren
-    dlg.addEventListener('pointerdown', (e) => { if (e.target.closest('.st-nav')) story.paused = true; });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => dlg.addEventListener(ev, () => { story.paused = false; }));
+    let holdT = 0;
+    dlg.addEventListener('pointerdown', (e) => {
+      if (!e.target.closest('.st-nav')) return;
+      story.paused = true;
+      holdT = setTimeout(() => music.duck(true), 250); // nur bei echtem Gedrückthalten
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => dlg.addEventListener(ev, () => {
+      clearTimeout(holdT);
+      if (story.paused) music.duck(false);
+      story.paused = false;
+    }));
+    // App verlassen (Tab/App im Hintergrund, Seite geschlossen) → Musik endet; zurück in der Story → weiter
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { music.stop(); return; }
+      if (!dlg.open) return;
+      story.start = performance.now();
+      const cur = story.slides[story.i];
+      music.unlock();
+      music.play(cur?.track, { next: story.slides[story.i + 1]?.track, style: 'fade' });
+    });
+    window.addEventListener('pagehide', () => music.stop());
     dlg.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); storyGo(story.i + 1); }
       if (e.key === 'ArrowLeft') storyGo(story.i - 1);

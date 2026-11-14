@@ -2281,3 +2281,34 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 @media (prefers-reduced-motion: reduce) {
   .st-blobs i, .st-backdrop, .st-collage, .st-ring, .st-flame, .st-vinyl, .st-eq i { animation: none !important; }
 }
+
+/* ------------------------------------------------------------------ Story: Folienübergänge (je Folie eigener Effekt) */
+.st-slide.active { z-index: 2; }
+.st-slide.leaving { visibility: visible; opacity: 1; z-index: 1; transition: none; animation: tr-out 0.9s var(--ease) forwards; }
+@keyframes tr-out { to { transform: scale(0.9); opacity: 0; filter: brightness(0.5) blur(4px); } }
+.st-slide.active.tr-zoom { animation: tr-zoom 0.9s var(--ease) both; }
+@keyframes tr-zoom { from { transform: scale(1.25); opacity: 0; filter: blur(12px); } }
+.st-slide.active.tr-iris { animation: tr-iris 0.95s cubic-bezier(0.65, 0, 0.35, 1) both; }
+@keyframes tr-iris { from { clip-path: circle(0% at 50% 45%); } to { clip-path: circle(140% at 50% 45%); } }
+.st-slide.active.tr-ripple { animation: tr-ripple 1s cubic-bezier(0.65, 0, 0.35, 1) both; }
+@keyframes tr-ripple { from { clip-path: circle(0% at 50% 100%); } to { clip-path: circle(160% at 50% 100%); } }
+.st-slide.active.tr-spin { animation: tr-spin 0.95s var(--ease) both; }
+@keyframes tr-spin { from { transform: rotate(-14deg) scale(0.55); opacity: 0; border-radius: 50%; } 60% { border-radius: 24px; } }
+.st-slide.active.tr-wipe { animation: tr-wipe 0.9s cubic-bezier(0.65, 0, 0.35, 1) both; }
+@keyframes tr-wipe { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+.st-slide.active.tr-drop { animation: tr-drop 0.9s cubic-bezier(0.65, 0, 0.35, 1) both; }
+@keyframes tr-drop { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+.st-slide.active.tr-rise { animation: tr-rise 0.85s var(--ease) both; }
+@keyframes tr-rise { from { transform: translateY(100%); } }
+.st-slide.active.tr-burst { animation: tr-burst 1.1s var(--ease) both; }
+@keyframes tr-burst { 0% { clip-path: circle(0% at 50% 50%); filter: brightness(2.2); } 60% { filter: brightness(1.3); } 100% { clip-path: circle(150% at 50% 50%); filter: none; } }
+.st-slide.active.back { animation: tr-back 0.45s var(--ease) both; }
+@keyframes tr-back { from { transform: translateX(-28%); opacity: 0; } }
+/* Titel-Chip wechselt mit kleinem Wisch */
+.st-now .st-now-t { transition: transform 0.22s, opacity 0.22s; }
+.st-now.swap .st-now-t { transform: translateY(-60%); opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .st-slide.active[class*="tr-"], .st-slide.active.back { animation: tr-fade 0.4s both; }
+  .st-slide.leaving { animation: none; visibility: hidden; }
+  @keyframes tr-fade { from { opacity: 0; } }
+}
