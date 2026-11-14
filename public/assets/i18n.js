@@ -407,6 +407,9 @@
     'rec.shopToday': ['Plattenladen · heute', 'Record shop · today', 'Disquaire · aujourd’hui', 'Tienda · hoy', 'Negozio · oggi', 'Skivbutik · i dag', 'Pladebutik · i dag'],
     'rec.cdShopToday': ['CD-Singles · heute', 'CD singles · today', 'CD singles · aujourd’hui', 'CD singles · hoy', 'CD singoli · oggi', 'Cd-singlar · i dag', 'Cd-singler · i dag'],
     'rec.resetInHours': ['Neues Angebot in {h} h {m} min', 'New offers in {h} h {m} min', 'Nouvelles offres dans {h} h {m} min', 'Nuevas ofertas en {h} h {m} min', 'Nuove offerte tra {h} h {m} min', 'Nya erbjudanden om {h} h {m} min', 'Nye tilbud om {h} t {m} min'],
+    'nav.more': ['Mehr', 'More', 'Plus', 'Más', 'Altro', 'Mer', 'Mere'],
+    'nav.main': ['Hauptnavigation', 'Main navigation', 'Navigation principale', 'Navegación principal', 'Navigazione principale', 'Huvudnavigering', 'Hovednavigation'],
+    'nav.profile': ['Profil', 'Profile', 'Profil', 'Perfil', 'Profilo', 'Profil', 'Profil'],
     'tour.close': ['Schließen', 'Close', 'Fermer', 'Cerrar', 'Chiudi', 'Stäng', 'Luk'],
     'tour.step': ['Schritt {i} von {n}', 'Step {i} of {n}', 'Étape {i} sur {n}', 'Paso {i} de {n}', 'Passo {i} di {n}', 'Steg {i} av {n}', 'Trin {i} af {n}'],
 

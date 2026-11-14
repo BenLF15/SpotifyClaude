@@ -1841,6 +1841,68 @@
     zone.addEventListener('drop', (e) => handle(e.dataTransfer.files));
   }
 
+  // ================================================================ Leiste unten (Handy)
+  const BN_MAIN = ['overview', 'top', 'history', 'friends'];
+  const BN_MORE = [
+    ['times', '⏰', 'nav.times'], ['genres', '🎼', 'nav.genres'], ['trends', '📈', 'nav.trends'],
+    ['wrapped', '🎁', 'nav.wrapped'], ['records', '💿', 'rec.title'], ['profile', '👤', 'nav.profile'], ['admin', '🛠️', 'nav.admin'],
+  ];
+  function paintBottomNav() {
+    const nav = $('#bottom-nav');
+    if (!nav) return;
+    const inMore = !BN_MAIN.includes(state.panel);
+    $$('[data-bn]', nav).forEach((b) => {
+      const on = b.dataset.bn === state.panel || (b.dataset.bn === 'more' && inMore);
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-current', on ? 'page' : 'false');
+    });
+    // „Mehr“ zeigt den gerade geöffneten Bereich an
+    const more = BN_MORE.find(([k]) => k === state.panel);
+    $('.bn-more-label', nav).textContent = inMore && more ? t(more[2]) : t('nav.more');
+    const fb = $('#panel-tabs [data-panel="friends"]')?.dataset.badge || '';
+    $('[data-bn="friends"]', nav).dataset.badge = fb;
+  }
+  function openMoreSheet() {
+    const items = BN_MORE.filter(([k]) => k !== 'admin' || state.account?.is_admin);
+    $('#more-grid').innerHTML = items.map(([k, ico, key], i) => `<button type="button" class="ms-item${k === state.panel ? ' on' : ''}" data-ms="${k}" style="--i:${i}"><span>${ico}</span><b>${esc(t(key))}</b></button>`).join('');
+    $('#more-sheet').showModal();
+  }
+  function bindBottomNav() {
+    const nav = $('#bottom-nav');
+    if (!nav) return;
+    nav.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-bn]');
+      if (!b) return;
+      if (b.dataset.bn === 'more') { openMoreSheet(); return; }
+      if (b.dataset.bn === state.panel) { window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); return; } // nochmal tippen = nach oben
+      showPanel(b.dataset.bn);
+    });
+    const sheet = $('#more-sheet');
+    sheet.addEventListener('click', (e) => {
+      const it = e.target.closest('[data-ms]');
+      if (it) {
+        sheet.close();
+        const k = it.dataset.ms;
+        if (k === 'records') openRecordsTab('collection'); else showPanel(k);
+        return;
+      }
+      if (e.target === sheet) sheet.close();
+    });
+    // Nach unten wischen schließt das Blatt
+    let y0 = null;
+    sheet.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; }, { passive: true });
+    sheet.addEventListener('touchmove', (e) => { if (y0 != null) { const dy = Math.max(0, e.touches[0].clientY - y0); sheet.style.transform = dy ? `translateY(${dy}px)` : ''; } }, { passive: true });
+    sheet.addEventListener('touchend', (e) => {
+      const dy = (e.changedTouches[0]?.clientY ?? y0) - (y0 ?? 0);
+      sheet.style.transform = '';
+      y0 = null;
+      if (dy > 80) sheet.close();
+    });
+    // Tastatur offen → Leiste ausblenden (sonst schiebt sie sich auf dem Handy über die Tastatur)
+    document.addEventListener('focusin', (e) => { if (e.target.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select')) document.body.classList.add('kb-open'); });
+    document.addEventListener('focusout', () => setTimeout(() => { if (!document.activeElement?.matches?.('input, textarea, select')) document.body.classList.remove('kb-open'); }, 50));
+  }
+
   // ================================================================ Bereiche (Ebene 1) & Ansicht
   function setupTabs() {
     const tabs = $('#panel-tabs');
@@ -1879,6 +1941,7 @@
     $$('#view-stats .panel').forEach((p) => { p.hidden = p.dataset.panel !== state.panel; });
     $('#range-bar').hidden = !RANGE_PANELS.has(state.panel);
     $('#panel-tabs').place?.(true);
+    paintBottomNav();
     // Segment-Pills in gerade sichtbar gewordenen Bereichen ausrichten
     requestAnimationFrame(() => $$('.segmented').forEach((s) => s.realign?.()));
   }
@@ -3184,6 +3247,7 @@
         </li>`).join('')}`
       : `<li class="empty">${esc(t('friends.empty'))}</li>`;
     $('#panel-tabs [data-panel="friends"]').dataset.badge = d.incoming.length || '';
+    paintBottomNav();
   }
 
   async function addFriend(e) {
@@ -4764,6 +4828,7 @@
     $('#festive-switch').addEventListener('click', toggleFestive);
     bindNews();
     bindAvatar();
+    bindBottomNav();
     bindRecPlayer();
     bindStudio();
     document.addEventListener('visibilitychange', () => { if (document.hidden) studioStopAudio(); });

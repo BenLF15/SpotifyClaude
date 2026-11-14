@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-15e',
+    date: '2026-11-15',
+    items: [
+      {
+        icon: '📱', go: null,
+        t: ['Leiste unten auf dem Handy', 'Bottom bar on phones', 'Barre en bas sur mobile', 'Barra inferior en el móvil', 'Barra in basso sul telefono', 'Nedre fält på mobilen', 'Bundlinje på mobilen'],
+        d: ['Übersicht, Top-Listen, Verlauf und Freunde sind jetzt mit dem Daumen erreichbar – der Rest steckt unter „Mehr“.', 'Overview, top lists, history and friends are now within thumb reach – everything else is under “More”.', 'Aperçu, classements, historique et amis à portée de pouce – le reste est dans « Plus ».', 'Resumen, tops, historial y amigos al alcance del pulgar; el resto en «Más».', 'Panoramica, classifiche, cronologia e amici a portata di pollice – il resto in «Altro».', 'Översikt, topplistor, historik och vänner nås med tummen – resten finns under ”Mer”.', 'Overblik, toplister, historik og venner kan nås med tommelfingeren – resten ligger under ”Mere”.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-15d',
     date: '2026-11-15',
     items: [

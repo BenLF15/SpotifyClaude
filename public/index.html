@@ -16,12 +16,12 @@
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
   <title>Spotlfy</title>
-  <script src="/assets/theme.js?v=20261115e"></script>
-  <script src="/assets/i18n.js?v=20261115e"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20261115e" />
-  <script src="/assets/changelog.js?v=20261115e" defer></script>
+  <script src="/assets/theme.js?v=20261115f"></script>
+  <script src="/assets/i18n.js?v=20261115f"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261115f" />
+  <script src="/assets/changelog.js?v=20261115f" defer></script>
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261115e" defer></script>
+  <script src="/app.js?v=20261115f" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
@@ -42,6 +42,21 @@
       </button>
     </div>
   </header>
+
+
+  <!-- Handy: Leiste unten (Daumen-erreichbar); Desktop/Tablet nutzen die Tab-Leiste oben -->
+  <nav class="bottom-nav" id="bottom-nav" data-i18n-attr="aria-label:nav.main">
+    <button type="button" data-bn="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span data-i18n="nav.overview">Übersicht</span></button>
+    <button type="button" data-bn="top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span data-i18n="nav.top">Top-Listen</span></button>
+    <button type="button" data-bn="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span data-i18n="nav.history">Verlauf</span></button>
+    <button type="button" data-bn="friends"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M16.5 14.6c2.6.2 4.4 1.9 5 4.9"/></svg><span data-i18n="nav.friends">Freunde</span></button>
+    <button type="button" data-bn="more" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span class="bn-more-label" data-i18n="nav.more">Mehr</span></button>
+  </nav>
+  <dialog id="more-sheet" class="dialog more-sheet" aria-labelledby="more-title">
+    <div class="ms-grip" aria-hidden="true"></div>
+    <h2 id="more-title" class="sr-only" data-i18n="nav.more">Mehr</h2>
+    <div class="ms-grid" id="more-grid"></div>
+  </dialog>
 
   <!-- Ebene 1: Bereiche -->
   <nav class="subnav">
