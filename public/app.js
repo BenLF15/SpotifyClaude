@@ -2663,8 +2663,71 @@
     } catch { /* abgebrochen */ }
   }
 
+  // Hoch- oder Runterwischen schließt die Story (wie bei Stories in Social-Apps)
+  function bindStorySwipe(dlg) {
+    const inner = $('#story-body');
+    let g = null;
+    let swallowClick = false;
+    const reset = (animate) => {
+      inner.classList.toggle('st-snap', animate);
+      inner.style.setProperty('--dy', '0px');
+      inner.style.setProperty('--ds', '1');
+      inner.style.removeProperty('--dr');
+      dlg.style.removeProperty('--dim');
+    };
+    dlg.addEventListener('pointerdown', (e) => {
+      if (!e.isPrimary || e.target.closest('.st-actions, .st-mute, .st-close')) return;
+      g = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, drag: false };
+    });
+    dlg.addEventListener('pointermove', (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      const dx = e.clientX - g.x;
+      const dy = e.clientY - g.y;
+      if (!g.drag) {
+        if (Math.abs(dy) < 12 || Math.abs(dy) < Math.abs(dx) * 1.2) return;
+        g.drag = true;
+        story.paused = true;
+        inner.classList.remove('st-snap');
+        try { dlg.setPointerCapture(e.pointerId); } catch { /* egal */ }
+      }
+      const k = Math.min(1, Math.abs(dy) / (innerHeight * 0.6));
+      inner.style.setProperty('--dy', `${dy}px`);
+      inner.style.setProperty('--ds', String(1 - k * 0.12));
+      inner.style.setProperty('--dr', `${18 + k * 10}px`);
+      dlg.style.setProperty('--dim', String(1 - k * 0.7));
+      music.duck(true);
+    });
+    const end = (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      const was = g; g = null;
+      if (!was.drag) return;
+      swallowClick = true; // der anschließende Klick darf nicht weiter/zurück blättern
+      setTimeout(() => { swallowClick = false; }, 60);
+      const dy = e.clientY - was.y;
+      const v = dy / Math.max(1, performance.now() - was.t); // px/ms
+      story.paused = false;
+      if (Math.abs(dy) > innerHeight * 0.16 || Math.abs(v) > 0.6) {
+        // rausfliegen lassen in Wischrichtung, Musik blendet aus
+        inner.classList.add('st-snap', 'st-fly');
+        inner.style.setProperty('--dy', `${Math.sign(dy) * innerHeight}px`);
+        inner.style.setProperty('--ds', '0.8');
+        dlg.style.setProperty('--dim', '0');
+        music.duck(true);
+        setTimeout(() => { closeStory(); inner.classList.remove('st-fly'); reset(false); }, 280);
+      } else {
+        music.duck(false);
+        reset(true);
+      }
+    };
+    dlg.addEventListener('pointerup', end);
+    dlg.addEventListener('pointercancel', end);
+    dlg.addEventListener('click', (e) => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+    dlg.addEventListener('close', () => reset(false));
+  }
+
   function bindStory() {
     const dlg = $('#story');
+    bindStorySwipe(dlg);
     dlg.addEventListener('click', (e) => {
       const b = e.target.closest('[data-story]');
       if (!b) return;

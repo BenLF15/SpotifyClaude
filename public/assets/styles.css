@@ -2424,3 +2424,13 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
   :root[data-glass='1'] :is(.card, .dialog, .toast, .note-toast, .segmented, .chip-btn, .btn:not(.btn-primary), .tabs) { background: var(--surface-2); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (prefers-reduced-motion: reduce) { :root[data-glass='1'] body::before { animation: none; } }
+
+/* ------------------------------------------------------------------ Story: Hoch-/Runterwischen zum Schließen */
+.story { touch-action: none; overscroll-behavior: contain; }
+.story .st-actions, .story .st-actions * { touch-action: manipulation; }
+.story::backdrop { opacity: var(--dim, 1); }
+.story { background: rgba(0, 0, 0, var(--dim, 1)); }
+.story-inner { --dy: 0px; --ds: 1; transform: translate3d(0, var(--dy), 0) scale(var(--ds)); border-radius: var(--dr, 0); will-change: transform; }
+@media (min-width: 560px) { .story-inner { transform: translate3d(0, calc(-50% + var(--dy)), 0) scale(var(--ds)); border-radius: var(--dr, 22px); } }
+.story-inner.st-snap { transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.35s; }
+.story-inner.st-fly { transition: transform 0.28s cubic-bezier(0.4, 0, 1, 1), opacity 0.28s; opacity: 0; }
