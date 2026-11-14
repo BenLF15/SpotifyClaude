@@ -182,6 +182,7 @@ ALTER TABLE accounts ADD COLUMN IF NOT EXISTS theme text NOT NULL DEFAULT 'dark'
 -- ---------------------------------------------------------------- Sprache, festliche Effekte, Geburtstag
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS lang text;
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS festive boolean NOT NULL DEFAULT true;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS glass boolean NOT NULL DEFAULT false;
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS birthday date;
 
 -- ---------------------------------------------------------------- Datenschutz, Meilensteine

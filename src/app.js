@@ -314,7 +314,7 @@ api.get(
     const base = {
       account: {
         id: a.id, username: a.username, is_admin: a.is_admin, created_at: a.created_at,
-        theme: a.theme, lang: a.lang, festive: a.festive, birthday: a.birthday,
+        theme: a.theme, lang: a.lang, festive: a.festive, glass: a.glass, birthday: a.birthday,
         privacy_accepted: Boolean(a.privacy_accepted_at),
       },
       spotify: a.spotify_user_id
@@ -351,8 +351,8 @@ api.post(
   '/me/settings',
   express.json({ limit: '2kb' }),
   wrap(async (req, res) => {
-    const { theme, lang, festive, birthday } = req.body || {};
-    await users.updateSettings(req.account.id, { theme, lang, festive, birthday });
+    const { theme, lang, festive, glass, birthday } = req.body || {};
+    await users.updateSettings(req.account.id, { theme, lang, festive, glass, birthday });
     res.json({ ok: true });
   }),
 );

@@ -290,6 +290,7 @@
     state.status = s;
     // Einstellungen des Kontos gelten auf allen Geräten
     if (T && s.account.theme && s.account.theme !== T.mode()) T.setMode(s.account.theme);
+    if (T && typeof s.account.glass === 'boolean' && s.account.glass !== T.glass()) T.setGlass(s.account.glass);
     if (s.account.lang && s.account.lang !== I.lang) {
       I.setLang(s.account.lang);
       location.reload();
@@ -456,6 +457,7 @@
     $('#birthday-clear').hidden = !acc.birthday;
 
     $('#festive-switch').setAttribute('aria-checked', String(acc.festive !== false));
+    $('#glass-switch').setAttribute('aria-checked', String(Boolean(T?.glass())));
     renderFestiveHint();
   }
 
@@ -1622,6 +1624,17 @@
     }
   }
 
+  async function toggleGlass() {
+    const on = !T.glass();
+    T.setGlass(on); // sofort sichtbar, dann am Konto speichern
+    $('#glass-switch').setAttribute('aria-checked', String(on));
+    if (state.account) state.account.glass = on;
+    if (!(await saveSettings({ glass: on }))) {
+      T.setGlass(!on);
+      $('#glass-switch').setAttribute('aria-checked', String(!on));
+    }
+  }
+
   async function toggleFestive() {
     const on = !festOn();
     if (await saveSettings({ festive: on })) {
@@ -2593,10 +2606,18 @@
     // Folienübergang passend zur Folie (rückwärts: kurzes Zurückwischen)
     $$('#story .st-slide').forEach((s, k) => {
       const on = k === story.i;
-      s.classList.remove('leaving', 'back', ...TRANSITIONS.map((x) => `tr-${x}`));
+      s.classList.remove('leaving', 'back', 'out-left', 'out-right', 'out-up', 'out-down', ...TRANSITIONS.map((x) => `tr-${x}`));
       if (on) { void s.offsetWidth; s.classList.add(back ? 'back' : `tr-${cur.tr || 'zoom'}`); }
-      if (k === from && !on) { s.classList.add('leaving'); clearTimeout(s._leave); s._leave = setTimeout(() => s.classList.remove('leaving'), 1000); }
+      if (k === from && !on) {
+        // die alte Folie weicht in Richtung des neuen Übergangs aus
+        const dir = back ? 'out-right' : ({ wipe: 'out-left', drop: 'out-down', rise: 'out-up' })[cur.tr] || '';
+        s.classList.add('leaving');
+        if (dir) s.classList.add(dir);
+        clearTimeout(s._leave);
+        s._leave = setTimeout(() => s.classList.remove('leaving', 'out-left', 'out-right', 'out-up', 'out-down'), 760);
+      }
       s.classList.toggle('active', on);
+      s.classList.toggle('upnext', k === story.i + 1);
       s.setAttribute('aria-hidden', String(!on));
     });
     $$('#story .st-bars-top i').forEach((b, k) => { b.style.width = k < story.i ? '100%' : '0%'; });
@@ -3766,6 +3787,7 @@
       if (b) ({ password: changePassword, disconnect: disconnectSpotify, delete: deleteAccount })[b.dataset.action]?.();
     });
     $('#festive-switch').addEventListener('click', toggleFestive);
+    $('#glass-switch').addEventListener('click', toggleGlass);
     bindSearch();
     bindStory();
     bindFriends();

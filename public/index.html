@@ -16,11 +16,11 @@
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
   <title>Spotlfy</title>
-  <script src="/assets/theme.js?v=20261114g"></script>
-  <script src="/assets/i18n.js?v=20261114g"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20261114g" />
+  <script src="/assets/theme.js?v=20261114l"></script>
+  <script src="/assets/i18n.js?v=20261114l"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261114l" />
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261114g" defer></script>
+  <script src="/app.js?v=20261114l" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
@@ -342,6 +342,16 @@
           <button type="button" role="radio" data-theme-mode="season"><span class="tp-swatch tp-season"></span><span data-i18n="theme.season"></span></button>
         </div>
         <p class="muted small theme-hint" id="theme-hint"></p>
+
+        <div class="settings-row">
+          <div>
+            <h3 class="settings-label" data-i18n="settings.glass"></h3>
+            <p class="muted small" data-i18n="settings.glassHint"></p>
+          </div>
+          <button type="button" class="switch" id="glass-switch" role="switch" aria-checked="false" data-i18n-attr="aria-label:settings.glass">
+            <span class="switch-knob"></span>
+          </button>
+        </div>
 
         <div class="settings-row">
           <div>

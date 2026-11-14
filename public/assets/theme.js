@@ -54,6 +54,13 @@
     window.dispatchEvent(new CustomEvent('spotlfy:theme', { detail: { mode: m, theme } }));
     return theme;
   }
+  // Liquid Glass: durchscheinende Glas-Oberflächen, unabhängig von der Farbwelt
+  function applyGlass(on) {
+    const v = on === undefined ? get('glass') === '1' : Boolean(on);
+    if (v) root.dataset.glass = '1'; else delete root.dataset.glass;
+    return v;
+  }
+  function setGlass(on) { set('glass', on ? '1' : null); return applyGlass(on); }
   function setMode(mode) {
     set('theme', mode);
     return apply(mode);
@@ -61,12 +68,14 @@
   media.addEventListener?.('change', () => { if ((get('theme') || 'dark') === 'system') apply('system'); });
 
   window.SpotlfyTheme = {
-    SEASONS, seasonOf, seasonEnd, effectiveDate, apply, setMode, resolve,
+    SEASONS, seasonOf, seasonEnd, effectiveDate, apply, setMode, resolve, setGlass,
+    glass: () => get('glass') === '1',
     mode: () => get('theme') || 'dark',
     setSeasonDate(iso) { set('seasonDate', iso || null); return apply(); },
     seasonDate: () => get('seasonDate'),
   };
   apply();
+  applyGlass();
   document.addEventListener('DOMContentLoaded', () => apply());
 
   // ---------------------------------------------------------------- Zoom sperren (Web-App-Gefühl)

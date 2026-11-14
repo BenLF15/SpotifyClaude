@@ -108,7 +108,7 @@ export async function recordLogin(accountId, userAgent) {
 /** Konto inkl. verbundenem Spotify-Profil. */
 export async function getAccount(id) {
   const { rows } = await query(
-    `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at, a.theme, a.lang, a.festive,
+    `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at, a.theme, a.lang, a.festive, a.glass,
             to_char(a.birthday, 'YYYY-MM-DD') AS birthday, a.privacy_accepted_at, a.milestones_seen,
             u.display_name, u.scope, u.email, u.avatar_url, u.country, u.product, u.auth_error
        FROM accounts a LEFT JOIN users u ON u.id = a.spotify_user_id
@@ -138,7 +138,7 @@ export const THEMES = ['system', 'dark', 'light', 'season'];
 export const LANGS = ['de', 'en', 'fr', 'es', 'it', 'sv', 'da'];
 
 /** Speichert Einstellungen des Kontos (nur übergebene Felder). */
-export async function updateSettings(accountId, { theme, lang, festive, birthday } = {}) {
+export async function updateSettings(accountId, { theme, lang, festive, glass, birthday } = {}) {
   const sets = [];
   const vals = [accountId];
   const add = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
@@ -146,6 +146,7 @@ export async function updateSettings(accountId, { theme, lang, festive, birthday
   if (theme !== undefined) { if (!THEMES.includes(theme)) throw bad(); add('theme', theme); }
   if (lang !== undefined) { if (!LANGS.includes(lang)) throw bad(); add('lang', lang); }
   if (festive !== undefined) add('festive', Boolean(festive));
+  if (glass !== undefined) add('glass', Boolean(glass));
   if (birthday !== undefined) {
     if (birthday === null || birthday === '') add('birthday', null);
     else {
