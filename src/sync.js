@@ -1,4 +1,5 @@
 // Datenabgleich: Recently Played, tägliche Top-Snapshots, Anreicherung (Cover, Genres).
+import { externalAlbumCovers, refreshCollectionImages } from './covers.js';
 import { config } from './config.js';
 import { query, withTransaction } from './db.js';
 import { bestImage, spotifyGet } from './spotify.js';
@@ -235,6 +236,9 @@ async function oembedCover(id) {
   return typeof url === 'string' && /^https:\/\/[a-z0-9.-]+\.(scdn\.co|spotifycdn\.com)\//.test(url) ? url : null;
 }
 
+// Sperre der Spotify-API nach einem harten Rate-Limit (Development-Mode-Apps bekommen teils Stunden)
+export const apiBlock = { until: 0 };
+
 async function fastCovers(limit) {
   const { rows } = await query(
     `SELECT t.id FROM tracks t LEFT JOIN plays p ON p.track_id = t.id
@@ -248,15 +252,17 @@ async function fastCovers(limit) {
   for (let k = 0; k < ids.length; k += 48) {
     const part = ids.slice(k, k + 48);
     const { rows: still } = await query('SELECT id FROM tracks WHERE id = ANY($1) AND album_image IS NULL', [part]);
+    let hits = 0;
     try {
       await pool(still.map((r) => r.id), 8, async (id) => {
         const url = await oembedCover(id).catch((err) => { if (err.status === 429) throw err; return null; });
-        if (url) { await query('UPDATE tracks SET album_image = $2, updated_at = now() WHERE id = $1 AND album_image IS NULL', [id, url]); found++; }
+        if (url) { await query('UPDATE tracks SET album_image = $2, updated_at = now() WHERE id = $1 AND album_image IS NULL', [id, url]); found++; hits++; }
       });
     } catch (err) {
       console.warn('[enrich] oEmbed pausiert:', err.message);
-      break; // Rate-Limit → Rest übernimmt der API-Abruf
+      break; // Rate-Limit → Rest übernehmen Deezer/iTunes und die API
     }
+    if (k === 0 && still.length >= 16 && hits === 0) { console.warn('[enrich] oEmbed liefert nichts – überspringe'); break; }
     found += await shareAlbumCovers();
   }
   return found;
@@ -276,6 +282,14 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
     let artists = 0;
     let covers = await shareAlbumCovers();
     try { covers += await fastCovers(limit); } catch (err) { console.warn('[enrich] Schnell-Cover:', err.message); }
+    // Was oEmbed nicht liefert: Albumcover bei Deezer/iTunes suchen (ein Abruf pro Album)
+    try { covers += await externalAlbumCovers(); covers += await shareAlbumCovers(); } catch (err) { console.warn('[enrich] Ersatz-Cover:', err.message); }
+    await refreshCollectionImages().catch(() => {});
+    let apiNote = null;
+    if (Date.now() < apiBlock.until) {
+      apiNote = `Spotify-API gesperrt bis ${new Date(apiBlock.until).toISOString()}`;
+      return { tracks, artists, covers, note: apiNote };
+    }
     const { rows: trackRows } = await query(
       `SELECT t.id FROM tracks t
          LEFT JOIN plays p ON p.track_id = t.id
@@ -283,19 +297,36 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
         GROUP BY t.id ORDER BY (t.album_image IS NULL) DESC, count(p.id) DESC LIMIT $1`,
       [limit],
     );
-    await pool(trackRows, 3, async ({ id }) => {
-      try {
-        const t = await spotifyGet(userId, `/tracks/${id}`);
-        await upsertTracks({ query }, [t]);
-        tracks++;
-      } catch (err) {
-        if (err.status === 404 || err.status === 400 || err.status === 403) {
-          await query('UPDATE tracks SET enriched_at = now() WHERE id = $1', [id]);
-        } else throw err;
+    const STOP = Symbol('stop');
+    const guard = (fn) => async (x) => {
+      if (Date.now() < apiBlock.until) throw STOP;
+      try { await fn(x); } catch (err) {
+        if (err.status === 429) {
+          // hartes Rate-Limit: API-Teil pausieren statt den ganzen Lauf scheitern zu lassen
+          apiBlock.until = Date.now() + Math.max(600, err.retryAfter || 600) * 1000;
+          apiNote = `Spotify-Rate-Limit, Pause bis ${new Date(apiBlock.until).toISOString()}`;
+          throw STOP;
+        }
+        throw err;
       }
-      await sleep(40);
-    });
+    };
+    try {
+      await pool(trackRows, 3, guard(async ({ id }) => {
+        try {
+          const t = await spotifyGet(userId, `/tracks/${id}`, { retries: 2, maxWait: 30 });
+          await upsertTracks({ query }, [t]);
+          tracks++;
+        } catch (err) {
+          if (err.status === 404 || err.status === 400 || err.status === 403) {
+            await query('UPDATE tracks SET enriched_at = now() WHERE id = $1', [id]);
+          } else throw err;
+        }
+        await sleep(60);
+      }));
+    } catch (err) { if (err !== STOP) throw err; }
     covers += await shareAlbumCovers();
+    await refreshCollectionImages().catch(() => {});
+    if (Date.now() < apiBlock.until) return { tracks, artists, covers, note: apiNote };
 
     const { rows: artistRows } = await query(
       `SELECT id FROM artists
@@ -303,9 +334,10 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
         ORDER BY enriched_at NULLS FIRST LIMIT $1`,
       [limit],
     );
-    await pool(artistRows, 3, async ({ id }) => {
+    try {
+    await pool(artistRows, 3, guard(async ({ id }) => {
       try {
-        const a = await spotifyGet(userId, `/artists/${id}`);
+        const a = await spotifyGet(userId, `/artists/${id}`, { retries: 2, maxWait: 30 });
         await query(
           `UPDATE artists SET name = $2, image_url = COALESCE($3, image_url),
              genres = CASE WHEN cardinality($4::text[]) > 0 THEN $4::text[] ELSE genres END,
@@ -318,9 +350,10 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
           await query('UPDATE artists SET enriched_at = now() WHERE id = $1', [id]);
         } else throw err;
       }
-      await sleep(40);
-    });
-    return { tracks, artists, covers };
+      await sleep(60);
+    }));
+    } catch (err) { if (err !== STOP) throw err; }
+    return { tracks, artists, covers, ...(apiNote ? { note: apiNote } : {}) };
   });
 }
 

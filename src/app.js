@@ -12,7 +12,9 @@ import * as stats from './stats.js';
 import * as features from './features.js';
 import { lastBackup, restoreBackup, streamBackup } from './backup.js';
 import * as records from './records.js';
-import { startScheduler, syncAllDue, triggerEnrich, triggerSync } from './scheduler.js';
+import { isEnriching, startScheduler, syncAllDue, triggerEnrich, triggerSync } from './scheduler.js';
+import { coverProxy } from './covers.js';
+import { apiBlock } from './sync.js';
 import * as preview from './preview.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -298,6 +300,9 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
+// Ersatz-Cover (Deezer/Apple) über den eigenen Server – öffentlich, nur erlaubte Bild-CDNs
+app.get('/img/cover', coverProxy);
+
 const api = express.Router();
 const wrap = (fn) => (req, res) =>
   fn(req, res).catch((err) => {
@@ -332,7 +337,8 @@ api.get(
     };
     if (!a.spotify_user_id) return res.json(base);
     const s = await stats.status(a.spotify_user_id);
-    res.json({ ...base, counts: s.counts, jobs: s.jobs, snapshots: s.snapshots });
+    const covers = { loading: isEnriching(a.spotify_user_id), apiPausedUntil: apiBlock.until > Date.now() ? new Date(apiBlock.until).toISOString() : null };
+    res.json({ ...base, counts: s.counts, jobs: s.jobs, snapshots: s.snapshots, covers });
   }),
 );
 
@@ -597,6 +603,13 @@ api.get(
       console.warn('[preview]', err.message);
       res.status(502).json({ error: 'Hörprobe nicht erreichbar.' });
     }
+  }),
+);
+api.post(
+  '/covers/load',
+  wrap(async (req, res) => {
+    triggerEnrich(req.sid);
+    res.json({ ok: true });
   }),
 );
 api.get('/search', wrap(async (req, res) => res.json(await features.search(req.sid, req.query.q))));

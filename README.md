@@ -181,7 +181,9 @@ Der Import ist **idempotent**. Doppelte Plays werden übersprungen, auch wenn si
 Cover und Genres der importierten Songs lädt die App direkt nach dem Import und bei jedem Sync im Hintergrund nach (bis zu `ENRICH_LIMIT` = 2000 pro Lauf, die meistgehörten zuerst; ist mehr offen, startet sofort der nächste Durchgang). Damit die Cover schnell erscheinen, läuft das in drei Stufen:
 1. **Album-Geschwister**: Songs vom selben Album (gleicher Albumname + Hauptkünstler) übernehmen ein schon bekanntes Cover – ein SQL-Befehl, sofort.
 2. **Schnell-Cover über Spotifys öffentliches oEmbed** (8 Abrufe parallel, ohne Login, zählt nicht gegen das API-Limit) – nach jedem Paket werden die Cover wieder auf Album-Geschwister verteilt.
-3. **Vollständige Metadaten** (Artist-IDs, Dauer, Genres) über die Web API, 3 Abrufe parallel mit automatischem Warten bei Rate-Limit.
+3. **Ersatz-Cover von Deezer/iTunes** für alles, was oEmbed nicht liefert (oder wenn oEmbed vom Server aus blockiert ist): ein Abruf pro Album (Künstler + Albumname), das Cover gilt dann für alle Songs des Albums. Die Bilder laufen über `/img/cover` durch den eigenen Server (nur Deezer-/Apple-Bild-CDNs erlaubt, nur für angemeldete Nutzer, 30 Tage gecacht) – der Browser kontaktiert keinen Fremddienst. Alben ohne Treffer werden erst nach 7 Tagen erneut gesucht.
+4. **Vollständige Metadaten** (Artist-IDs, Dauer, Genres) über die Web API, 3 Abrufe parallel. Sperrt Spotify die App mit einem langen Rate-Limit (bei Development-Mode-Apps teils Stunden), pausiert nur dieser Teil bis zum Ende der Sperre – die Cover-Schritte 1–3 laufen weiter, und der Lauf scheitert nicht.
+Platten und CDs in Sammlungen, die beim Kauf noch kein Cover hatten, bekommen es automatisch nachträglich. Im Profil zeigt „Warten auf Cover“ den Stand und bietet **Jetzt laden** an.
 Typisch sind die Cover nach einem Import so in 1–2 Minuten da statt nach ~10 Minuten. Der Sync-Button wartet darauf nicht; „ohne Cover“ im Profil zählt nur Songs, die wirklich noch kein Cover haben.
 
 ---

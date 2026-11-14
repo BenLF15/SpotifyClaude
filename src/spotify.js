@@ -120,7 +120,7 @@ export function spotifyPost(userId, pathOrUrl, body, opts = {}) {
   return spotifyRequest(userId, 'POST', pathOrUrl, body, { retries: 2, ...opts });
 }
 
-async function spotifyRequest(userId, method, pathOrUrl, body, { retries = 4 } = {}) {
+async function spotifyRequest(userId, method, pathOrUrl, body, { retries = 4, maxWait = 120 } = {}) {
   const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${API}${pathOrUrl}`;
   let token = await getAccessToken(userId);
   for (let attempt = 0; ; attempt++) {
@@ -148,7 +148,14 @@ async function spotifyRequest(userId, method, pathOrUrl, body, { retries = 4 } =
       err.status = 429;
       throw err;
     } else if (res.status === 429) {
-      const wait = Math.min(Number.parseInt(res.headers.get('retry-after') || '5', 10), 120);
+      const ra = Number.parseInt(res.headers.get('retry-after') || '5', 10);
+      if (ra > maxWait) {
+        const err = new Error(`Spotify-Rate-Limit (${ra}s)`);
+        err.status = 429;
+        err.retryAfter = ra;
+        throw err;
+      }
+      const wait = Math.min(ra, 120);
       console.warn(`[spotify] Rate-Limit – warte ${wait}s`);
       await sleep(wait * 1000 + 250);
     } else if (res.status >= 500) {

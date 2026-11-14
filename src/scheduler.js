@@ -17,6 +17,8 @@ let enrichQueue = Promise.resolve();
  * damit Sync-Button und Zeitplan nicht darauf warten. Alle Nutzer teilen sich eine
  * Warteschlange, damit das Spotify-Rate-Limit der App geschont wird.
  */
+export const isEnriching = (userId) => enriching.has(userId);
+
 export function triggerEnrich(userId) {
   if (enriching.has(userId)) return;
   enriching.add(userId);
@@ -30,7 +32,7 @@ export function triggerEnrich(userId) {
     .then((r) => {
       enriching.delete(userId);
       // volles Limit ausgeschöpft → es gibt wohl noch mehr: direkt den nächsten Durchgang starten
-      if (r && r.tracks >= config.enrichLimit) setTimeout(() => triggerEnrich(userId), 2000);
+      if (r && (r.tracks >= config.enrichLimit || r.covers >= 100) && !r.note) setTimeout(() => triggerEnrich(userId), 2000);
     });
 }
 
@@ -40,7 +42,10 @@ export function triggerSync(userId, opts = {}) {
     running.set(
       userId,
       runCron(userId, { ...opts, enrich: false })
-        .then((summary) => { triggerEnrich(userId); return { ...summary, enrich: 'background' }; })
+        .then(
+          (summary) => { triggerEnrich(userId); return { ...summary, enrich: 'background' }; },
+          (err) => { triggerEnrich(userId); throw err; }, // Cover trotzdem weiter laden
+        )
         .finally(() => running.delete(userId)),
     );
   }

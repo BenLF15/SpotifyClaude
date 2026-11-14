@@ -3,6 +3,7 @@
 //
 // - Der Laden zeigt jede Woche (ab Montag) eine neue Zufallsauswahl, jedes Album bzw. jeder Song höchstens einmal.
 // - Noten-Gutschriften stehen in note_ledger; einmalige Belohnungen haben einen eindeutigen Schlüssel (idempotent).
+import { refreshCollectionImages } from './covers.js';
 import crypto from 'node:crypto';
 import { config } from './config.js';
 import { query, withTransaction } from './db.js';
@@ -332,6 +333,7 @@ function sources(account, f, earned) {
 }
 
 export async function overviewFor(account) {
+  await refreshCollectionImages(account.id).catch(() => {}); // fehlende Cover in der Sammlung nachtragen
   const { fresh, facts: f } = await evaluate(account);
   const today = localDate();
   const { year, week } = isoWeek(today);

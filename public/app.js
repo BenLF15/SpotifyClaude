@@ -440,7 +440,9 @@
           ? `<span class="status-dot ${job.ok ? 'ok' : 'bad'}"></span>${job.ok ? '' : `${esc(t('profile.failed'))} · `}${esc(relTime(job.finished_at))}`
           : '–'),
         row('profile.autoSync', esc(t('profile.every30'))),
-        pending ? row('profile.waitingCovers', esc(tn('day.songs', pending, { n: fmt(pending) }))) : '',
+        pending ? row('profile.waitingCovers', `${esc(tn('day.songs', pending, { n: fmt(pending) }))}${s.covers?.loading
+          ? ` · <span class="covers-busy">${esc(t('covers.loading'))}</span>`
+          : ` · <button type="button" class="link-btn inline" data-load-covers>${esc(t('covers.loadNow'))}</button>`}`) : '',
       ].join('');
     } else {
       $('#profile-data').innerHTML = row('profile.dataLabel', esc(t('profile.noData')));
@@ -3903,6 +3905,21 @@
         if (history.open.has(day)) history.open.delete(day); else history.open.add(day);
         renderHistory();
         if (!history.open.has(day)) document.querySelector(`[data-day="${day}"]`)?.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      const lc = e.target.closest('[data-load-covers]');
+      if (lc) {
+        lc.disabled = true;
+        postJSON('/api/covers/load', {}).then(() => {
+          toast(t('covers.started'));
+          lc.outerHTML = `<span class="covers-busy">${esc(t('covers.loading'))}</span>`;
+          // Fortschritt sichtbar machen: Status nach und nach neu laden
+          let n = 0;
+          const tick = setInterval(async () => {
+            n++;
+            try { const s = await loadStatus(); if (!s.covers?.loading || n > 40) { clearInterval(tick); refreshAll?.(); } } catch { clearInterval(tick); }
+          }, 15000);
+        }).catch((err) => { lc.disabled = false; toast(errMsg(err), true); });
         return;
       }
       const go = e.target.closest('[data-goto]');

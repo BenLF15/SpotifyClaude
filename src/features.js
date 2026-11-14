@@ -1,5 +1,6 @@
 // Zusatzfunktionen: Jahresrückblick, Suche & Details, Meilensteine, Freunde & Vergleich,
 // Playlist aus der Statistik, „Aktuell läuft“ und Datenexport.
+import { refreshCollectionImages } from './covers.js';
 import { config } from './config.js';
 import { query, withTransaction } from './db.js';
 import { bestImage, missingScopes, spotifyGet, spotifyPost } from './spotify.js';
@@ -729,6 +730,7 @@ export async function friendCollection(account, friendId) {
     [account.id, friendId],
   );
   if (!rows[0]) throw new UserError('Keine bestätigte Freundschaft.', 404, 'notFriends');
+  await refreshCollectionImages(friendId).catch(() => {});
   const { rows: items } = await query(
     `SELECT record_id AS id, kind, rarity, artist, album, album_id, image, hue, price, acquired_at
        FROM record_collection WHERE account_id = $1 ORDER BY acquired_at DESC`,

@@ -2465,3 +2465,6 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 .flash-row { animation: flash-row 2.2s ease-out; border-radius: 14px; }
 @keyframes flash-row { 0%, 40% { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.6); background: var(--accent-soft); } 100% { box-shadow: 0 0 0 3px transparent; } }
 @media (max-width: 380px) { .news-list li { grid-template-columns: 34px minmax(0, 1fr) auto; } .news-ico { width: 34px; height: 34px; } }
+
+.covers-busy { color: var(--accent); font-weight: 600; animation: covers-pulse 1.4s ease-in-out infinite; }
+@keyframes covers-pulse { 50% { opacity: 0.45; } }

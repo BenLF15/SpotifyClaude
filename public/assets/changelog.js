@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-14f',
+    date: '2026-11-14',
+    items: [
+      {
+        icon: '🖼️', go: 'records',
+        t: ['Fehlende Cover ergänzt', 'Missing covers filled in', 'Pochettes manquantes ajoutées', 'Portadas que faltaban', 'Copertine mancanti aggiunte', 'Saknade omslag tillagda', 'Manglende covers tilføjet'],
+        d: ['Auch Platten und CDs in deiner Sammlung bekommen ihr Cover nachträglich.', 'Records and CDs in your collection now get their cover afterwards, too.', 'Les vinyles et CD de ta collection reçoivent aussi leur pochette.', 'Los discos y CD de tu colección también reciben su portada.', 'Anche dischi e CD della tua collezione ricevono la copertina.', 'Även skivor och cd-skivor i samlingen får sitt omslag i efterhand.', 'Også plader og cd’er i din samling får deres cover bagefter.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-14e',
     date: '2026-11-14',
     items: [
