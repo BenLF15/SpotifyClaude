@@ -335,6 +335,11 @@
     'tour.start': ['Los geht’s', 'Let’s go', 'C’est parti', 'Vamos', 'Iniziamo', 'Kör', 'Lad os starte'],
     'tour.done': ['Fertig', 'Done', 'Terminé', 'Listo', 'Fatto', 'Klar', 'Færdig'],
     'tour.optOut': ['Nicht mehr anzeigen', 'Don’t show again', 'Ne plus afficher', 'No volver a mostrar', 'Non mostrare più', 'Visa inte igen', 'Vis ikke igen'],
+    'news.kicker': ['Update', 'Update', 'Mise à jour', 'Actualización', 'Aggiornamento', 'Uppdatering', 'Opdatering'],
+    'news.title': ['Neu in Spotlfy', 'New in Spotlfy', 'Nouveau dans Spotlfy', 'Novedades en Spotlfy', 'Novità in Spotlfy', 'Nytt i Spotlfy', 'Nyt i Spotlfy'],
+    'news.try': ['Ansehen', 'Show me', 'Voir', 'Ver', 'Vedi', 'Visa', 'Vis'],
+    'news.ok': ['Alles klar', 'Got it', 'Compris', 'Entendido', 'Ho capito', 'Uppfattat', 'Forstået'],
+    'news.more': ['… und {n} weitere Verbesserungen', '… and {n} more improvements', '… et {n} autres améliorations', '… y {n} mejoras más', '… e altri {n} miglioramenti', '… och {n} förbättringar till', '… og {n} forbedringer mere'],
     'tour.close': ['Schließen', 'Close', 'Fermer', 'Cerrar', 'Chiudi', 'Stäng', 'Luk'],
     'tour.step': ['Schritt {i} von {n}', 'Step {i} of {n}', 'Étape {i} sur {n}', 'Paso {i} de {n}', 'Passo {i} di {n}', 'Steg {i} av {n}', 'Trin {i} af {n}'],
 

@@ -316,6 +316,7 @@
     renderProfile(s);
     updateFestive();
     maybeShowTour();
+    maybeShowNews();
     renderNotices();
     renderWrappedPromo();
     startNowPlaying();
@@ -1322,6 +1323,81 @@
     if (key === 'birthday' && !state.account?.birthday) { toast(t('admin.noBirthday'), true); return; }
     const ev = eventsForYear(y).find((e) => e.key === key && !(key === 'carnival' && e.start.getMonth() === 10));
     if (ev) previewDate(isoDay(ev.start));
+  }
+
+  // ================================================================ Neuigkeiten nach einem Update
+  // Einträge stehen in /assets/changelog.js (neueste zuerst). Gezeigt wird einmal pro Konto und Browser,
+  // was seit dem letzten Besuch neu ist. Brandneue Konten bekommen kein Pop-up (für sie ist alles neu).
+  const NEWS = Array.isArray(window.SpotlfyNews) ? window.SpotlfyNews : [];
+  const newsKey = () => `news-seen-${state.account?.id}`;
+  const L = (arr) => (Array.isArray(arr) ? arr[Math.max(0, I.LANGS.indexOf(I.lang))] || arr[1] || arr[0] : String(arr || ''));
+
+  function recentNews() {
+    const top = parseDay(NEWS[0].date || isoDay(new Date())).getTime();
+    return NEWS.filter((n) => !n.date || top - parseDay(n.date).getTime() <= 14 * 864e5);
+  }
+
+  function unseenNews() {
+    if (!NEWS.length || !state.account) return [];
+    const seen = store.get(newsKey());
+    if (!seen) {
+      const fresh = state.account.created_at && Date.now() - new Date(state.account.created_at).getTime() < 2 * 864e5;
+      if (fresh) { store.set(newsKey(), NEWS[0].id); return []; }
+      return recentNews(); // Bestandsnutzer ohne Merker: Neuerungen der letzten zwei Wochen
+    }
+    const i = NEWS.findIndex((n) => n.id === seen);
+    return i < 0 ? recentNews() : NEWS.slice(0, i);
+  }
+
+  function maybeShowNews(delay = 1200) {
+    setTimeout(() => {
+      const list = unseenNews();
+      if (!list.length) return;
+      if ($$('dialog[open]').length || $('#note-toast:not([hidden])')) { setTimeout(() => maybeShowNews(0), 4000); return; } // nichts überlagern
+      openNews(list);
+    }, delay);
+  }
+
+  function openNews(list) {
+    const items = list.flatMap((n) => n.items).slice(0, 6);
+    const more = list.flatMap((n) => n.items).length - items.length;
+    const date = list[0].date ? dateFmtYear.format(parseDay(list[0].date)) : '';
+    $('#news-body').innerHTML = `${CLOSE_BTN()}
+      <div class="news-hero" aria-hidden="true"><span class="news-spark s1">✦</span><span class="news-spark s2">✦</span><span class="news-spark s3">✧</span><span class="news-badge">🎁</span></div>
+      <div class="news-head"><p class="news-kicker">${esc(t('news.kicker'))}${date ? ` · ${esc(date)}` : ''}</p><h2 id="news-title">${esc(t('news.title'))}</h2></div>
+      <ul class="news-list">${items.map((it, k) => `<li style="--i:${k}">
+          <span class="news-ico">${esc(it.icon || '✨')}</span>
+          <div><b>${esc(L(it.t))}</b><span>${esc(L(it.d))}</span></div>
+          ${it.go ? `<button type="button" class="news-go" data-news-go="${esc(it.go)}" aria-label="${esc(t('news.try'))}: ${esc(L(it.t))}" title="${esc(t('news.try'))}">›</button>` : ''}
+        </li>`).join('')}</ul>
+      ${more > 0 ? `<p class="news-more">${esc(t('news.more', { n: more }))}</p>` : ''}
+      <div class="news-foot"><button type="button" class="btn btn-primary" data-news-ok>${esc(t('news.ok'))}</button></div>`;
+    const dlg = $('#news-dialog');
+    if (!dlg.open) dlg.showModal();
+    $('[data-news-ok]', dlg)?.focus();
+  }
+
+  function closeNews() {
+    if (NEWS[0]) store.set(newsKey(), NEWS[0].id);
+    const dlg = $('#news-dialog');
+    if (dlg.open) dlg.close();
+  }
+
+  function bindNews() {
+    const dlg = $('#news-dialog');
+    dlg.addEventListener('close', () => { if (NEWS[0]) store.set(newsKey(), NEWS[0].id); });
+    dlg.addEventListener('click', (e) => {
+      if (e.target === dlg || e.target.closest('[data-news-ok]')) { closeNews(); return; }
+      const go = e.target.closest('[data-news-go]');
+      if (!go) return;
+      const where = go.dataset.newsGo;
+      closeNews();
+      if (where === 'glass') {
+        showPanel('profile');
+        requestAnimationFrame(() => { const sw = $('#glass-switch'); sw?.closest('.settings-row')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); sw?.closest('.settings-row')?.classList.add('flash-row'); setTimeout(() => sw?.closest('.settings-row')?.classList.remove('flash-row'), 2200); });
+      } else if (where === 'records') openRecordsTab('collection');
+      else if (PANELS.includes(where)) { showPanel(where); window.scrollTo({ top: 0, behavior: 'auto' }); }
+    });
   }
 
   // ================================================================ Walkthrough der festlichen Effekte
@@ -3850,6 +3926,7 @@
       if (b) ({ password: changePassword, disconnect: disconnectSpotify, delete: deleteAccount })[b.dataset.action]?.();
     });
     $('#festive-switch').addEventListener('click', toggleFestive);
+    bindNews();
     $('#glass-switch').addEventListener('click', toggleGlass);
     bindSearch();
     bindStory();
