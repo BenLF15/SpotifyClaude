@@ -369,7 +369,8 @@ export async function overviewFor(account) {
     free,
     poolSize: pool.length,
     collection: collection.rows,
-    sources: sources(account, f, ledger.rows.filter((r) => r.key && !r.key.startsWith('buy:'))),
+    sources: sources(account, f, ledger.rows.filter((r) => r.key && !r.key.startsWith('buy:') && !r.key.startsWith('refine:'))),
+    refineCost: REFINE_COST,
     exchangeRate: EXCHANGE_RATE,
     eggs: weeklyEggs(account, year, week).map((e) => ({ id: e.id, spot: e.spot, found: ledger.rows.some((r) => r.key === `egg:${e.id}`) })),
     daily: {
@@ -797,4 +798,184 @@ async function composeShop(account, year, week, pool, tpool) {
     return [...extra, ...rest].sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || Number(Boolean(b.discover)) - Number(Boolean(a.discover)) || a.artist.localeCompare(b.artist));
   };
   return { shopList: merge(pool, dRec, SHOP_SIZE), singleList: merge(tpool, dCd, CD_SHOP_SIZE) };
+}
+
+// ================================================================ Studio: Platten veredeln
+// Eine Platte/CD aus der eigenen Sammlung um eine Seltenheitsstufe aufwerten (gegen Noten).
+export const REFINE_COST = {
+  record: { common: ['silver', 2], rare: ['gold', 2], epic: ['platinum', 1], legendary: ['platinum', 3] },
+  cd: { common: ['silver', 1], rare: ['gold', 1], epic: ['gold', 3], legendary: ['platinum', 2] },
+};
+const RARITY_SUFFIX = /-(common|rare|epic|legendary|mythic)$/;
+
+export async function refine(account, recordId) {
+  const freeRow = await query('SELECT free_shop FROM accounts WHERE id = $1', [account.id]);
+  const free = Boolean(freeRow.rows[0]?.free_shop);
+  const result = await withTransaction(async (db) => {
+    await db.query('SELECT pg_advisory_xact_lock($1)', [900000 + Number(account.id)]);
+    const { rows } = await db.query('SELECT * FROM record_collection WHERE account_id = $1 AND record_id = $2', [account.id, String(recordId)]);
+    const it = rows[0];
+    if (!it) throw new UserError('Diese Platte ist nicht in deiner Sammlung.', 404, 'recordNotOwned');
+    const kind = it.kind === 'cd' ? 'cd' : 'record';
+    const from = it.rarity;
+    const to = RARITIES[RARITIES.indexOf(from) + 1];
+    if (!to) throw new UserError('Mythisch ist schon die höchste Stufe.', 400, 'refineMax');
+    const [tier, amount] = REFINE_COST[kind][from];
+    const newId = RARITY_SUFFIX.test(it.record_id) ? it.record_id.replace(RARITY_SUFFIX, `-${to}`) : `${it.record_id}-${to}`;
+    const { rows: clash } = await db.query('SELECT 1 FROM record_collection WHERE account_id = $1 AND record_id = $2', [account.id, newId]);
+    if (clash.length) throw new UserError('Diese Ausführung hast du schon.', 409, 'refineOwned');
+    const bal = await balanceOf(account.id, db);
+    if (!free && bal[tier] < amount) throw new UserError('Nicht genug Noten.', 400, 'notEnoughNotes');
+    if (!free) {
+      const cost = R();
+      cost[tier] = -amount;
+      await db.query(
+        'INSERT INTO note_ledger (account_id, key, bronze, silver, gold, platinum) VALUES ($1, $2, $3, $4, $5, $6)',
+        [account.id, `refine:${newId}#${Date.now()}`, cost.bronze, cost.silver, cost.gold, cost.platinum],
+      );
+    }
+    const price = { ...(it.price || {}), refined: [...(it.price?.refined || []), from] };
+    const { rows: upd } = await db.query(
+      `UPDATE record_collection SET record_id = $3, rarity = $4, price = $5
+        WHERE account_id = $1 AND record_id = $2
+        RETURNING record_id AS id, kind, rarity, artist, album, album_id, image, hue, week, price, acquired_at`,
+      [account.id, it.record_id, newId, to, JSON.stringify(price)],
+    );
+    return { record: upd[0], from, to, cost: free ? null : { tier, amount } };
+  });
+  const { fresh } = await evaluate(account); // z. B. „erstes mythisches Stück“
+  return { ...result, fresh, balance: await balanceOf(account.id) };
+}
+
+// ================================================================ Studio: Tägliche Session (Intro-Quiz)
+// 5 Runden pro Tag: ein ganz kurzer Ausschnitt vom Anfang der Hörprobe eines eigenen Lieblingssongs,
+// 4 Antworten. Je kürzer man hört, desto mehr Punkte. Lösung und Song-IDs bleiben auf dem Server.
+export const SESSION_ROUNDS = 5;
+export const SESSION_LEVELS = [1, 2, 4]; // Sekunden
+const SESSION_POINTS = [3, 2, 1];
+const sessionReward = (score) => (score >= 12 ? R(0, 0, 1) : score >= 8 ? R(0, 2) : score >= 4 ? R(2) : R(1));
+
+async function buildSession(account, day) {
+  const uid = account.spotify_user_id;
+  const { rows: pool } = await query(
+    `SELECT t.id, t.name, array_to_string(t.artist_names, ', ') AS artists, t.album_image AS image, count(*) AS n
+       FROM plays pl JOIN tracks t ON t.id = pl.track_id
+      WHERE pl.user_id = $1 AND pl.played_at > now() - interval '365 days' AND pl.ms_played >= 30000
+      GROUP BY t.id HAVING count(*) >= 2 ORDER BY n DESC LIMIT 80`,
+    [uid],
+  );
+  if (pool.length < 8) throw new UserError('Für die Session brauchst du noch ein paar mehr gehörte Songs.', 400, 'sessionTooFew');
+  const seed = (x) => hashInt(`${account.id}#${day}#session#${x}`);
+  const order = [...pool].sort((a, b) => seed(a.id) - seed(b.id));
+  const { previewUrl } = await import('./preview.js');
+  const rounds = [];
+  let tries = 0;
+  for (const t of order) {
+    if (rounds.length >= SESSION_ROUNDS || tries >= 20) break;
+    tries++;
+    if (!(await previewUrl(t.id).catch(() => null))) continue;
+    const others = pool
+      .filter((o) => o.id !== t.id && o.name.toLowerCase() !== t.name.toLowerCase())
+      .sort((a, b) => seed(`${t.id}#${a.id}`) - seed(`${t.id}#${b.id}`))
+      .slice(0, 3);
+    const options = [t, ...others].sort((a, b) => seed(`opt#${a.id}`) - seed(`opt#${b.id}`)).map((o) => ({ id: o.id, name: o.name, artists: o.artists }));
+    rounds.push({ id: t.id, name: t.name, artists: t.artists, image: t.image, options, answer: options.findIndex((o) => o.id === t.id) });
+  }
+  if (!rounds.length) throw new UserError('Gerade gibt es keine Hörproben – versuch es später nochmal.', 503, 'sessionNoAudio');
+  return rounds;
+}
+
+// Was der Browser sehen darf: Antworten ohne IDs, aufgedeckt nur bereits beantwortete Runden
+function sessionView(row) {
+  const progress = row.progress || [];
+  return {
+    day: row.day,
+    total: row.rounds.length,
+    score: row.score,
+    maxScore: row.rounds.length * SESSION_POINTS[0],
+    done: progress.filter((p) => p && p.choice !== undefined).length >= row.rounds.length,
+    rewarded: row.rewarded,
+    reward: sessionReward(row.score),
+    levels: SESSION_LEVELS,
+    points: SESSION_POINTS,
+    rounds: row.rounds.map((r, i) => {
+      const p = progress[i] || {};
+      const answered = p.choice !== undefined;
+      return {
+        options: r.options.map((o) => ({ name: o.name, artists: o.artists })),
+        level: p.level || 0,
+        answered,
+        ...(answered ? { choice: p.choice, correct: p.correct, points: p.points, answer: r.answer, track: { name: r.name, artists: r.artists, image: r.image, id: r.id } } : {}),
+      };
+    }),
+  };
+}
+
+async function sessionRow(account, { create = false } = {}) {
+  const day = localDate();
+  const { rows } = await query('SELECT * FROM studio_sessions WHERE account_id = $1 AND day = $2', [account.id, day]);
+  if (rows[0] || !create) return rows[0] || null;
+  const rounds = await buildSession(account, day);
+  const { rows: ins } = await query(
+    `INSERT INTO studio_sessions (account_id, day, rounds) VALUES ($1, $2, $3)
+     ON CONFLICT (account_id, day) DO UPDATE SET account_id = EXCLUDED.account_id RETURNING *`,
+    [account.id, day, JSON.stringify(rounds)],
+  );
+  return ins[0];
+}
+
+export async function sessionState(account) {
+  const row = await sessionRow(account);
+  return row ? sessionView(row) : { started: false, levels: SESSION_LEVELS, points: SESSION_POINTS, total: SESSION_ROUNDS };
+}
+
+export async function sessionStart(account) {
+  return sessionView(await sessionRow(account, { create: true }));
+}
+
+/** Ausschnitt einer Runde: merkt sich die längste angehörte Stufe (bestimmt die Punkte). */
+export async function sessionAudioTrack(account, round, level) {
+  const row = await sessionRow(account);
+  const r = row?.rounds?.[round];
+  if (!r) throw new UserError('Diese Runde gibt es nicht.', 404, 'notFound');
+  const lv = Math.max(1, Math.min(SESSION_LEVELS.length, Number(level) || 1));
+  const progress = row.progress || [];
+  const p = progress[round] || {};
+  if (p.choice === undefined && (p.level || 0) < lv) {
+    progress[round] = { ...p, level: lv };
+    await query('UPDATE studio_sessions SET progress = $3 WHERE account_id = $1 AND day = $2', [account.id, row.day, JSON.stringify(progress)]);
+  }
+  return { trackId: r.id, seconds: SESSION_LEVELS[(p.choice === undefined ? lv : Math.max(lv, p.level || 1)) - 1] };
+}
+
+export async function sessionAnswer(account, round, choice) {
+  const fresh = [];
+  const out = await withTransaction(async (db) => {
+    await db.query('SELECT pg_advisory_xact_lock($1)', [910000 + Number(account.id)]);
+    const day = localDate();
+    const { rows } = await db.query('SELECT * FROM studio_sessions WHERE account_id = $1 AND day = $2', [account.id, day]);
+    const row = rows[0];
+    const r = row?.rounds?.[round];
+    if (!r) throw new UserError('Diese Runde gibt es nicht.', 404, 'notFound');
+    const progress = row.progress || [];
+    const p = progress[round] || {};
+    if (p.choice !== undefined) throw new UserError('Diese Runde hast du schon beantwortet.', 409, 'sessionAnswered');
+    const c = Number(choice);
+    if (!Number.isInteger(c) || c < 0 || c >= r.options.length) throw new UserError('Ungültige Antwort.', 400, 'invalidSetting');
+    const level = Math.max(1, p.level || 1);
+    const correct = c === r.answer;
+    const points = correct ? SESSION_POINTS[level - 1] : 0;
+    progress[round] = { level, choice: c, correct, points };
+    const score = (row.score || 0) + points;
+    await db.query('UPDATE studio_sessions SET progress = $3, score = $4 WHERE account_id = $1 AND day = $2', [account.id, day, JSON.stringify(progress), score]);
+    return { ...row, progress, score };
+  });
+  const view = sessionView(out);
+  if (view.done && !out.rewarded) {
+    const got = await grant(account.id, [{ key: `session:${localDate()}`, ...sessionReward(out.score) }]);
+    fresh.push(...got);
+    await query('UPDATE studio_sessions SET rewarded = true WHERE account_id = $1 AND day = $2', [account.id, out.day]);
+    view.rewarded = true;
+  }
+  return { session: view, round: view.rounds[round], fresh, balance: await balanceOf(account.id) };
 }

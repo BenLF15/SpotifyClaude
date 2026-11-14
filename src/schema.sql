@@ -184,6 +184,22 @@ ALTER TABLE accounts ADD COLUMN IF NOT EXISTS lang text;
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS festive boolean NOT NULL DEFAULT true;
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS glass boolean NOT NULL DEFAULT false;
 ALTER TABLE tracks ADD COLUMN IF NOT EXISTS cover_checked_at timestamptz;
+
+-- ---------------------------------------------------------------- Seltenheit „mythisch“ erlauben
+ALTER TABLE record_collection DROP CONSTRAINT IF EXISTS record_collection_rarity_check;
+ALTER TABLE record_collection ADD CONSTRAINT record_collection_rarity_check CHECK (rarity IN ('common', 'rare', 'epic', 'legendary', 'mythic'));
+
+-- ---------------------------------------------------------------- Studio: tägliche Session (Intro-Quiz)
+CREATE TABLE IF NOT EXISTS studio_sessions (
+  account_id  bigint NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  day         date NOT NULL,
+  rounds      jsonb NOT NULL,
+  progress    jsonb NOT NULL DEFAULT '[]',
+  score       integer NOT NULL DEFAULT 0,
+  rewarded    boolean NOT NULL DEFAULT false,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_id, day)
+);
 ALTER TABLE accounts ADD COLUMN IF NOT EXISTS birthday date;
 
 -- ---------------------------------------------------------------- Datenschutz, Meilensteine

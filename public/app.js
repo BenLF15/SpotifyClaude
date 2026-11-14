@@ -1617,7 +1617,7 @@
   function showPanel(panel) {
     if (!PANELS.includes(panel)) return;
     const changed = panel !== state.panel;
-    try { if (changed && panel !== 'records' && rec.store) { rec.store = { view: 'room', entered: false }; document.querySelector('.store-lift')?.remove(); } } catch { /* Laden noch nicht initialisiert */ }
+    try { if (changed && panel !== 'records' && rec.store) { rec.store = { view: 'room', entered: false }; rec.studio.mode = null; studioStopAudio(); document.querySelector('.store-lift')?.remove(); } } catch { /* Laden noch nicht initialisiert */ }
     state.panel = panel;
     session.set('panel', panel);
     applyView();
@@ -3525,7 +3525,7 @@
             <div class="sr-shelf r" aria-hidden="true">${'<i></i>'.repeat(9)}</div>
             <button type="button" class="sr-studio" data-store-go="studio" aria-label="${esc(t('store.studio'))}">
               <span class="sr-studio-door"><span class="sr-onair">ON AIR</span><span class="sr-window"></span><span class="sr-knob"></span></span>
-              <span class="sr-label">🎙️ ${esc(t('store.studio'))} <small>${esc(t('store.soon'))}</small></span>
+              <span class="sr-label">🎙️ ${esc(t('store.studio'))}${rec.studio.session && !rec.studio.session.done ? ' <span class="sr-dot"></span>' : ''}</span>
             </button>
           </div>
           <div class="sr-floor" aria-hidden="true"></div>
@@ -3545,6 +3545,7 @@
           <div class="sd-sign">Spotlfy Records</div><span class="sd-bell">🔔</span></div>`}
       </div>`;
     let table = '';
+    if (st.view === 'studio') table = studioHTML(d);
     if (st.view === 'records' || st.view === 'cds') {
       const isCd = st.view === 'cds';
       const list = isCd ? cdl : recs;
@@ -3579,13 +3580,13 @@
 
   // Kamera fährt zum Tisch (bzw. zurück in den Raum)
   function storeGo(where) {
+    const room = $('.store-room');
     if (where === 'studio') {
-      const s = $('.sr-studio');
-      s?.classList.remove('knock'); void s?.offsetWidth; s?.classList.add('knock');
-      toast(t('store.studioSoon'));
+      if (room && !reduceMotion) { $('.sr-studio')?.classList.add('opening'); room.classList.add('zoom-studio'); }
+      if (!rec.studio.session) loadSession();
+      setTimeout(() => { rec.store.view = 'studio'; renderRecords(); $('.store')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, reduceMotion ? 0 : 650);
       return;
     }
-    const room = $('.store-room');
     if (where === 'room') {
       const tb = $('.store-table');
       if (tb && !reduceMotion) { tb.classList.add('leaving'); room?.classList.add('zoom-out'); }
@@ -3666,6 +3667,227 @@
     slot?.classList.add('settle');
     setTimeout(() => slot?.classList.remove('settle'), 400);
     ov.remove();
+  }
+
+  // ---------------------------------------------------------------- Studio (hinter der Tür geradeaus)
+  // Zwei Stationen: Platten veredeln (Presse) und die tägliche Session (Intro-Quiz).
+  rec.studio = { mode: null, pick: null, session: null, round: 0, audio: null, busy: false };
+  const nextRarity = (r) => RARITIES[RARITIES.indexOf(r) + 1] || null;
+
+  function studioHTML(d) {
+    const sd = rec.studio;
+    const head = `<div class="stu-head">
+        <button type="button" class="btn btn-ghost btn-xs" data-studio="${sd.mode ? 'hub' : 'leave'}">← ${esc(t(sd.mode ? 'studio.back' : 'store.back'))}</button>
+        <div><b>🎙️ ${esc(t('store.studio'))}</b><small>${esc(t(sd.mode === 'refine' ? 'studio.refine' : sd.mode === 'session' ? 'studio.session' : 'studio.sub'))}</small></div>
+        <span class="stu-onair" aria-hidden="true">ON AIR</span>
+      </div>`;
+    let body = '';
+    if (!sd.mode) {
+      const s = sd.session;
+      const sessionStatus = s?.done
+        ? `✓ ${esc(t('studio.doneToday', { s: s.score, m: s.maxScore }))}`
+        : s?.rounds ? esc(t('studio.inProgress', { n: s.rounds.filter((r) => r.answered).length, m: s.total })) : esc(t('studio.sessionTeaser'));
+      body = `<div class="stu-stations">
+          <button type="button" class="stu-station press" data-studio="refine">
+            <span class="stu-ill" aria-hidden="true"><span class="press-top"></span><span class="press-disc"></span><span class="press-base"></span></span>
+            <b>✨ ${esc(t('studio.refine'))}</b><small>${esc(t('studio.refineSub'))}</small>
+          </button>
+          <button type="button" class="stu-station mic" data-studio="session">
+            <span class="stu-ill" aria-hidden="true"><span class="mic-head"></span><span class="mic-stand"></span><span class="mic-wave w1"></span><span class="mic-wave w2"></span></span>
+            <b>🎧 ${esc(t('studio.session'))}</b><small>${sessionStatus}</small>
+          </button>
+        </div>`;
+    } else if (sd.mode === 'refine') {
+      const list = (d.collection || []).filter((r) => r.rarity !== 'mythic')
+        .sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity));
+      const it = sd.pick ? d.collection.find((r) => r.id === sd.pick) : null;
+      let bench = `<div class="stu-bench empty"><div class="stu-press"><span class="press-top"></span><span class="press-slot">${esc(t('studio.pickHint'))}</span><span class="press-base"></span></div></div>`;
+      if (it) {
+        const to = nextRarity(it.rarity);
+        const [tier, amount] = d.refineCost?.[it.kind === 'cd' ? 'cd' : 'record']?.[it.rarity] || [];
+        const lack = d.free || !tier ? 0 : Math.max(0, amount - d.balance[tier]);
+        bench = `<div class="stu-bench">
+            <div class="stu-press"><span class="press-top"></span><span class="press-item">${itemArt(it, { size: 'lg' })}</span><span class="press-base"></span><span class="press-fx"></span></div>
+            <div class="stu-refine-info">
+              <b>${esc(it.album)}</b><small>${esc(it.artist)}</small>
+              <div class="stu-arrow">${rarityBadge(it.rarity)} <span>→</span> ${to ? rarityBadge(to) : ''}</div>
+              ${to ? `<small class="stu-variant">${esc(variantName({ ...it, rarity: to }))}</small>` : ''}
+              ${to ? `<button type="button" class="btn btn-primary" data-studio-refine="${esc(it.id)}" ${lack || sd.busy ? 'disabled' : ''}>
+                ${d.free ? `<s>${noteIcon(tier)} ${fmt(amount)}</s> 🎁` : `${noteIcon(tier)} ${fmt(amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${tier}`) }) : t('studio.refineBtn'))}</button>` : ''}
+            </div>
+          </div>`;
+      }
+      body = `${bench}
+        ${list.length ? `<div class="stu-pick">${list.map((r) => `<button type="button" class="stu-pick-item r-${r.rarity}${r.id === sd.pick ? ' on' : ''}" data-studio-pick="${esc(r.id)}" aria-label="${esc(`${r.album} · ${t(`rec.r.${r.rarity}`)}`)}">${itemArt(r)}</button>`).join('')}</div>`
+          : `<p class="empty">${esc(t('studio.nothingToRefine'))}</p>`}
+        <ul class="stu-costs">${RARITIES.slice(0, -1).map((r) => { const c = d.refineCost?.record?.[r]; const cc = d.refineCost?.cd?.[r]; return c ? `<li>${rarityBadge(r)} → ${rarityBadge(nextRarity(r))}<span>🎵 ${noteIcon(c[0])} ${c[1]} · 💿 ${noteIcon(cc[0])} ${cc[1]}</span></li>` : ''; }).join('')}</ul>`;
+    } else {
+      body = sessionHTML();
+    }
+    return `<div class="store-studio">${head}<div class="stu-body">${body}</div></div>`;
+  }
+
+  function sessionHTML() {
+    const s = rec.studio.session;
+    if (!s || !s.rounds) {
+      return `<div class="stu-intro">
+          <div class="stu-speaker" aria-hidden="true"><span></span></div>
+          <h3>${esc(t('studio.session'))}</h3>
+          <p>${esc(t('studio.sessionRules', { n: s?.total || 5 }))}</p>
+          <ul class="stu-rules">${(s?.levels || [1, 2, 4]).map((l, i) => `<li><b>${l} s</b><span>${(s?.points || [3, 2, 1])[i]} ${esc(t('studio.pts'))}</span></li>`).join('')}</ul>
+          <button type="button" class="btn btn-primary btn-lg" data-studio-start ${rec.studio.busy ? 'disabled' : ''}>▶ ${esc(t('studio.start'))}</button>
+        </div>`;
+    }
+    if (s.done) {
+      return `<div class="stu-result">
+          <div class="stu-score"><b>${fmt(s.score)}</b><small>/ ${fmt(s.maxScore)} ${esc(t('studio.pts'))}</small></div>
+          <p>${esc(t(s.score >= 12 ? 'studio.resTop' : s.score >= 8 ? 'studio.resGood' : s.score >= 4 ? 'studio.resOk' : 'studio.resLow'))}</p>
+          <div class="stu-reward">${rewardChips(s.reward)}</div>
+          <ol class="stu-recap">${s.rounds.map((r) => `<li class="${r.correct ? 'ok' : 'no'}">${imgOrPlaceholder(r.track?.image, r.track?.name)}<span><b>${esc(r.track?.name || '')}</b><small>${esc(r.track?.artists || '')}</small></span><em>${r.correct ? `+${r.points}` : '✗'}</em></li>`).join('')}</ol>
+          <p class="muted small">${esc(t('studio.tomorrow'))}</p>
+        </div>`;
+    }
+    const i = Math.min(rec.studio.round, s.total - 1);
+    const r = s.rounds[i];
+    const lv = r.level || 0;
+    const nextLv = Math.min(s.levels.length, lv + 1);
+    return `<div class="stu-round">
+        <div class="stu-progress">${s.rounds.map((x, k) => `<span class="${x.answered ? (x.correct ? 'ok' : 'no') : k === i ? 'now' : ''}"></span>`).join('')}</div>
+        <p class="stu-rno">${esc(t('studio.round', { n: i + 1, m: s.total }))} · ${esc(t('studio.scoreNow', { s: s.score }))}</p>
+        <div class="stu-deck${rec.studio.playing ? ' playing' : ''}">
+          <div class="stu-vinyl${r.answered && r.track?.image ? ' reveal' : ''}">${r.answered && r.track?.image ? `<img src="${esc(r.track.image)}" alt="" referrerpolicy="no-referrer" />` : ''}<i></i></div>
+          <div class="stu-eq" aria-hidden="true">${'<span></span>'.repeat(12)}</div>
+        </div>
+        ${r.answered
+          ? `<div class="stu-answer ${r.correct ? 'ok' : 'no'}"><b>${r.correct ? `✓ ${esc(t('studio.right'))} +${r.points}` : `✗ ${esc(t('studio.wrong'))}`}</b><span>${esc(r.track?.name || '')} · ${esc(r.track?.artists || '')}</span></div>`
+          : `<div class="stu-play">
+              <button type="button" class="btn btn-primary" data-studio-play="${i}" data-level="${Math.max(1, lv)}">▶ ${esc(t('studio.play', { s: s.levels[Math.max(1, lv) - 1] }))}</button>
+              ${lv >= 1 && lv < s.levels.length ? `<button type="button" class="btn btn-ghost" data-studio-play="${i}" data-level="${nextLv}">＋ ${esc(t('studio.longer', { s: s.levels[nextLv - 1], p: s.points[nextLv - 1] }))}</button>` : ''}
+            </div>`}
+        <div class="stu-options">${r.options.map((o, k) => {
+          const cls = r.answered ? (k === r.answer ? ' right' : k === r.choice ? ' wrong' : ' dim') : '';
+          return `<button type="button" class="stu-opt${cls}" data-studio-answer="${k}" ${r.answered || !lv ? 'disabled' : ''}><b>${esc(o.name)}</b><small>${esc(o.artists)}</small></button>`;
+        }).join('')}</div>
+        ${!lv && !r.answered ? `<p class="muted small stu-hint">${esc(t('studio.listenFirst'))}</p>` : ''}
+        ${r.answered ? `<button type="button" class="btn btn-primary" data-studio-next>${esc(t(i + 1 >= s.total ? 'studio.finish' : 'studio.next'))} →</button>` : ''}
+      </div>`;
+  }
+
+  function renderStudio() {
+    const box = $('.store-studio');
+    if (!box) { renderRecords(); return; }
+    box.outerHTML = studioHTML(rec.data);
+  }
+
+  async function loadSession() {
+    try { rec.studio.session = await api('/api/studio/session'); } catch { rec.studio.session = null; }
+    const s = rec.studio.session;
+    if (s?.rounds) { const k = s.rounds.findIndex((r) => !r.answered); rec.studio.round = k < 0 ? s.total - 1 : k; }
+    if (rec.store.view === 'studio') renderStudio();
+  }
+
+  // Ausschnitt abspielen: nur die gewählte Anzahl Sekunden vom Anfang
+  function studioPlay(round, level) {
+    const s = rec.studio.session;
+    const secs = s.levels[level - 1];
+    studioStopAudio();
+    const a = new Audio(`/api/studio/session/audio?r=${round}&l=${level}&_=${Date.now()}`);
+    rec.studio.audio = a;
+    const r = s.rounds[round];
+    r.level = Math.max(r.level || 0, level);
+    rec.studio.playing = true;
+    renderStudio();
+    a.addEventListener('timeupdate', () => { if (a.currentTime >= secs) studioStopAudio(true); });
+    a.addEventListener('ended', () => studioStopAudio(true));
+    a.addEventListener('error', () => { studioStopAudio(true); toast(t('studio.noAudio'), true); });
+    a.play().catch(() => { studioStopAudio(true); });
+    setTimeout(() => { if (rec.studio.audio === a) studioStopAudio(true); }, secs * 1000 + 1500); // Sicherheitsnetz
+  }
+  function studioStopAudio(rerender = false) {
+    const a = rec.studio.audio;
+    if (a) { a.pause(); a.removeAttribute('src'); a.load(); }
+    rec.studio.audio = null;
+    if (rec.studio.playing) { rec.studio.playing = false; if (rerender) renderStudio(); }
+  }
+
+  async function studioAnswer(choice) {
+    const i = rec.studio.round;
+    studioStopAudio();
+    try {
+      const r = await postJSON('/api/studio/session/answer', { round: i, choice: Number(choice) });
+      rec.studio.session = r.session;
+      if (rec.data) rec.data.balance = r.balance;
+      renderStudio();
+      const fx = $('.stu-deck');
+      if (r.round.correct && fx) confetti(fx, 26);
+      if (r.fresh?.length) setTimeout(() => showNoteToast(r.fresh), 900);
+    } catch (err) { toast(errMsg(err), true); loadSession(); }
+  }
+
+  async function studioRefine(id) {
+    const d = rec.data;
+    const it = d.collection.find((r) => r.id === id);
+    if (!it || rec.studio.busy) return;
+    rec.studio.busy = true;
+    const btn = $('[data-studio-refine]');
+    if (btn) btn.disabled = true;
+    try {
+      const r = await postJSON('/api/records/refine', { id });
+      // Presse senkt sich, Blitz, Funken – dann die neue Seltenheit
+      const press = $('.stu-press');
+      if (press && !reduceMotion) {
+        press.classList.add('pressing');
+        await new Promise((res) => setTimeout(res, 900));
+        confetti($('.press-fx', press), r.to === 'mythic' ? 90 : r.to === 'legendary' ? 60 : 34);
+      }
+      d.collection = d.collection.map((x) => (x.id === id ? { ...x, ...r.record } : x));
+      d.balance = r.balance;
+      rec.studio.pick = r.record.id;
+      rec.studio.busy = false;
+      renderStudio();
+      $('.stu-press')?.classList.add('done');
+      toast(t('studio.refined', { r: t(`rec.r.${r.to}`) }));
+      renderRecordsCard();
+      if (r.fresh?.length) setTimeout(() => showNoteToast(r.fresh), 1200);
+    } catch (err) {
+      rec.studio.busy = false;
+      toast(errMsg(err), true);
+      renderStudio();
+    }
+  }
+
+  function bindStudio() {
+    document.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-studio]');
+      if (b) {
+        const m = b.dataset.studio;
+        studioStopAudio();
+        if (m === 'leave') { rec.studio.mode = null; storeGo('room'); return; }
+        rec.studio.mode = m === 'hub' ? null : m;
+        if (m === 'session' && !rec.studio.session?.rounds) loadSession();
+        renderStudio();
+        return;
+      }
+      const pk = e.target.closest('[data-studio-pick]');
+      if (pk) { rec.studio.pick = pk.dataset.studioPick; renderStudio(); return; }
+      const rf = e.target.closest('[data-studio-refine]');
+      if (rf) { studioRefine(rf.dataset.studioRefine); return; }
+      if (e.target.closest('[data-studio-start]')) {
+        rec.studio.busy = true; renderStudio();
+        postJSON('/api/studio/session/start', {}).then((s) => { rec.studio.session = s; rec.studio.round = 0; rec.studio.busy = false; renderStudio(); })
+          .catch((err) => { rec.studio.busy = false; toast(errMsg(err), true); renderStudio(); });
+        return;
+      }
+      const pl = e.target.closest('[data-studio-play]');
+      if (pl) { studioPlay(Number(pl.dataset.studioPlay), Number(pl.dataset.level)); return; }
+      const an = e.target.closest('[data-studio-answer]');
+      if (an) { studioAnswer(an.dataset.studioAnswer); return; }
+      if (e.target.closest('[data-studio-next]')) {
+        const s = rec.studio.session;
+        rec.studio.round = Math.min(s.total - 1, rec.studio.round + 1);
+        renderStudio();
+      }
+    });
   }
 
   function renderRecords() {
@@ -3982,7 +4204,8 @@
       if (fs) { toggleFreeShop(); return; }
       const rt = e.target.closest('[data-rec-tab]');
       if (rt) {
-        if (rt.dataset.recTab === 'shop' && rec.tab !== 'shop') rec.store = { view: 'room', entered: false }; // Tür geht wieder auf
+        studioStopAudio();
+        if (rt.dataset.recTab === 'shop' && rec.tab !== 'shop') { rec.store = { view: 'room', entered: false }; rec.studio.mode = null; } // Tür geht wieder auf
         rec.tab = rt.dataset.recTab; renderRecords(); return;
       }
       const sg = e.target.closest('[data-store-go]');
@@ -4124,6 +4347,8 @@
     });
     $('#festive-switch').addEventListener('click', toggleFestive);
     bindNews();
+    bindStudio();
+    document.addEventListener('visibilitychange', () => { if (document.hidden) studioStopAudio(); });
     $('#glass-switch').addEventListener('click', toggleGlass);
     bindSearch();
     bindStory();

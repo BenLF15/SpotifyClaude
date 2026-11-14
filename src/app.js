@@ -662,6 +662,30 @@ api.post(
   wrap(async (req, res) => res.json(await records.answerQuiz(req.account, req.body?.answer))),
 );
 api.post(
+  '/records/refine',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => res.json(await records.refine(req.account, req.body?.id))),
+);
+api.get('/studio/session', wrap(async (req, res) => res.json(await records.sessionState(req.account))));
+api.post('/studio/session/start', wrap(async (req, res) => res.json(await records.sessionStart(req.account))));
+api.post(
+  '/studio/session/answer',
+  express.json({ limit: '1kb' }),
+  wrap(async (req, res) => res.json(await records.sessionAnswer(req.account, Number(req.body?.round), req.body?.choice))),
+);
+api.get(
+  '/studio/session/audio',
+  wrap(async (req, res) => {
+    const { trackId, seconds } = await records.sessionAudioTrack(req.account, Number(req.query.r), Number(req.query.l));
+    try {
+      await preview.streamPreviewHead(trackId, seconds, res);
+    } catch (err) {
+      if (res.headersSent) return res.end();
+      res.status(502).json({ error: 'Hörprobe nicht erreichbar.' });
+    }
+  }),
+);
+api.post(
   '/records/event',
   express.json({ limit: '1kb' }),
   wrap(async (req, res) => res.json(await records.event(req.account, req.body || {}))),

@@ -7,6 +7,27 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-14h',
+    date: '2026-11-14',
+    items: [
+      {
+        icon: '🎙️', go: 'records',
+        t: ['Das Studio ist offen', 'The studio is open', 'Le studio est ouvert', 'El estudio está abierto', 'Lo studio è aperto', 'Studion är öppen', 'Studiet er åbent'],
+        d: ['Im Laden geradeaus durch die Tür – mit zwei neuen Stationen.', 'Straight ahead through the door in the shop – with two new stations.', 'Tout droit au fond du magasin – avec deux nouvelles stations.', 'Al fondo de la tienda, por la puerta – con dos estaciones nuevas.', 'In fondo al negozio, oltre la porta – con due nuove postazioni.', 'Rakt fram genom dörren i butiken – med två nya stationer.', 'Lige frem gennem døren i butikken – med to nye stationer.'],
+      },
+      {
+        icon: '✨', go: 'records',
+        t: ['Platten veredeln', 'Refine records', 'Améliorer les disques', 'Mejorar discos', 'Migliora i dischi', 'Förädla skivor', 'Forædl plader'],
+        d: ['Hebe Platten und CDs gegen Noten eine Seltenheit höher – bis mythisch.', 'Raise records and CDs one rarity higher for notes – up to mythic.', 'Monte tes disques et CD d’une rareté contre des notes – jusqu’à mythique.', 'Sube discos y CD una rareza a cambio de notas, hasta mítico.', 'Alza dischi e CD di una rarità con le note, fino a mitico.', 'Höj skivor och cd en sällsynthet mot noter – ända till mytisk.', 'Hæv plader og cd’er én sjældenhed for noder – helt op til mytisk.'],
+      },
+      {
+        icon: '🎧', go: 'records',
+        t: ['Intro-Quiz', 'Intro quiz', 'Quiz d’intro', 'Quiz de intros', 'Quiz degli intro', 'Introquiz', 'Introquiz'],
+        d: ['Jeden Tag 5 Songs an 1–4 Sekunden erkennen und Noten verdienen.', 'Recognise 5 songs from 1–4 seconds every day and earn notes.', 'Reconnais 5 titres en 1 à 4 secondes chaque jour et gagne des notes.', 'Reconoce 5 canciones en 1–4 segundos cada día y gana notas.', 'Riconosci 5 canzoni in 1–4 secondi ogni giorno e guadagna note.', 'Känn igen 5 låtar på 1–4 sekunder varje dag och tjäna noter.', 'Genkend 5 sange på 1–4 sekunder hver dag og tjen noder.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-14g',
     date: '2026-11-14',
     items: [

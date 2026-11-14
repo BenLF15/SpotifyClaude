@@ -92,3 +92,20 @@ export async function streamPreview(trackId, req, res) {
   }
   res.end();
 }
+
+/**
+ * Nur die ersten Sekunden einer Hörprobe (für das Intro-Quiz). Bei MP3 (Deezer) wird wirklich nur der Anfang
+ * übertragen (~16 KB pro Sekunde bei 128 kbit/s); andere Formate kommen ganz und der Player stoppt selbst.
+ */
+export async function streamPreviewHead(trackId, seconds, res) {
+  const url = await previewUrl(trackId);
+  if (!url) return res.status(404).json({ error: 'Keine Hörprobe gefunden.' });
+  const mp3 = /dzcdn\.net/.test(url) || /\.mp3(\?|$)/.test(url);
+  const bytes = Math.round(3000 + seconds * 16000 * 1.12);
+  const up = await fetch(url, { headers: mp3 ? { Range: `bytes=0-${bytes - 1}` } : {}, signal: AbortSignal.timeout(15_000) });
+  if (!up.ok && up.status !== 206) { cache.delete(trackId); return res.status(502).json({ error: 'Hörprobe nicht erreichbar.' }); }
+  let buf = Buffer.from(await up.arrayBuffer());
+  if (mp3 && buf.length > bytes) buf = buf.subarray(0, bytes);
+  res.set({ 'Content-Type': up.headers.get('content-type') || 'audio/mpeg', 'Cache-Control': 'no-store', 'Content-Length': String(buf.length) });
+  res.send(buf);
+}
