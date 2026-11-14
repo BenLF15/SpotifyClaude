@@ -218,6 +218,8 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | Gewöhnlich | Schwarzes Vinyl | 2–4 Bronze |
 | Selten | Farbiges Vinyl | 1–2 Silber |
 | Episch | Limitierte Picture Disc | 1–2 Gold |
+
+**Autogramme**: Legendäre Platten und CDs tragen ein Autogramm des Künstlers. Echte Unterschriften werden bewusst nicht nachgebildet; jeder Künstler bekommt stattdessen eine eigene, immer gleiche Handschrift (Schrift, Stiftfarbe, Neigung, Schnörkel, ggf. Stern oder Herz), abgeleitet aus seinem Namen. Die Handschrift-Schriften (Permanent Marker, Rock Salt, Mrs Saint Delafield, Homemade Apple, Caveat; SIL OFL / Apache 2.0) werden lokal über `/vendor/sign/` ausgeliefert.
 | Legendär | Signierte Erstpressung | 1 Platin |
 
 Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen.

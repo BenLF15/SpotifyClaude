@@ -149,6 +149,20 @@ app.get('/vendor/chart.umd.min.js', (_req, res) =>
   res.sendFile(path.join(root, 'node_modules/chart.js/dist/chart.umd.min.js'), { maxAge: '7d' }),
 );
 app.use('/vendor/fonts', express.static(path.join(root, 'node_modules/@fontsource-variable/inter/files'), { maxAge: '30d' }));
+// Handschrift-Schriften für die Autogramme auf legendären Platten und CDs
+const SIGN_FONTS = {
+  'permanent-marker.woff2': '@fontsource/permanent-marker/files/permanent-marker-latin-400-normal.woff2',
+  'rock-salt.woff2': '@fontsource/rock-salt/files/rock-salt-latin-400-normal.woff2',
+  'mrs-saint-delafield.woff2': '@fontsource/mrs-saint-delafield/files/mrs-saint-delafield-latin-400-normal.woff2',
+  'homemade-apple.woff2': '@fontsource/homemade-apple/files/homemade-apple-latin-400-normal.woff2',
+  'caveat.woff2': '@fontsource-variable/caveat/files/caveat-latin-wght-normal.woff2',
+  'caveat-ext.woff2': '@fontsource-variable/caveat/files/caveat-latin-ext-wght-normal.woff2',
+};
+app.get('/vendor/sign/:file', (req, res) => {
+  const rel = SIGN_FONTS[req.params.file];
+  if (!rel) return res.status(404).end();
+  res.sendFile(path.join(root, 'node_modules', rel), { maxAge: '30d' });
+});
 
 // Optional: externer Trigger (z. B. cron-job.org), falls der interne Zeitplan nicht reicht.
 // Aufruf: GET /cron/run?key=<CRON_SECRET>

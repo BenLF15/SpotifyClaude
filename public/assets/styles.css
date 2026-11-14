@@ -17,6 +17,15 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+
+/* ------------------------------------------------------------------ Autogramm-Schriften */
+@font-face { font-family: 'Sign Marker'; font-style: normal; font-display: swap; font-weight: 400; src: url('/vendor/sign/permanent-marker.woff2') format('woff2'); }
+@font-face { font-family: 'Sign Rock'; font-style: normal; font-display: swap; font-weight: 400; src: url('/vendor/sign/rock-salt.woff2') format('woff2'); }
+@font-face { font-family: 'Sign Script'; font-style: normal; font-display: swap; font-weight: 400; src: url('/vendor/sign/mrs-saint-delafield.woff2') format('woff2'); }
+@font-face { font-family: 'Sign Apple'; font-style: normal; font-display: swap; font-weight: 400; src: url('/vendor/sign/homemade-apple.woff2') format('woff2'); }
+@font-face { font-family: 'Sign Caveat'; font-style: normal; font-display: swap; font-weight: 400 700; src: url('/vendor/sign/caveat.woff2') format('woff2'); }
+@font-face { font-family: 'Sign Caveat'; font-style: normal; font-display: swap; font-weight: 400 700; src: url('/vendor/sign/caveat-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+2020, U+A720-A7FF; }
+
 /* ------------------------------------------------------------------ Tokens */
 :root {
   color-scheme: dark;
@@ -1334,9 +1343,14 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 .rec.r-legendary .rec-sleeve { box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.7), 0 0 0 2px #f5c542, 0 0 18px rgba(245, 197, 66, 0.55); }
 .rec.r-legendary .rec-sleeve::after { background: linear-gradient(115deg, transparent 20%, rgba(255, 236, 160, 0.5) 45%, transparent 60%); background-size: 250% 100%; animation: shine 3.2s ease-in-out infinite; }
 @keyframes shine { 0% { background-position: 150% 0; } 60%, 100% { background-position: -100% 0; } }
-.rec-sign { position: absolute; left: 10%; right: 10%; bottom: 10%; height: 22%; z-index: 3;
-  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'%3E%3Cpath d='M4 22c8-14 14-16 12-6s6 2 10-6 6 10 12 0 4 8 10 2 8-8 12-2 6 6 14-4 10 0 18-6' fill='none' stroke='%23fff6d5' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E");
+.rec-sign { position: absolute; left: 6%; right: 6%; bottom: 7%; height: 30%; z-index: 3; pointer-events: none;
+  transform: rotate(var(--sg-rot, -6deg)); transform-origin: 50% 60%; }
+.rec-sign svg { display: block; width: 100%; height: 100%; overflow: visible;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6)); }
+.rec-sign.ink-dark svg { filter: drop-shadow(0 0 1.2px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.5)); }
+.rec-sign text { fill: var(--sg-ink, #fff6d5); }
+.rec-sign path { fill: none; stroke: var(--sg-ink, #fff6d5); stroke-linecap: round; stroke-linejoin: round; }
+.rd-sleeve .rec-sign { bottom: 8%; height: 28%; }
 
 /* ---------- Plattenschrank */
 .cabinet {

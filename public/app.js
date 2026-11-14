@@ -2793,7 +2793,7 @@
     return `<span class="rec ${size} r-${r.rarity}" style="--hue:${r.hue ?? 0}">
       <span class="rec-disc">${r.rarity === 'epic' && r.image ? `<img class="rec-pic" src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}<span class="rec-sheen"></span>
         <span class="rec-label">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}</span></span>
-      <span class="rec-sleeve">${imgOrPlaceholder(r.image, r.album)}<span class="rec-wear"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${r.rarity === 'legendary' ? '<span class="rec-sign" aria-hidden="true"></span>' : ''}</span>
+      <span class="rec-sleeve">${imgOrPlaceholder(r.image, r.album)}<span class="rec-wear"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${r.rarity === 'legendary' ? signHTML(r.artist) : ''}</span>
     </span>`;
   }
 
@@ -2802,7 +2802,7 @@
     const special = r.rarity !== 'common';
     return `<span class="cd ${size} r-${r.rarity}" style="--hue:${r.hue ?? 0}">
       <span class="cd-disc"><span class="cd-ring"></span></span>
-      <span class="cd-case">${imgOrPlaceholder(r.image, r.album)}<span class="cd-hinge"></span><span class="cd-gloss"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${r.rarity === 'legendary' ? '<span class="rec-sign" aria-hidden="true"></span>' : ''}</span>
+      <span class="cd-case">${imgOrPlaceholder(r.image, r.album)}<span class="cd-hinge"></span><span class="cd-gloss"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${r.rarity === 'legendary' ? signHTML(r.artist) : ''}</span>
     </span>`;
   }
   const itemArt = (r, opts) => (r.kind === 'cd' ? cdArt(r, opts) : recordArt(r, opts));
@@ -3209,6 +3209,48 @@
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
+  // Autogramm: jeder Künstler hat eine eigene, feste Handschrift (Schrift, Stift, Neigung, Schnörkel)
+  const SIGN_FONTS = [
+    { fam: 'Sign Marker', size: 30, y: 38 },
+    { fam: 'Sign Rock', size: 24, y: 38 },
+    { fam: 'Sign Script', size: 46, y: 40 },
+    { fam: 'Sign Apple', size: 26, y: 38 },
+    { fam: 'Sign Caveat', size: 44, y: 40, weight: 700 },
+  ];
+  const SIGN_INKS = ['#fff6d5', '#ffffff', '#f2c94c', '#d9dde3', '#111111', '#2a4fd6', '#d3263a'];
+  const signHash = (str) => { let h = 2166136261; for (const ch of String(str)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+  function signName(artist) {
+    const name = String(artist || '').replace(/\s*\(.*?\)\s*/g, ' ').trim();
+    if (name.length <= 14) return name;
+    const words = name.split(/\s+/);
+    if (words.length > 1) {
+      const short = words.slice(0, 2).join(' ');
+      return short.length <= 14 ? short : `${words[0][0]}. ${words[words.length - 1]}`.slice(0, 16);
+    }
+    return name;
+  }
+  function signHTML(artist) {
+    const h = signHash(artist);
+    const f = SIGN_FONTS[h % SIGN_FONTS.length];
+    const ink = SIGN_INKS[(h >>> 4) % SIGN_INKS.length];
+    const rot = -12 + ((h >>> 8) % 17);
+    const name = signName(artist);
+    const len = Math.min(186, 30 + name.length * (f.fam === 'Sign Script' ? 12 : 14));
+    const x0 = (200 - len) / 2;
+    const flourish = (h >>> 12) % 4;
+    const end = x0 + len;
+    const swoosh = [
+      `M${x0 + 6} 50 C ${x0 + len * 0.35} 58, ${x0 + len * 0.7} 44, ${end + 6} 47`,
+      `M${x0 + 10} 52 Q ${x0 + len / 2} 60 ${end - 4} 49 q 6 -4 2 -8`,
+      `M${end - 18} 50 c 10 2 18 -4 22 -12`,
+      '',
+    ][flourish];
+    const extra = ['', '', `<text x="${Math.min(196, end + 4)}" y="22" font-family="${f.fam}" font-size="18">★</text>`, `<text x="${Math.min(196, end + 2)}" y="24" font-family="${f.fam}" font-size="15">♥</text>`][(h >>> 16) % 4];
+    const dark = ink === '#111111' || ink === '#2a4fd6' || ink === '#d3263a';
+    return `<span class="rec-sign${dark ? ' ink-dark' : ''}" aria-hidden="true" style="--sg-ink:${ink};--sg-rot:${rot}deg">
+      <svg viewBox="0 0 200 60" preserveAspectRatio="xMidYMid meet"><text x="${x0}" y="${f.y}" font-family="${f.fam}" font-size="${f.size}"${f.weight ? ` font-weight="${f.weight}"` : ''} textLength="${len}" lengthAdjust="spacingAndGlyphs">${esc(name)}</text>${swoosh ? `<path d="${swoosh}" stroke-width="2.2"/>` : ''}${extra}</svg></span>`;
+  }
+
   // Detail einer Platte: rotierende Schallplatte neben der Hülle
   function openRecord(r, { owned = true, isNew = false, friendName = null } = {}) {
     const dlg = $('#record-dialog');
@@ -3220,7 +3262,7 @@
         <div class="rd-fx"></div>
         ${isNew ? `<p class="rd-new">✨ ${esc(t('rec.newIn'))}</p>` : ''}
         <div class="rd-player">
-          <div class="rd-sleeve">${imgOrPlaceholder(r.image, r.album)}${r.rarity === 'legendary' ? '<span class="rec-sign" aria-hidden="true"></span>' : ''}</div>
+          <div class="rd-sleeve">${imgOrPlaceholder(r.image, r.album)}${r.rarity === 'legendary' ? signHTML(r.artist) : ''}</div>
           <div class="rd-vinyl r-${r.rarity}" style="--hue:${r.hue ?? 0}">
             ${r.rarity === 'epic' && r.image ? `<img class="rd-picture" src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" />` : ''}
             <span class="rd-label">${r.image ? `<img src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" />` : ''}</span>
