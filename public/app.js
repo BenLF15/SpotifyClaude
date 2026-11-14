@@ -1894,7 +1894,7 @@
       smoothSwap(() => { showPanel.inVT = true; try { showPanel(panel); } finally { showPanel.inVT = false; } }, dir);
       return;
     }
-    try { if (changed && panel !== 'records' && rec.store) { rec.store = { view: 'room', entered: false }; rec.studio.mode = null; studioStopAudio(); document.querySelector('.store-lift')?.remove(); } } catch { /* Laden noch nicht initialisiert */ }
+    try { if (changed && panel !== 'records' && rec.store) { rec.store = { view: 'room', entered: false }; rec.studio.mode = null; studioStopAudio(); stopRecordSong(true); document.querySelector('.store-lift')?.remove(); } } catch { /* Laden noch nicht initialisiert */ }
     state.panel = panel;
     session.set('panel', panel);
     applyView();
@@ -3947,6 +3947,7 @@
       </div>`;
     document.body.appendChild(ov);
     slot.classList.add('lifted');
+    playRecordSong(it, $('.sl-info', ov));
     const card = $('.sl-card', ov);
     const art = $('.sl-art', ov);
     if (!reduceMotion) {
@@ -3971,6 +3972,7 @@
     const ov = $('.store-lift');
     if (!ov || ov.dataset.closing) return;
     ov.dataset.closing = '1';
+    stopRecordSong();
     const id = $('[data-store-buy], [data-store-detail]', ov)?.dataset.storeBuy || $('[data-store-detail]', ov)?.dataset.storeDetail;
     const slot = id ? $(`[data-store-item="${CSS.escape(id)}"]`) : null;
     if (!reduceMotion && slot) {
@@ -4353,6 +4355,96 @@
   }
 
   // Detail einer Platte: rotierende Schallplatte neben der Hülle
+  // ---------------------------------------------------------------- Hörprobe beim Öffnen einer Platte/CD
+  // Läuft in Schleife, bis man wegklickt. CD → der Song, Platte → Hauptsong des Albums (Server sucht ihn aus).
+  // Das Audio wird sofort im Klick gestartet (sonst blockieren Safari/iOS das Abspielen), der Titel kommt nach.
+  const recPlayer = { el: null, key: null, fadeT: 0, muted: store.get('rec-muted') === '1' };
+  const recSongQuery = (r) => new URLSearchParams({
+    kind: r.kind === 'cd' ? 'cd' : 'record', artist: r.artist || '', album: r.album || '', ...(r.album_id ? { album_id: r.album_id } : {}),
+  }).toString();
+
+  function recFade(a, to, ms, done) {
+    clearInterval(recPlayer.fadeT);
+    const from = a.volume; const t0 = performance.now();
+    recPlayer.fadeT = setInterval(() => {
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      try { a.volume = Math.max(0, Math.min(1, from + (to - from) * k)); } catch { /* iOS */ }
+      if (k >= 1) { clearInterval(recPlayer.fadeT); done?.(); }
+    }, 30);
+  }
+
+  function recPill(host) {
+    if (!host) return null;
+    $$('.rp-pill').forEach((p) => p.remove());
+    const pill = document.createElement('div');
+    pill.className = 'rp-pill loading';
+    pill.innerHTML = `<span class="rp-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="rp-t">${esc(t('recplay.loading'))}</span>
+      <button type="button" class="rp-mute" data-rp-mute aria-label="${esc(t(recPlayer.muted ? 'story.unmute' : 'story.mute'))}">${recPlayer.muted ? '🔇' : '🔊'}</button>`;
+    pill.classList.toggle('muted', recPlayer.muted);
+    host.appendChild(pill);
+    return pill;
+  }
+
+  function playRecordSong(r, host) {
+    if (!r?.artist || !r?.album) return;
+    const q = recSongQuery(r);
+    const pill = recPill(host);
+    const same = recPlayer.key === q && recPlayer.el && !recPlayer.el.paused;
+    if (!same) {
+      stopRecordSong(true);
+      recPlayer.key = q;
+      const a = new Audio(`/api/records/song/audio?${q}`);
+      a.loop = true;
+      a.muted = recPlayer.muted;
+      try { a.volume = 0; } catch { /* iOS */ }
+      recPlayer.el = a;
+      a.addEventListener('playing', () => { $('.rp-pill')?.classList.remove('loading', 'paused'); });
+      a.addEventListener('error', () => { if (recPlayer.el === a) { const p = $('.rp-pill'); if (p) { p.classList.add('none'); $('.rp-t', p).textContent = t('recplay.none'); } } });
+      const pr = a.play();
+      pr?.then?.(() => recFade(a, 0.8, 900)).catch(() => {
+        // Autoplay gesperrt → Tippen auf die Anzeige startet
+        const p = $('.rp-pill'); if (p) { p.classList.add('paused'); p.dataset.rpPlay = '1'; }
+      });
+    } else if (pill) pill.classList.remove('loading');
+    api(`/api/records/song?${q}`).then((info) => {
+      if (recPlayer.key !== q) return;
+      const p = $('.rp-pill');
+      if (!p) return;
+      if (!info?.ok) { p.classList.add('none'); $('.rp-t', p).textContent = t('recplay.none'); return; }
+      $('.rp-t', p).textContent = `♪ ${info.title}`;
+      p.title = `${info.title} · ${info.artist}`;
+    }).catch(() => {});
+  }
+
+  function stopRecordSong(immediate = false) {
+    const a = recPlayer.el;
+    recPlayer.key = null;
+    recPlayer.el = null;
+    if (!a) return;
+    const end = () => { a.pause(); a.removeAttribute('src'); a.load(); };
+    if (immediate || reduceMotion) { clearInterval(recPlayer.fadeT); end(); } else recFade(a, 0, 450, end);
+  }
+
+  function bindRecPlayer() {
+    document.addEventListener('click', (e) => {
+      const m = e.target.closest('[data-rp-mute]');
+      if (m) {
+        e.stopPropagation();
+        recPlayer.muted = !recPlayer.muted;
+        store.set('rec-muted', recPlayer.muted ? '1' : '0');
+        if (recPlayer.el) recPlayer.el.muted = recPlayer.muted;
+        m.textContent = recPlayer.muted ? '🔇' : '🔊';
+        m.closest('.rp-pill')?.classList.toggle('muted', recPlayer.muted);
+        return;
+      }
+      const p = e.target.closest('.rp-pill[data-rp-play]');
+      if (p && recPlayer.el) { delete p.dataset.rpPlay; recPlayer.el.play().then(() => recFade(recPlayer.el, 0.8, 600)).catch(() => {}); }
+    }, true);
+    $('#record-dialog').addEventListener('close', () => { if (!$('.store-lift')) stopRecordSong(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stopRecordSong(true); });
+    window.addEventListener('pagehide', () => stopRecordSong(true));
+  }
+
   function openRecord(r, { owned = true, isNew = false, friendName = null } = {}) {
     const dlg = $('#record-dialog');
     const variant = variantName(r);
@@ -4386,6 +4478,7 @@
         </div>
       </div>`;
     if (!dlg.open) dlg.showModal();
+    playRecordSong(r, $('#record-body .rd-info'));
     if (isNew) setTimeout(() => confetti($('.rd-fx', dlg), r.rarity === 'mythic' ? 110 : r.rarity === 'legendary' ? 70 : 40), 250);
   }
 
@@ -4670,6 +4763,7 @@
     $('#festive-switch').addEventListener('click', toggleFestive);
     bindNews();
     bindAvatar();
+    bindRecPlayer();
     bindStudio();
     document.addEventListener('visibilitychange', () => { if (document.hidden) studioStopAudio(); });
     $('#glass-switch').addEventListener('click', toggleGlass);

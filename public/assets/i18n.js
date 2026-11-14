@@ -402,6 +402,8 @@
     'avatar.useInitial': ['Bild entfernen', 'Remove picture', 'Supprimer la photo', 'Quitar la foto', 'Rimuovi immagine', 'Ta bort bilden', 'Fjern billedet'],
     'avatar.presets': ['Oder eine Vorlage', 'Or pick a preset', 'Ou un modèle', 'O una plantilla', 'Oppure un modello', 'Eller en mall', 'Eller en skabelon'],
     'avatar.preset': ['Vorlage', 'Preset', 'Modèle', 'Plantilla', 'Modello', 'Mall', 'Skabelon'],
+    'recplay.loading': ['Hörprobe lädt …', 'Loading preview …', 'Chargement de l’extrait …', 'Cargando avance …', 'Caricamento anteprima …', 'Laddar provlyssning …', 'Indlæser smagsprøve …'],
+    'recplay.none': ['Keine Hörprobe verfügbar', 'No preview available', 'Pas d’extrait disponible', 'Sin avance disponible', 'Nessuna anteprima', 'Ingen provlyssning', 'Ingen smagsprøve'],
     'tour.close': ['Schließen', 'Close', 'Fermer', 'Cerrar', 'Chiudi', 'Stäng', 'Luk'],
     'tour.step': ['Schritt {i} von {n}', 'Step {i} of {n}', 'Étape {i} sur {n}', 'Paso {i} de {n}', 'Passo {i} di {n}', 'Steg {i} av {n}', 'Trin {i} af {n}'],
 

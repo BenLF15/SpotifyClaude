@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-15c',
+    date: '2026-11-15',
+    items: [
+      {
+        icon: '🔊', go: 'records',
+        t: ['Reinhören im Laden', 'Listen in the shop', 'Écoute en magasin', 'Escucha en la tienda', 'Ascolta nel negozio', 'Lyssna i butiken', 'Lyt i butikken'],
+        d: ['Platte oder CD öffnen – der Song läuft, bis du wegklickst. Bei Alben der Hauptsong.', 'Open a record or CD – the song plays until you close it. Albums play their main song.', 'Ouvre un disque ou un CD – le titre joue jusqu’à la fermeture. Pour un album, le titre phare.', 'Abre un disco o CD: suena hasta que lo cierres. En álbumes, la canción principal.', 'Apri un disco o CD: la canzone suona finché non chiudi. Per gli album il brano principale.', 'Öppna en skiva eller cd – låten spelas tills du stänger. Album spelar huvudlåten.', 'Åbn en plade eller cd – sangen spiller, til du lukker. Albums spiller hovedsangen.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-15b',
     date: '2026-11-15',
     items: [

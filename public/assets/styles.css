@@ -2938,3 +2938,19 @@ html[data-fest='midsummer'] .sr-neon { text-shadow: 0 0 4px #fff, 0 0 12px #ffe0
 html[data-fest='carnival'] .sr-neon { animation: neon-flicker 6s infinite, neon-hue 4s linear infinite; }
 @keyframes neon-hue { to { filter: hue-rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .sdc *, .sd-wreath { animation: none !important; } .sdc-fall { display: none; } }
+
+/* Hörprobe beim Öffnen einer Platte/CD */
+.rp-pill { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 5px 6px 5px 12px; border-radius: 999px; max-width: 100%;
+  background: rgba(30, 215, 96, 0.14); border: 1px solid rgba(30, 215, 96, 0.35); font-size: 0.8rem; font-weight: 600; animation: news-in 0.45s var(--ease-glide) both; }
+.store-lift .rp-pill { color: #fff; }
+.rp-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rp-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 13px; flex: none; }
+.rp-eq i { width: 3px; height: 100%; border-radius: 2px; background: #1ed760; transform-origin: bottom; animation: st-eq 0.9s ease-in-out infinite; }
+.rp-eq i:nth-child(2) { animation-delay: -0.3s; } .rp-eq i:nth-child(3) { animation-delay: -0.6s; } .rp-eq i:nth-child(4) { animation-delay: -0.15s; }
+.rp-pill.loading .rp-eq i, .rp-pill.muted .rp-eq i, .rp-pill.paused .rp-eq i, .rp-pill.none .rp-eq i { animation-play-state: paused; transform: scaleY(0.3); }
+.rp-pill.loading .rp-t { opacity: 0.7; }
+.rp-pill.none { background: rgba(var(--ink-rgb), 0.06); border-color: var(--border); }
+.rp-pill.none .rp-eq i { background: var(--text-3); }
+.rp-pill.paused { cursor: pointer; }
+.rp-mute { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(0, 0, 0, 0.18); cursor: pointer; font-size: 0.85rem; display: grid; place-items: center; }
+.rp-pill.none .rp-mute { display: none; }

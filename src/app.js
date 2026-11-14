@@ -642,6 +642,23 @@ api.post(
     res.json({ ok: true });
   }),
 );
+// Hörprobe zu einer Platte/CD (Laden, Sammlung, Freunde): erst Titel holen, dann abspielen
+const songArgs = (req) => ({ userId: req.sid, kind: req.query.kind === 'cd' ? 'cd' : 'record', artist: req.query.artist, album: req.query.album, albumId: req.query.album_id || null });
+api.get(
+  '/records/song',
+  wrap(async (req, res) => {
+    const s = await preview.resolveRecordSong(songArgs(req));
+    res.json(s ? { ok: true, title: s.title, artist: s.artist } : { ok: false });
+  }),
+);
+api.get(
+  '/records/song/audio',
+  wrap(async (req, res) => {
+    const s = await preview.resolveRecordSong(songArgs(req));
+    if (!s) return res.status(404).json({ error: 'Keine Hörprobe gefunden.' });
+    try { await preview.streamUrl(s.url, req, res); } catch { if (!res.headersSent) res.status(502).end(); else res.end(); }
+  }),
+);
 api.get('/search', wrap(async (req, res) => res.json(await features.search(req.sid, req.query.q))));
 api.get('/track/:id', wrap(async (req, res) => res.json(await features.trackDetail(req.sid, String(req.params.id).slice(0, 64)))));
 api.get('/artist', wrap(async (req, res) => res.json(await features.artistDetail(req.sid, String(req.query.name || '').slice(0, 200)))));

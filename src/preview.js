@@ -109,3 +109,91 @@ export async function streamPreviewHead(trackId, seconds, res) {
   res.set({ 'Content-Type': up.headers.get('content-type') || 'audio/mpeg', 'Cache-Control': 'no-store', 'Content-Length': String(buf.length) });
   res.send(buf);
 }
+
+// ================================================================ Hörprobe zu Platte/CD (Laden & Sammlung)
+// CD-Single → genau dieser Song. Schallplatte → der „Hauptsong“ des Albums: dein meistgehörter Song daraus,
+// sonst der beliebteste Song des Albums laut Deezer (Suchreihenfolge = Beliebtheit), notfalls iTunes.
+const songCache = new Map(); // Schlüssel → { url, title, artist, exp }
+
+async function deezerAlbumTop(album, artist) {
+  const d = await getJSON(`https://api.deezer.com/search?limit=15&q=${encodeURIComponent(`artist:"${artist}" album:"${album}"`)}`);
+  const list = (d.data || []).filter((x) => x.preview && norm(x.artist?.name) === norm(artist));
+  const hit = list.find((x) => norm(x.album?.title) === norm(album)) || list.find((x) => norm(x.album?.title).includes(norm(album))) || list[0];
+  return hit ? { url: hit.preview, title: hit.title } : null;
+}
+
+async function itunesAlbumTop(album, artist) {
+  const d = await getJSON(`https://itunes.apple.com/search?media=music&entity=song&limit=15&term=${encodeURIComponent(`${artist} ${album}`)}`);
+  const list = (d.results || []).filter((x) => x.previewUrl && norm(x.artistName) === norm(artist));
+  const hit = list.find((x) => norm(x.collectionName) === norm(album)) || list.find((x) => norm(x.collectionName).includes(norm(album)));
+  return hit ? { url: hit.previewUrl, title: hit.trackName } : null;
+}
+
+export async function resolveRecordSong({ userId, kind, artist, album, albumId }) {
+  artist = String(artist || '').slice(0, 200);
+  album = String(album || '').slice(0, 300);
+  if (!artist || !album) return null;
+  const key = `${userId}|${kind}|${norm(artist)}|${norm(album)}|${albumId || ''}`;
+  const c = songCache.get(key);
+  if (c && c.exp > Date.now()) return c.url ? c : null;
+  let out = null;
+  try {
+    if (kind === 'cd') {
+      if (albumId) {
+        const { rows } = await query('SELECT id, name, artist_names[1] AS artist FROM tracks WHERE id = $1', [String(albumId)]);
+        if (rows[0]) { const url = await previewUrl(rows[0].id); if (url) out = { url, title: rows[0].name, artist: rows[0].artist }; }
+      }
+      if (!out) {
+        for (const src of [fromDeezer, fromItunes]) {
+          const url = await src(album, artist).catch(() => null);
+          if (url && allowed(url)) { out = { url, title: album, artist }; break; }
+        }
+      }
+    } else {
+      // dein meistgehörter Song dieses Albums
+      const { rows } = await query(
+        `SELECT t.id, t.name, t.artist_names[1] AS artist FROM plays pl JOIN tracks t ON t.id = pl.track_id
+          WHERE pl.user_id = $1 AND lower(t.album_name) = lower($2) AND lower(t.artist_names[1]) = lower($3)
+          GROUP BY t.id ORDER BY count(*) DESC, sum(pl.ms_played) DESC LIMIT 3`,
+        [userId, album, artist],
+      );
+      for (const r of rows) {
+        const url = await previewUrl(r.id).catch(() => null);
+        if (url) { out = { url, title: r.name, artist: r.artist }; break; }
+      }
+      if (!out) {
+        for (const src of [deezerAlbumTop, itunesAlbumTop]) {
+          const hit = await src(album, artist).catch(() => null);
+          if (hit && allowed(hit.url)) { out = { ...hit, artist }; break; }
+        }
+      }
+    }
+  } catch (err) { console.warn('[record-song]', err.message); }
+  if (songCache.size > 3000) songCache.clear();
+  songCache.set(key, { ...(out || { url: null }), exp: Date.now() + (out ? HIT_MS : 30 * 60_000) });
+  return out;
+}
+
+/** Streamt eine bereits gefundene Hörprobe-URL (nur erlaubte Musik-CDNs). */
+export async function streamUrl(url, req, res) {
+  if (!allowed(url)) return res.status(400).end();
+  const headers = {};
+  if (req.headers.range) headers.Range = req.headers.range;
+  const up = await fetch(url, { headers, signal: AbortSignal.timeout(15_000) });
+  if (!up.ok && up.status !== 206) return res.status(502).json({ error: 'Hörprobe nicht erreichbar.' });
+  res.status(up.status);
+  for (const h of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+    const v = up.headers.get(h);
+    if (v) res.set(h, v);
+  }
+  if (!up.headers.get('content-type')) res.set('content-type', 'audio/mpeg');
+  res.set('Cache-Control', 'private, max-age=3000');
+  const reader = up.body.getReader();
+  req.on('close', () => reader.cancel().catch(() => {}));
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!res.write(value)) await new Promise((r) => res.once('drain', r));
+  }
+  res.end();
+}
