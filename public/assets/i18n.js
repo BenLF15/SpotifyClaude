@@ -521,6 +521,8 @@
     'rec.recurringSub': ['Diese Belohnungen gibt es regelmäßig neu', 'These rewards come back regularly', 'Ces récompenses reviennent régulièrement', 'Estas recompensas vuelven con regularidad', 'Queste ricompense tornano regolarmente', 'Dessa belöningar kommer tillbaka regelbundet', 'Disse belønninger kommer igen regelmæssigt'],
     'rec.doneOf': ['{n} von {m} erhalten', '{n} of {m} earned', '{n} sur {m} obtenues', '{n} de {m} conseguidas', '{n} di {m} ottenute', '{n} av {m} intjänade', '{n} af {m} optjent'],
     'rec.acquired': ['In der Sammlung seit', 'In collection since', 'Dans la collection depuis', 'En la colección desde', 'Nella collezione dal', 'I samlingen sedan', 'I samlingen siden'],
+    'rec.gotGift': ['geschenkt bekommen', 'received as a gift', 'reçu en cadeau', 'recibido como regalo', 'ricevuto in regalo', 'fick i present', 'fået i gave'],
+    'rec.gotFree': ['gratis erhalten', 'got for free', 'obtenu gratuitement', 'obtenido gratis', 'ottenuto gratis', 'fick gratis', 'fået gratis'],
     'rec.price': ['Preis', 'Price', 'Prix', 'Precio', 'Prezzo', 'Pris', 'Pris'],
     'rec.listen': ['Album in Spotify hören', 'Listen to the album on Spotify', 'Écouter l’album sur Spotify', 'Escuchar el álbum en Spotify', 'Ascolta l’album su Spotify', 'Lyssna på albumet i Spotify', 'Hør albummet i Spotify'],
     'rec.newIn': ['Neu in deiner Sammlung!', 'New in your collection!', 'Nouveau dans ta collection !', '¡Nuevo en tu colección!', 'Nuovo nella tua collezione!', 'Ny i din samling!', 'Ny i din samling!'],

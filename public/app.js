@@ -3123,7 +3123,7 @@
         const btn = it.owned
           ? `<span class="si-owned">✓ ${esc(t('rec.owned'))}</span>`
           : `<button type="button" class="btn ${lack ? 'btn-ghost' : 'btn-primary'} btn-xs si-buy" data-buy="${esc(it.id)}" ${lack || rec.busy ? 'disabled' : ''}>
-              ${d.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(it.price.tier)} ${fmt(it.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${it.price.tier}`) }) : t('rec.buy'))}</button>`;
+              ${d.free ? `<s>${noteIcon(it.price.tier)} ${fmt(it.price.amount)}</s> 🎁 ${esc(t('rec.free'))}` : `${noteIcon(it.price.tier)} ${fmt(it.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${it.price.tier}`) }) : t('rec.buy'))}</button>`;
         const listen = it.discover && realAlbum(it.album_id)
           ? `<a class="si-listen" href="https://open.spotify.com/${it.kind === 'cd' ? 'track' : 'album'}/${esc(it.album_id)}" target="_blank" rel="noopener">▶ ${esc(t('rec.preview'))}</a>` : '';
         return `<article class="shop-item r-${it.rarity}${it.owned ? ' owned' : ''}${it.kind === 'cd' ? ' is-cd' : ''}${it.discover ? ' discover' : ''}">
@@ -3235,10 +3235,10 @@
         <dl class="sys-list">
           ${friendName ? `<dt>${esc(t('cmp.owner'))}</dt><dd>${esc(friendName)}</dd>` : ''}
           ${owned && r.acquired_at ? `<dt>${esc(t('rec.acquired'))}</dt><dd>${esc(dateFmtYear.format(new Date(r.acquired_at)))}</dd>` : ''}
-          ${friendName || !r.price ? '' : `<dt>${esc(t('rec.price'))}</dt><dd>${r.price.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}`}</dd>`}
+          ${!r.price?.tier ? '' : `<dt>${esc(t('rec.price'))}</dt><dd>${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}${r.price.free ? ` <span class="price-free">· 🎁 ${esc(t(r.price.gift ? 'rec.gotGift' : 'rec.gotFree'))}</span>` : ''}</dd>`}
         </dl>
         <div class="profile-actions">
-          ${!owned ? `<button type="button" class="btn btn-primary" data-buy="${esc(r.id)}" ${lack ? 'disabled' : ''}>${rec.data?.free ? `🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${r.price.tier}`) }) : t('rec.buy'))}</button>` : ''}
+          ${!owned ? `<button type="button" class="btn btn-primary" data-buy="${esc(r.id)}" ${lack ? 'disabled' : ''}>${rec.data?.free ? `<s>${noteIcon(r.price.tier)} ${fmt(r.price.amount)}</s> 🎁 ${esc(t('rec.free'))}` : `${noteIcon(r.price.tier)} ${fmt(r.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${r.price.tier}`) }) : t('rec.buy'))}</button>` : ''}
           ${realAlbum(r.album_id) ? `<a class="btn btn-ghost" href="https://open.spotify.com/${isCd ? 'track' : 'album'}/${esc(r.album_id)}" target="_blank" rel="noopener">${LINK_ICON}<span>${esc(t(isCd ? 'rec.listenTrack' : 'rec.listen'))}</span></a>` : ''}
         </div>
       </div>`;

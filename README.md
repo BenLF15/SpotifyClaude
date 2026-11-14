@@ -237,7 +237,7 @@ Für CD-Singles gibt es eigene Sammler-Belohnungen (1 / 10 / 25 / 50 / 100 CDs).
 
 **Versteckte Überraschungen**: Jede Woche sind 1–2 kleine 🎁 an zufälligen Stellen in der App versteckt (z. B. Heatmap, Podium, Plattenschrank, CD-Regal, Laden, Profil, Rückblick, Freunde). Ein Klick öffnet ein Geschenk: meist Noten (3 Bronze, 2 Silber, 1 Gold, selten 1 Platin), manchmal eine Gratis-CD-Single oder Schallplatte für die Sammlung. Es gibt bewusst keinen Hinweis darauf – man muss sie selbst entdecken.
 
-**Admin – Plattenladen kostenlos**: Im Admin-Tab schaltet ein Schalter alle Platten und CD-Singles für das eigene Admin-Konto kostenlos (zum Testen). Andere Nutzer sind nicht betroffen.
+**Admin – Plattenladen kostenlos**: Im Admin-Tab schaltet ein Schalter alle Platten und CD-Singles für das eigene Admin-Konto kostenlos (zum Testen). Andere Nutzer sind nicht betroffen. Der reguläre Preis bleibt trotzdem sichtbar (im Laden durchgestrichen, in der Detailansicht mit dem Vermerk „gratis erhalten“ bzw. bei Überraschungen „geschenkt bekommen“); auch in der Sammlung eines Freundes steht der Preis.
 
 **Musiknoten verdienen**:
 

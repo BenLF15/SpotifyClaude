@@ -704,7 +704,7 @@ export async function friendCollection(account, friendId) {
   );
   if (!rows[0]) throw new UserError('Keine bestätigte Freundschaft.', 404, 'notFriends');
   const { rows: items } = await query(
-    `SELECT record_id AS id, kind, rarity, artist, album, album_id, image, hue, acquired_at
+    `SELECT record_id AS id, kind, rarity, artist, album, album_id, image, hue, price, acquired_at
        FROM record_collection WHERE account_id = $1 ORDER BY acquired_at DESC`,
     [friendId],
   );

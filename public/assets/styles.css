@@ -2118,3 +2118,7 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 @media (max-width: 560px) { .t5-grid { gap: 8px; } .t5-row { grid-template-columns: 12px 30px minmax(0, 1fr) auto; gap: 6px; padding: 4px; } .t5-row .cover { width: 30px; height: 30px; } .t5-shared { display: none; } }
 .friend-coll .card-head { align-items: center; }
 .friend-coll #friend-coll-body:empty { display: none; }
+
+.price-free { color: var(--muted); font-weight: 600; white-space: nowrap; }
+.si-buy s, [data-buy] s { opacity: 0.6; margin-right: 2px; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; vertical-align: middle; }
+.si-buy { white-space: nowrap; }
