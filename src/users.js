@@ -305,7 +305,7 @@ export async function adminSystem() {
     query(`SELECT pg_size_pretty(pg_database_size(current_database())) AS size, version() AS version`),
     query(
       `SELECT (SELECT count(*) FROM tracks) AS tracks, (SELECT count(*) FROM artists) AS artists,
-              (SELECT count(*) FROM tracks WHERE enriched_at IS NULL) AS tracks_pending,
+              (SELECT count(*) FROM tracks WHERE album_image IS NULL AND enriched_at IS NULL) AS tracks_pending,
               (SELECT count(*) FROM artists WHERE enriched_at IS NULL) AS artists_pending,
               (SELECT count(*) FROM plays) AS plays,
               (SELECT count(DISTINCT (user_id, snapshot_date)) FROM top_snapshots) AS snapshots`,

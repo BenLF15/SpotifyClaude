@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-14e',
+    date: '2026-11-14',
+    items: [
+      {
+        icon: '🖼️', go: 'top',
+        t: ['Cover viel schneller', 'Covers load much faster', 'Pochettes bien plus rapides', 'Portadas mucho más rápidas', 'Copertine molto più veloci', 'Omslag mycket snabbare', 'Covers meget hurtigere'],
+        d: ['Nach einem Import erscheinen die Albumcover jetzt in wenigen Minuten.', 'After an import, album covers now show up within minutes.', 'Après un import, les pochettes apparaissent en quelques minutes.', 'Tras importar, las portadas aparecen en pocos minutos.', 'Dopo un’importazione le copertine compaiono in pochi minuti.', 'Efter en import syns omslagen nu inom några minuter.', 'Efter en import vises covers nu på få minutter.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-14d',
     date: '2026-11-14',
     items: [

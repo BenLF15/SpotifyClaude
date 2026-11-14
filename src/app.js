@@ -12,7 +12,7 @@ import * as stats from './stats.js';
 import * as features from './features.js';
 import { lastBackup, restoreBackup, streamBackup } from './backup.js';
 import * as records from './records.js';
-import { startScheduler, syncAllDue, triggerSync } from './scheduler.js';
+import { startScheduler, syncAllDue, triggerEnrich, triggerSync } from './scheduler.js';
 import * as preview from './preview.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -666,7 +666,9 @@ api.post(
     if (!Array.isArray(req.body)) {
       return res.status(400).json({ error: 'Erwartet wird der Inhalt einer Streaming_History_Audio_*.json (JSON-Array).' });
     }
-    res.json(await importHistory(req.sid, req.body));
+    const result = await importHistory(req.sid, req.body);
+    triggerEnrich(req.sid); // Cover sofort im Hintergrund nachladen, nicht erst beim nächsten Sync
+    res.json(result);
   }),
 );
 

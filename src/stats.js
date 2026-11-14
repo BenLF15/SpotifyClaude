@@ -322,7 +322,7 @@ export async function status(userId) {
       `SELECT (SELECT count(*) FROM plays WHERE user_id = $1) AS plays,
               (SELECT count(*) FROM plays WHERE user_id = $1 AND source = 'import') AS imported,
               (SELECT count(DISTINCT p.track_id) FROM plays p JOIN tracks t ON t.id = p.track_id
-                WHERE p.user_id = $1 AND t.enriched_at IS NULL) AS tracks_pending`,
+                WHERE p.user_id = $1 AND t.album_image IS NULL AND t.enriched_at IS NULL) AS tracks_pending`,
       [userId],
     ),
     query(

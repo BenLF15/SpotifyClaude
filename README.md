@@ -178,7 +178,11 @@ DATABASE_URL="postgres://…render.com/…" npm run import -- "./Spotify Extende
 
 Der Import ist **idempotent**. Doppelte Plays werden übersprungen, auch wenn sie sich mit schon per API gespeicherten Plays überschneiden: Derselbe Track innerhalb von ±90 s gilt als derselbe Play. Podcasts und Plays unter 30 s werden ignoriert.
 
-Cover und Genres der importierten Songs lädt die App bei jedem Sync im Hintergrund nach (bis zu `ENRICH_LIMIT` = 2000 pro Lauf, die meistgehörten zuerst; ~1.700 Songs dauern etwa 10 Minuten). Der Sync-Button wartet darauf nicht.
+Cover und Genres der importierten Songs lädt die App direkt nach dem Import und bei jedem Sync im Hintergrund nach (bis zu `ENRICH_LIMIT` = 2000 pro Lauf, die meistgehörten zuerst; ist mehr offen, startet sofort der nächste Durchgang). Damit die Cover schnell erscheinen, läuft das in drei Stufen:
+1. **Album-Geschwister**: Songs vom selben Album (gleicher Albumname + Hauptkünstler) übernehmen ein schon bekanntes Cover – ein SQL-Befehl, sofort.
+2. **Schnell-Cover über Spotifys öffentliches oEmbed** (8 Abrufe parallel, ohne Login, zählt nicht gegen das API-Limit) – nach jedem Paket werden die Cover wieder auf Album-Geschwister verteilt.
+3. **Vollständige Metadaten** (Artist-IDs, Dauer, Genres) über die Web API, 3 Abrufe parallel mit automatischem Warten bei Rate-Limit.
+Typisch sind die Cover nach einem Import so in 1–2 Minuten da statt nach ~10 Minuten. Der Sync-Button wartet darauf nicht; „ohne Cover“ im Profil zählt nur Songs, die wirklich noch kein Cover haben.
 
 ---
 

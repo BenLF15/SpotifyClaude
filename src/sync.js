@@ -187,23 +187,103 @@ export function takeTopSnapshot(userId, date = todayLocal()) {
   });
 }
 
+// Führt fn für alle Einträge mit begrenzter Parallelität aus (schneller als nacheinander,
+// ohne die Spotify-Rate-Limits zu sprengen). Ein Fehler stoppt alle Worker.
+async function pool(items, size, fn) {
+  let i = 0;
+  let failed = null;
+  const worker = async () => {
+    while (!failed && i < items.length) {
+      const item = items[i++];
+      try { await fn(item); } catch (err) { failed = err; }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker));
+  if (failed) throw failed;
+}
+
+/**
+ * Songs ohne Cover übernehmen das Cover eines bereits bekannten Songs vom selben Album
+ * (gleicher Albumname + Hauptkünstler). Ein einziger SQL-Befehl – füllt oft hunderte Cover auf einmal.
+ */
+export async function shareAlbumCovers() {
+  const { rowCount } = await query(
+    `UPDATE tracks t SET album_image = s.album_image, updated_at = now()
+       FROM (SELECT DISTINCT ON (lower(album_name), lower(artist_names[1]))
+                    lower(album_name) AS alb, lower(artist_names[1]) AS art, album_image
+               FROM tracks WHERE album_image IS NOT NULL AND album_name IS NOT NULL AND cardinality(artist_names) > 0
+              ORDER BY lower(album_name), lower(artist_names[1]), enriched_at DESC NULLS LAST) s
+      WHERE t.album_image IS NULL AND t.album_name IS NOT NULL
+        AND lower(t.album_name) = s.alb AND lower(t.artist_names[1]) = s.art`,
+  );
+  return rowCount;
+}
+
+/**
+ * Schnelle Cover über Spotifys öffentliches oEmbed (ohne Login, zählt nicht gegen das API-Limit).
+ * Liefert das 300-px-Albumcover. Artist-IDs & Co. ergänzt danach der normale API-Abruf.
+ */
+async function oembedCover(id) {
+  const res = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(`https://open.spotify.com/track/${id}`)}`, {
+    signal: AbortSignal.timeout(8000),
+    headers: { Accept: 'application/json' },
+  });
+  if (res.status === 429) { const err = new Error('oEmbed-Rate-Limit'); err.status = 429; throw err; }
+  if (!res.ok) return null;
+  const d = await res.json().catch(() => null);
+  const url = d?.thumbnail_url;
+  return typeof url === 'string' && /^https:\/\/[a-z0-9.-]+\.(scdn\.co|spotifycdn\.com)\//.test(url) ? url : null;
+}
+
+async function fastCovers(limit) {
+  const { rows } = await query(
+    `SELECT t.id FROM tracks t LEFT JOIN plays p ON p.track_id = t.id
+      WHERE t.album_image IS NULL AND t.enriched_at IS NULL
+      GROUP BY t.id ORDER BY count(p.id) DESC LIMIT $1`,
+    [limit],
+  );
+  let found = 0;
+  const ids = rows.map((r) => r.id);
+  // in Paketen: nach jedem Paket die Cover auf Album-Geschwister verteilen, dann entfällt viel Arbeit
+  for (let k = 0; k < ids.length; k += 48) {
+    const part = ids.slice(k, k + 48);
+    const { rows: still } = await query('SELECT id FROM tracks WHERE id = ANY($1) AND album_image IS NULL', [part]);
+    try {
+      await pool(still.map((r) => r.id), 8, async (id) => {
+        const url = await oembedCover(id).catch((err) => { if (err.status === 429) throw err; return null; });
+        if (url) { await query('UPDATE tracks SET album_image = $2, updated_at = now() WHERE id = $1 AND album_image IS NULL', [id, url]); found++; }
+      });
+    } catch (err) {
+      console.warn('[enrich] oEmbed pausiert:', err.message);
+      break; // Rate-Limit → Rest übernimmt der API-Abruf
+    }
+    found += await shareAlbumCovers();
+  }
+  return found;
+}
+
 /**
  * Reichert Tracks aus dem History-Import (ohne Cover/Artist-IDs) und Künstler
- * (Bild, Genres) schrittweise an. Seit Feb. 2026 gibt es im Development Mode
- * keine Batch-Endpunkte mehr, daher Einzelabrufe mit Limit pro Lauf.
+ * (Bild, Genres) an. Seit Feb. 2026 gibt es im Development Mode keine Batch-Endpunkte mehr.
+ * Ablauf, damit Cover möglichst schnell erscheinen:
+ *   1. Cover vom selben Album übernehmen (SQL, sofort)
+ *   2. Cover über oEmbed holen (8 parallel, kein API-Limit)
+ *   3. Vollständige Metadaten über die Web API (3 parallel, Rate-Limit-Backoff)
  */
 export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
   return logJob(userId, 'enrich', async () => {
     let tracks = 0;
     let artists = 0;
+    let covers = await shareAlbumCovers();
+    try { covers += await fastCovers(limit); } catch (err) { console.warn('[enrich] Schnell-Cover:', err.message); }
     const { rows: trackRows } = await query(
       `SELECT t.id FROM tracks t
          LEFT JOIN plays p ON p.track_id = t.id
         WHERE t.enriched_at IS NULL
-        GROUP BY t.id ORDER BY count(p.id) DESC LIMIT $1`,
+        GROUP BY t.id ORDER BY (t.album_image IS NULL) DESC, count(p.id) DESC LIMIT $1`,
       [limit],
     );
-    for (const { id } of trackRows) {
+    await pool(trackRows, 3, async ({ id }) => {
       try {
         const t = await spotifyGet(userId, `/tracks/${id}`);
         await upsertTracks({ query }, [t]);
@@ -213,8 +293,9 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
           await query('UPDATE tracks SET enriched_at = now() WHERE id = $1', [id]);
         } else throw err;
       }
-      await sleep(120);
-    }
+      await sleep(40);
+    });
+    covers += await shareAlbumCovers();
 
     const { rows: artistRows } = await query(
       `SELECT id FROM artists
@@ -222,7 +303,7 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
         ORDER BY enriched_at NULLS FIRST LIMIT $1`,
       [limit],
     );
-    for (const { id } of artistRows) {
+    await pool(artistRows, 3, async ({ id }) => {
       try {
         const a = await spotifyGet(userId, `/artists/${id}`);
         await query(
@@ -237,9 +318,9 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
           await query('UPDATE artists SET enriched_at = now() WHERE id = $1', [id]);
         } else throw err;
       }
-      await sleep(120);
-    }
-    return { tracks, artists };
+      await sleep(40);
+    });
+    return { tracks, artists, covers };
   });
 }
 

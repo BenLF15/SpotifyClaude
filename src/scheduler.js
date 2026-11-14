@@ -22,9 +22,16 @@ export function triggerEnrich(userId) {
   enriching.add(userId);
   enrichQueue = enrichQueue
     .then(() => enrichMetadata(userId))
-    .then((r) => { if (r?.tracks || r?.artists) console.log(`[enrich] ${userId}: ${r.tracks} Songs, ${r.artists} Künstler`); })
-    .catch((err) => console.warn('[enrich]', userId, err.message))
-    .finally(() => enriching.delete(userId));
+    .then((r) => {
+      if (r?.tracks || r?.artists || r?.covers) console.log(`[enrich] ${userId}: ${r.covers || 0} Cover, ${r.tracks} Songs, ${r.artists} Künstler`);
+      return r;
+    })
+    .catch((err) => { console.warn('[enrich]', userId, err.message); return null; })
+    .then((r) => {
+      enriching.delete(userId);
+      // volles Limit ausgeschöpft → es gibt wohl noch mehr: direkt den nächsten Durchgang starten
+      if (r && r.tracks >= config.enrichLimit) setTimeout(() => triggerEnrich(userId), 2000);
+    });
 }
 
 /** Startet einen Sync-Lauf für einen Nutzer; läuft schon einer, wird dessen Ergebnis zurückgegeben. */
