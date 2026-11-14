@@ -2735,9 +2735,9 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 .stu-deck { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 6px 0; }
 .stu-vinyl { position: relative; width: 150px; height: 150px; border-radius: 50%; overflow: hidden; background: repeating-radial-gradient(circle, #111 0 1.5px, #222 1.5px 3px); box-shadow: 0 16px 34px -12px rgba(0, 0, 0, 0.9), 0 0 0 4px #2a2c33; display: grid; place-items: center; }
 .stu-vinyl i { position: absolute; width: 34%; height: 34%; border-radius: 50%; background: radial-gradient(circle, #111 0 9%, #e0262b 10%); }
-.stu-vinyl.reveal img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: reveal 0.6s var(--ease); }
+.stu-vinyl.reveal img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: cover-reveal 0.6s var(--ease); }
 .stu-vinyl.reveal i { display: none; }
-@keyframes reveal { from { clip-path: circle(0 at 50% 50%); } to { clip-path: circle(75% at 50% 50%); } }
+@keyframes cover-reveal { from { clip-path: circle(0 at 50% 50%); } to { clip-path: circle(75% at 50% 50%); } }
 .stu-deck.playing .stu-vinyl { animation: st-spin 1.8s linear infinite; }
 .stu-eq { display: flex; align-items: flex-end; gap: 3px; height: 26px; }
 .stu-eq span { width: 5px; height: 20%; border-radius: 2px; background: rgba(255, 255, 255, 0.25); }
@@ -2851,3 +2851,11 @@ html[data-vt-dir='fade']::view-transition-old(root), html[data-vt-dir='fade']::v
 .avatar-zoom { display: flex; align-items: center; gap: 10px; width: min(280px, 72vw); color: var(--text-3); font-weight: 700; }
 .avatar-zoom input { flex: 1; accent-color: var(--accent); }
 .avatar-btns { display: flex; gap: 8px; margin-top: 6px; }
+
+/* Geschenk: Seltenheit sichtbar, legendär/mythisch mit Lichtschein */
+.gift-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.gift-rarity .rarity-badge { font-size: 0.7rem; }
+.gift-stage.g-legendary .gift-rays { background: repeating-conic-gradient(from 0deg, rgba(245, 197, 66, 0.35) 0 10deg, transparent 10deg 20deg) !important; }
+.gift-stage.g-mythic .gift-rays { background: repeating-conic-gradient(from 0deg, rgba(255, 110, 199, 0.35) 0 8deg, rgba(74, 222, 222, 0.3) 8deg 16deg, transparent 16deg 24deg) !important; }
+.gift-item.r-legendary::before, .gift-item.r-mythic::before { content: ''; position: absolute; inset: -30% -40%; z-index: -1; border-radius: 50%; background: radial-gradient(circle, rgba(245, 197, 66, 0.5), transparent 65%); animation: legend-glow 3s ease-in-out infinite; }
+.gift-item.r-mythic::before { background: conic-gradient(rgba(255, 110, 199, 0.55), rgba(120, 115, 245, 0.55), rgba(74, 222, 222, 0.5), rgba(183, 255, 106, 0.45), rgba(255, 110, 199, 0.55)); filter: blur(26px); animation: holo-spin 6s linear infinite; }

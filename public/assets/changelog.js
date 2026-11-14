@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-14j',
+    date: '2026-11-14',
+    items: [
+      {
+        icon: '🎁', go: null,
+        t: ['Seltenere Geschenke', 'Rarer gifts', 'Cadeaux plus rares', 'Regalos más raros', 'Regali più rari', 'Sällsyntare presenter', 'Sjældnere gaver'],
+        d: ['Versteckte Geschenke können jetzt legendär – und ganz selten sogar mythisch – sein.', 'Hidden gifts can now be legendary – and very rarely even mythic.', 'Les cadeaux cachés peuvent être légendaires – et très rarement mythiques.', 'Los regalos ocultos pueden ser legendarios, y muy rara vez míticos.', 'I regali nascosti possono essere leggendari e, rarissimamente, mitici.', 'Gömda presenter kan nu vara legendariska – och mycket sällan mytiska.', 'Skjulte gaver kan nu være legendariske – og meget sjældent mytiske.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-14i',
     date: '2026-11-14',
     items: [

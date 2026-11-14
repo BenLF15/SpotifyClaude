@@ -3621,7 +3621,7 @@
     const dlg = $('#gift-dialog');
     const notes = TIERS.filter((tr) => r.reward[tr]);
     const content = r.gift
-      ? `<div class="gift-item">${itemArt(r.gift, { size: 'lg' })}</div>`
+      ? `<div class="gift-item r-${r.gift.rarity}">${itemArt(r.gift, { size: 'lg' })}<span class="gift-rarity">${rarityBadge(r.gift.rarity)}</span></div>`
       : `<div class="gift-coins">${notes.map((tr) => `<span class="gift-coin">${noteIcon(tr)}<b>+${r.reward[tr]}</b></span>`).join('')}</div>`;
     const desc = r.gift
       ? t(r.gift.kind === 'cd' ? 'egg.cd' : 'egg.record', { a: `${r.gift.album} · ${r.gift.artist}` })
@@ -3641,7 +3641,10 @@
         <button type="button" class="btn btn-primary" data-close-dialog>${esc(t('egg.great'))}</button>
       </div>`;
     dlg.showModal();
-    setTimeout(() => confetti($('.gift-fx', dlg), r.gift || r.reward.platinum ? 60 : 36), 1050);
+    const special = r.gift && ['legendary', 'mythic'].includes(r.gift.rarity);
+    $('.gift-stage', dlg)?.classList.toggle(`g-${r.gift?.rarity}`, Boolean(special));
+    setTimeout(() => confetti($('.gift-fx', dlg), r.gift?.rarity === 'mythic' ? 140 : special ? 90 : r.gift || r.reward.platinum ? 60 : 36), 1050);
+    if (special) setTimeout(() => confetti($('.gift-fx', dlg), r.gift.rarity === 'mythic' ? 80 : 40), 1700);
   }
 
   async function answerQuiz(id) {

@@ -625,10 +625,15 @@ export async function openEgg(account, eggId) {
       query('SELECT record_id FROM record_collection WHERE account_id = $1', [account.id]),
     ]);
     const owned = new Set(own.rows.map((r) => r.record_id));
-    const cands = pool.filter((it) => !owned.has(it.id) && !['legendary', 'mythic'].includes(it.rarity))
-      .sort((a, b) => hashInt(`${key}#${a.id}`) - hashInt(`${key}#${b.id}`));
-    if (cands.length) gift = cands[0];
-    else reward = R(0, 0, 1);
+    // Seltenheit des Geschenks auswürfeln (in Promille): legendär selten, mythisch extrem selten
+    const GIFT_ODDS = { common: 520, rare: 280, epic: 155, legendary: 40, mythic: 5 };
+    let pr = hashInt(`${account.id}#${key}#gift-rarity`) % 1000;
+    let rarity = 'common';
+    for (const r of RARITIES) { if (pr < GIFT_ODDS[r]) { rarity = r; break; } pr -= GIFT_ODDS[r]; }
+    const shuffled = pool.filter((it) => !owned.has(it.id)).sort((a, b) => hashInt(`${key}#${a.id}`) - hashInt(`${key}#${b.id}`));
+    // gewürfelte Seltenheit, sonst die nächstniedrigere, die es noch gibt
+    for (let i = RARITIES.indexOf(rarity); i >= 0 && !gift; i--) gift = shuffled.find((it) => it.rarity === RARITIES[i]) || null;
+    if (!gift) reward = R(0, 0, 1);
   } else reward = R(0, 0, 0, 1);
 
   const result = await withTransaction(async (db) => {
