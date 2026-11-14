@@ -16,12 +16,12 @@
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
   <title>Spotlfy</title>
-  <script src="/assets/theme.js?v=20261114z"></script>
-  <script src="/assets/i18n.js?v=20261114z"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20261114z" />
-  <script src="/assets/changelog.js?v=20261114z" defer></script>
+  <script src="/assets/theme.js?v=20261115a"></script>
+  <script src="/assets/i18n.js?v=20261115a"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261115a" />
+  <script src="/assets/changelog.js?v=20261115a" defer></script>
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261114z" defer></script>
+  <script src="/app.js?v=20261115a" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
@@ -301,6 +301,7 @@
       <section class="card profile-head">
         <button type="button" class="profile-avatar" id="profile-avatar"></button>
         <input type="file" id="avatar-file" accept="image/*" hidden />
+        <input type="file" id="avatar-camera" accept="image/*" capture="user" hidden />
         <div class="profile-who">
           <h2 id="profile-name"></h2>
           <p class="muted small" id="profile-sub"></p>
@@ -492,6 +493,9 @@
   <!-- Festliche Effekte: Partikel-Ebene (rein dekorativ) -->
   <div class="fx-layer" id="fx-layer" aria-hidden="true"></div>
 
+  <dialog id="avatar-menu" class="dialog avatar-menu" aria-labelledby="avatar-menu-title">
+    <div class="dialog-inner" id="avatar-menu-body"></div>
+  </dialog>
   <dialog id="avatar-dialog" class="dialog avatar-dlg" aria-labelledby="avatar-title">
     <div class="dialog-inner">
       <button type="button" class="tour-close" data-close-dialog data-i18n-attr="aria-label:tour.close">✕</button>

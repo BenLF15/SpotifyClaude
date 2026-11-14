@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-14k',
+    date: '2026-11-14',
+    items: [
+      {
+        icon: '🎨', go: 'profile',
+        t: ['Profilbild-Auswahl', 'Profile picture options', 'Choix de la photo', 'Opciones de foto', 'Scelta dell’immagine', 'Profilbildsval', 'Valg af profilbillede'],
+        d: ['Tipp aufs Profilbild: Foto wählen, Selfie aufnehmen oder eine von 12 Vorlagen nehmen.', 'Tap your picture: choose a photo, take a selfie or pick one of 12 presets.', 'Touche ta photo : choisis une photo, prends un selfie ou un des 12 modèles.', 'Toca tu foto: elige una, hazte un selfie o usa una de 12 plantillas.', 'Tocca l’immagine: scegli una foto, scatta un selfie o usa uno dei 12 modelli.', 'Tryck på bilden: välj foto, ta en selfie eller välj en av 12 mallar.', 'Tryk på billedet: vælg foto, tag en selfie eller vælg en af 12 skabeloner.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-14j',
     date: '2026-11-14',
     items: [

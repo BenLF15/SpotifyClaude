@@ -395,6 +395,13 @@
     'avatar.tooBig': ['Das Bild ist zu groß.', 'The picture is too large.', 'L’image est trop grande.', 'La imagen es demasiado grande.', 'L’immagine è troppo grande.', 'Bilden är för stor.', 'Billedet er for stort.'],
     'err.avatarInvalid': ['Ungültiges Bild.', 'Invalid picture.', 'Image non valide.', 'Imagen no válida.', 'Immagine non valida.', 'Ogiltig bild.', 'Ugyldigt billede.'],
     'err.avatarTooBig': ['Das Bild ist zu groß.', 'The picture is too large.', 'L’image est trop grande.', 'La imagen es demasiado grande.', 'L’immagine è troppo grande.', 'Bilden är för stor.', 'Billedet er for stort.'],
+    'avatar.menuTitle': ['Profilbild ändern', 'Change profile picture', 'Changer la photo de profil', 'Cambiar foto de perfil', 'Cambia immagine del profilo', 'Byt profilbild', 'Skift profilbillede'],
+    'avatar.fromGallery': ['Foto auswählen', 'Choose a photo', 'Choisir une photo', 'Elegir una foto', 'Scegli una foto', 'Välj ett foto', 'Vælg et foto'],
+    'avatar.takePhoto': ['Selfie aufnehmen', 'Take a selfie', 'Prendre un selfie', 'Hacer un selfie', 'Scatta un selfie', 'Ta en selfie', 'Tag en selfie'],
+    'avatar.useSpotify': ['Wieder Spotify-Bild verwenden', 'Use Spotify picture again', 'Reprendre la photo Spotify', 'Volver a la foto de Spotify', 'Usa di nuovo la foto di Spotify', 'Använd Spotify-bilden igen', 'Brug Spotify-billedet igen'],
+    'avatar.useInitial': ['Bild entfernen', 'Remove picture', 'Supprimer la photo', 'Quitar la foto', 'Rimuovi immagine', 'Ta bort bilden', 'Fjern billedet'],
+    'avatar.presets': ['Oder eine Vorlage', 'Or pick a preset', 'Ou un modèle', 'O una plantilla', 'Oppure un modello', 'Eller en mall', 'Eller en skabelon'],
+    'avatar.preset': ['Vorlage', 'Preset', 'Modèle', 'Plantilla', 'Modello', 'Mall', 'Skabelon'],
     'tour.close': ['Schließen', 'Close', 'Fermer', 'Cerrar', 'Chiudi', 'Stäng', 'Luk'],
     'tour.step': ['Schritt {i} von {n}', 'Step {i} of {n}', 'Étape {i} sur {n}', 'Paso {i} de {n}', 'Passo {i} di {n}', 'Steg {i} av {n}', 'Trin {i} af {n}'],
 

@@ -423,10 +423,71 @@
     if (rm) rm.hidden = !state.account?.custom_avatar;
   }
 
-  function openAvatarPicker() {
-    const inp = $('#avatar-file');
+  function openAvatarPicker(camera = false) {
+    const inp = $(camera ? '#avatar-camera' : '#avatar-file');
     inp.value = '';
     inp.click();
+  }
+
+  // Vorlagen: Emoji auf Farbverlauf, im Browser gezeichnet und wie ein Foto gespeichert
+  const AV_PRESETS = [
+    ['🎧', '#1db954', '#0b3d2a'], ['🎸', '#ff7a59', '#b3223a'], ['🎹', '#7b2ff7', '#2a0e5c'], ['🎤', '#ff4fa3', '#6b1446'],
+    ['🥁', '#f5c542', '#a35a00'], ['🎷', '#35d7ff', '#0b4a7a'], ['💿', '#c49bff', '#3a2a7a'], ['🦊', '#ff9a3c', '#7a2e0b'],
+    ['🐼', '#9aa4b2', '#2b313b'], ['🌙', '#4b6cff', '#10163d'], ['🔥', '#ff5a36', '#5c0f06'], ['🌸', '#ff9ac9', '#b8336a'],
+  ];
+  function presetDataUrl([emoji, c1, c2], size = 320) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, size, size);
+    g.addColorStop(0, c1); g.addColorStop(1, c2);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+    const r = ctx.createRadialGradient(size * 0.3, size * 0.2, 0, size * 0.3, size * 0.2, size * 0.8);
+    r.addColorStop(0, 'rgba(255,255,255,0.35)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = r; ctx.fillRect(0, 0, size, size);
+    ctx.font = `${Math.round(size * 0.5)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = size * 0.06; ctx.shadowOffsetY = size * 0.02;
+    ctx.fillText(emoji, size / 2, size / 2 + size * 0.03);
+    let data = c.toDataURL('image/webp', 0.9);
+    if (!data.startsWith('data:image/webp')) data = c.toDataURL('image/jpeg', 0.9);
+    return data;
+  }
+
+  function openAvatarMenu() {
+    const dlg = $('#avatar-menu');
+    const url = myAvatar();
+    const name = state.account?.username || '?';
+    const touch = matchMedia('(pointer: coarse)').matches;
+    $('#avatar-menu-body').innerHTML = `${CLOSE_BTN()}
+      <div class="am-head">
+        <div class="am-current">${url ? `<img src="${esc(url)}" alt="" referrerpolicy="no-referrer" />` : `<span>${esc((name[0] || '?').toUpperCase())}</span>`}</div>
+        <h2 id="avatar-menu-title">${esc(t('avatar.menuTitle'))}</h2>
+      </div>
+      <div class="am-actions">
+        <button type="button" class="am-btn" data-am="gallery"><span>🖼️</span><b>${esc(t('avatar.fromGallery'))}</b></button>
+        ${touch ? `<button type="button" class="am-btn" data-am="camera"><span>📷</span><b>${esc(t('avatar.takePhoto'))}</b></button>` : ''}
+        ${state.account?.custom_avatar ? `<button type="button" class="am-btn danger" data-am="remove"><span>🗑️</span><b>${esc(t(state.spotify?.avatar_url ? 'avatar.useSpotify' : 'avatar.useInitial'))}</b></button>` : ''}
+      </div>
+      <p class="am-sub">${esc(t('avatar.presets'))}</p>
+      <div class="am-presets">${AV_PRESETS.map((pr, i) => `<button type="button" class="am-preset" data-am-preset="${i}" style="--c1:${pr[1]};--c2:${pr[2]};--i:${i}" aria-label="${esc(t('avatar.preset'))} ${pr[0]}"><span>${pr[0]}</span></button>`).join('')}</div>`;
+    if (!dlg.open) dlg.showModal();
+  }
+
+  async function savePreset(i, btn) {
+    const data = presetDataUrl(AV_PRESETS[i]);
+    btn?.classList.add('busy');
+    try {
+      const r = await postJSON('/api/me/avatar', { image: data });
+      state.account.avatar_url = r.avatar_url;
+      state.account.custom_avatar = true;
+      $('#avatar-menu').close();
+      paintAvatars();
+      $('#profile-avatar')?.classList.add('av-pop');
+      setTimeout(() => $('#profile-avatar')?.classList.remove('av-pop'), 700);
+      toast(t('avatar.saved'));
+      fr.data = null;
+    } catch (err) { toast(errMsg(err), true); btn?.classList.remove('busy'); }
   }
 
   async function loadAvatarFile(file) {
@@ -508,7 +569,6 @@
   }
 
   async function removeAvatar() {
-    if (!confirm(t('avatar.removeConfirm'))) return;
     try {
       const r = await api('/api/me/avatar', { method: 'DELETE' });
       state.account.avatar_url = r.avatar_url;
@@ -519,13 +579,28 @@
   }
 
   function bindAvatar() {
-    $('#profile-avatar')?.addEventListener('click', openAvatarPicker);
-    $('#avatar-change')?.addEventListener('click', openAvatarPicker);
-    $('#avatar-remove')?.addEventListener('click', removeAvatar);
+    $('#profile-avatar')?.addEventListener('click', openAvatarMenu);
+    $('#avatar-change')?.addEventListener('click', openAvatarMenu);
+    $('#avatar-camera')?.addEventListener('change', (e) => loadAvatarFile(e.target.files?.[0]));
+    $('#avatar-menu')?.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-am]');
+      if (a) {
+        const what = a.dataset.am;
+        $('#avatar-menu').close();
+        if (what === 'gallery') openAvatarPicker();
+        else if (what === 'camera') openAvatarPicker(true);
+        else if (what === 'remove') removeAvatar();
+        return;
+      }
+      const pr = e.target.closest('[data-am-preset]');
+      if (pr) { savePreset(Number(pr.dataset.amPreset), pr); return; }
+      if (e.target === e.currentTarget) e.currentTarget.close();
+    });
+    $('#avatar-remove')?.addEventListener('click', () => { if (confirm(t('avatar.removeConfirm'))) removeAvatar(); });
     $('#avatar-file')?.addEventListener('change', (e) => loadAvatarFile(e.target.files?.[0]));
     $('#avatar-zoom')?.addEventListener('input', (e) => { avEdit.zoom = Number(e.target.value); drawAvatarPreview(); });
     $('#avatar-save')?.addEventListener('click', saveAvatar);
-    $('#avatar-other')?.addEventListener('click', openAvatarPicker);
+    $('#avatar-other')?.addEventListener('click', () => openAvatarPicker());
     const c = $('#avatar-canvas');
     if (!c) return;
     // Verschieben mit Finger/Maus, Zoomen mit Mausrad oder zwei Fingern

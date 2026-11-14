@@ -2859,3 +2859,31 @@ html[data-vt-dir='fade']::view-transition-old(root), html[data-vt-dir='fade']::v
 .gift-stage.g-mythic .gift-rays { background: repeating-conic-gradient(from 0deg, rgba(255, 110, 199, 0.35) 0 8deg, rgba(74, 222, 222, 0.3) 8deg 16deg, transparent 16deg 24deg) !important; }
 .gift-item.r-legendary::before, .gift-item.r-mythic::before { content: ''; position: absolute; inset: -30% -40%; z-index: -1; border-radius: 50%; background: radial-gradient(circle, rgba(245, 197, 66, 0.5), transparent 65%); animation: legend-glow 3s ease-in-out infinite; }
 .gift-item.r-mythic::before { background: conic-gradient(rgba(255, 110, 199, 0.55), rgba(120, 115, 245, 0.55), rgba(74, 222, 222, 0.5), rgba(183, 255, 106, 0.45), rgba(255, 110, 199, 0.55)); filter: blur(26px); animation: holo-spin 6s linear infinite; }
+
+/* Profilbild-Auswahl beim Tippen aufs Bild */
+.avatar-menu { width: min(400px, calc(100vw - 32px)); }
+.avatar-menu .dialog-inner { position: relative; }
+.am-head { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 14px; }
+.am-current { width: 84px; height: 84px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; font-size: 2rem; font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--on-accent); box-shadow: 0 0 0 3px var(--surface-2), 0 0 0 5px var(--accent-soft); }
+.am-current img { width: 100%; height: 100%; object-fit: cover; }
+.am-head h2 { margin: 0; font-size: 1.1rem; }
+.am-actions { display: flex; flex-direction: column; gap: 6px; }
+.am-btn { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: background 0.25s var(--ease-soft), transform 0.25s var(--ease-soft); animation: news-in 0.4s var(--ease-glide) both; }
+.am-btn:nth-child(2) { animation-delay: 0.05s; } .am-btn:nth-child(3) { animation-delay: 0.1s; }
+.am-btn:hover { background: var(--surface-3); transform: translateX(3px); }
+.am-btn span { font-size: 1.25rem; } .am-btn b { font-size: 0.92rem; }
+.am-btn.danger b { color: var(--down); }
+.am-sub { margin: 16px 0 8px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.am-presets { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+@media (max-width: 380px) { .am-presets { grid-template-columns: repeat(4, 1fr); } }
+.am-preset { aspect-ratio: 1; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; font-size: 1.35rem;
+  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.35), transparent 60%), linear-gradient(135deg, var(--c1), var(--c2));
+  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.5); transition: transform 0.3s var(--ease-spring); animation: am-pop 0.45s var(--ease-spring) both; animation-delay: calc(0.12s + var(--i) * 0.03s); }
+.am-preset:hover, .am-preset:focus-visible { transform: scale(1.12) rotate(-6deg); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 8px 16px -6px rgba(0, 0, 0, 0.5); }
+.am-preset.busy { animation: am-pulse 0.8s ease-in-out infinite; }
+@keyframes am-pop { from { opacity: 0; transform: scale(0.5); } }
+@keyframes am-pulse { 50% { transform: scale(0.9); opacity: 0.6; } }
+.profile-avatar.av-pop { animation: av-pop 0.7s var(--ease-spring); }
+@keyframes av-pop { 30% { transform: scale(0.85); } 70% { transform: scale(1.08); } }
