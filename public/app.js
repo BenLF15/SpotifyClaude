@@ -1617,6 +1617,7 @@
   function showPanel(panel) {
     if (!PANELS.includes(panel)) return;
     const changed = panel !== state.panel;
+    try { if (changed && panel !== 'records' && rec.store) { rec.store = { view: 'room', entered: false }; document.querySelector('.store-lift')?.remove(); } } catch { /* Laden noch nicht initialisiert */ }
     state.panel = panel;
     session.set('panel', panel);
     applyView();
@@ -3164,7 +3165,8 @@
 
   // ================================================================ Plattensammlung & Musiknoten
   const TIERS = ['bronze', 'silver', 'gold', 'platinum'];
-  const RARITIES = ['common', 'rare', 'epic', 'legendary'];
+  const RARITIES = ['common', 'rare', 'epic', 'legendary', 'mythic'];
+  const signed = (r) => r === 'legendary' || r === 'mythic'; // mit Autogramm
   const rec = { data: null, tab: 'collection', filter: 'all', busy: false, dropped: new Set() };
   const noteIcon = (tier, cls = '') => `<span class="note n-${tier} ${cls}" aria-hidden="true">♪</span>`;
   const rewardChips = (r) => TIERS.filter((tr) => r[tr]).map((tr) =>
@@ -3198,7 +3200,7 @@
     return `<span class="rec ${size} r-${r.rarity}" style="--hue:${r.hue ?? 0}">
       <span class="rec-disc">${r.rarity === 'epic' && r.image ? `<img class="rec-pic" src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}<span class="rec-sheen"></span>
         <span class="rec-label">${r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}</span></span>
-      <span class="rec-sleeve">${imgOrPlaceholder(r.image, r.album)}<span class="rec-wear"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${r.rarity === 'legendary' ? signHTML(r.artist) : ''}</span>
+      <span class="rec-sleeve">${imgOrPlaceholder(r.image, r.album)}<span class="rec-wear"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${signed(r.rarity) ? signHTML(r.artist) : ''}</span>
     </span>`;
   }
 
@@ -3207,7 +3209,7 @@
     const special = r.rarity !== 'common';
     return `<span class="cd ${size} r-${r.rarity}" style="--hue:${r.hue ?? 0}">
       <span class="cd-disc"><span class="cd-ring"></span></span>
-      <span class="cd-case">${imgOrPlaceholder(r.image, r.album)}<span class="cd-hinge"></span><span class="cd-gloss"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${r.rarity === 'legendary' ? signHTML(r.artist) : ''}</span>
+      <span class="cd-case">${imgOrPlaceholder(r.image, r.album)}<span class="cd-hinge"></span><span class="cd-gloss"></span>${special ? '<span class="rec-shimmer"></span>' : ''}${signed(r.rarity) ? signHTML(r.artist) : ''}</span>
     </span>`;
   }
   const itemArt = (r, opts) => (r.kind === 'cd' ? cdArt(r, opts) : recordArt(r, opts));
@@ -3493,6 +3495,179 @@
     return t('rec.resetIn', { d, h });
   }
 
+  // ---------------------------------------------------------------- Plattenladen als begehbare Szene
+  // Tür geht auf → man steht im Laden: rechts der Plattentisch, links der CD-Tisch, geradeaus das Studio.
+  // Tisch antippen → Kamera fährt hin; Platte/CD antippen → sie wird angehoben (Kaufen oder Zurücklegen).
+  rec.store = { view: 'room', entered: false };
+
+  function priceTag(it, d) {
+    return d.free
+      ? `<s>${noteIcon(it.price.tier)} ${fmt(it.price.amount)}</s> 🎁 ${esc(t('rec.free'))}`
+      : `${noteIcon(it.price.tier)} ${fmt(it.price.amount)}`;
+  }
+
+  function storeHTML(d) {
+    const st = rec.store;
+    const recs = d.shop || [];
+    const cdl = d.singles || [];
+    const best = (l) => l.reduce((a, x) => (RARITIES.indexOf(x.rarity) > RARITIES.indexOf(a?.rarity) ? x : a), l[0]);
+    // kleine Vorschau auf den Tischen (die besten Stücke vorne)
+    const pile = (l, max) => [...l].sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity)).slice(0, max);
+    const recPile = pile(recs, 7).map((it, i) => `<span class="sp-rec r-${it.rarity}" style="--i:${i}">${imgOrPlaceholder(it.image, it.album)}</span>`).join('');
+    const cdPile = pile(cdl, 9).map((it, i) => `<span class="sp-cd r-${it.rarity}" style="--i:${i}">${imgOrPlaceholder(it.image, it.album)}</span>`).join('');
+    const top = (l) => { const b = best(l); return b && RARITIES.indexOf(b.rarity) >= 3 ? `<span class="st-tag">${rarityBadge(b.rarity)}</span>` : ''; };
+    const room = `
+      <div class="store-room${st.entered ? ' entered' : ''}" data-view="${st.view}">
+        <div class="store-cam">
+          <div class="sr-wall">
+            <div class="sr-neon" aria-hidden="true">Spotlfy <b>Records</b></div>
+            <div class="sr-shelf l" aria-hidden="true">${'<i></i>'.repeat(9)}</div>
+            <div class="sr-shelf r" aria-hidden="true">${'<i></i>'.repeat(9)}</div>
+            <button type="button" class="sr-studio" data-store-go="studio" aria-label="${esc(t('store.studio'))}">
+              <span class="sr-studio-door"><span class="sr-onair">ON AIR</span><span class="sr-window"></span><span class="sr-knob"></span></span>
+              <span class="sr-label">🎙️ ${esc(t('store.studio'))} <small>${esc(t('store.soon'))}</small></span>
+            </button>
+          </div>
+          <div class="sr-floor" aria-hidden="true"></div>
+          <button type="button" class="sr-table cds" data-store-go="cds" aria-label="${esc(t('store.cdTable', { n: cdl.length }))}">
+            <span class="sr-top">${cdPile}</span><span class="sr-legs"></span>
+            <span class="sr-label">💿 ${esc(t('rec.shopCds'))} <small>${fmt(cdl.length)}</small>${top(cdl)}</span>
+          </button>
+          <button type="button" class="sr-table recs" data-store-go="records" aria-label="${esc(t('store.recordTable', { n: recs.length }))}">
+            <span class="sr-top"><span class="sr-crate">${recPile}</span></span><span class="sr-legs"></span>
+            <span class="sr-label">🎵 ${esc(t('rec.shopRecords'))} <small>${fmt(recs.length)}</small>${top(recs)}</span>
+          </button>
+          <div class="sr-light" aria-hidden="true"></div>
+        </div>
+        ${st.entered ? '' : `<div class="store-door" aria-hidden="true">
+          <div class="sd-frame"><div class="sd-panel l"><span class="sd-glass"><span class="sd-open">OPEN</span></span><span class="sd-handle"></span></div>
+          <div class="sd-panel r"><span class="sd-glass"></span><span class="sd-handle"></span></div></div>
+          <div class="sd-sign">Spotlfy Records</div><span class="sd-bell">🔔</span></div>`}
+      </div>`;
+    let table = '';
+    if (st.view === 'records' || st.view === 'cds') {
+      const isCd = st.view === 'cds';
+      const list = isCd ? cdl : recs;
+      table = `<div class="store-table ${isCd ? 'is-cd' : 'is-rec'}">
+        <div class="stb-head">
+          <button type="button" class="btn btn-ghost btn-xs" data-store-go="room">← ${esc(t('store.back'))}</button>
+          <div><b>${isCd ? '💿' : '🎵'} ${esc(t(isCd ? 'rec.cdShopTitle' : 'rec.shopTitle', { w: d.week.week }))}</b><small>${esc(countdown(d.week.resetsOn))}</small></div>
+        </div>
+        ${list.length ? `<div class="stb-items">${list.map((it, i) => `
+          <button type="button" class="stb-item r-${it.rarity}${it.owned ? ' owned' : ''}" data-store-item="${esc(it.id)}" style="--i:${i};--tilt:${((i * 37) % 9) - 4}deg" aria-label="${esc(`${it.album} · ${it.artist}`)}">
+            ${itemArt(it)}
+            ${it.owned ? `<span class="stb-owned">✓</span>` : ''}${it.discover ? '<span class="stb-new">✨</span>' : ''}
+            ${it.owned ? '' : `<span class="stb-price">${priceTag(it, d)}</span>`}
+          </button>`).join('')}</div>` : `<p class="empty">${esc(t('rec.shopEmpty'))}</p>`}
+      </div>`;
+    }
+    return `<section class="card store-card">
+        ${d.free ? `<p class="free-banner">🎁 ${esc(t('rec.freeOn'))}</p>` : ''}
+        <div class="store${st.view !== 'room' ? ' at-table' : ''}">${room}${table}</div>
+      </section>`;
+  }
+
+  // Tür öffnen (nur beim Betreten), danach ist man „drin“
+  function storeEnter() {
+    const room = $('.store-room');
+    if (!room || rec.store.entered) return;
+    if (reduceMotion) { rec.store.entered = true; room.classList.add('entered'); $('.store-door', room)?.remove(); return; }
+    void room.offsetWidth; // Startzustand (Tür zu) erst zeichnen lassen, sonst springt sie sofort auf
+    setTimeout(() => room.classList.add('opening'), 350);
+    setTimeout(() => { rec.store.entered = true; room.classList.add('entered'); $('.store-door', room)?.remove(); }, 2100);
+  }
+
+  // Kamera fährt zum Tisch (bzw. zurück in den Raum)
+  function storeGo(where) {
+    if (where === 'studio') {
+      const s = $('.sr-studio');
+      s?.classList.remove('knock'); void s?.offsetWidth; s?.classList.add('knock');
+      toast(t('store.studioSoon'));
+      return;
+    }
+    const room = $('.store-room');
+    if (where === 'room') {
+      const tb = $('.store-table');
+      if (tb && !reduceMotion) { tb.classList.add('leaving'); room?.classList.add('zoom-out'); }
+      setTimeout(() => { rec.store.view = 'room'; renderRecords(); }, reduceMotion ? 0 : 320);
+      return;
+    }
+    if (room && !reduceMotion) room.classList.add(`zoom-${where}`);
+    setTimeout(() => { rec.store.view = where; renderRecords(); $('.store')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, reduceMotion ? 0 : 520);
+  }
+
+  // Platte/CD anheben: sie fliegt aus dem Stapel nach vorne, darunter Kaufen / Zurücklegen
+  function storePick(id) {
+    const d = rec.data;
+    const it = [...(d.shop || []), ...(d.singles || [])].find((x) => x.id === id);
+    const slot = $(`[data-store-item="${CSS.escape(id)}"]`);
+    if (!it || !slot || $('.store-lift')) return;
+    const lack = it.owned || d.free ? 0 : Math.max(0, it.price.amount - d.balance[it.price.tier]);
+    const ov = document.createElement('div');
+    ov.className = `store-lift r-${it.rarity}`;
+    ov.innerHTML = `<div class="sl-dim" data-store-put></div>
+      <div class="sl-card" role="dialog" aria-modal="true" aria-label="${esc(it.album)}">
+        <div class="sl-fx"></div>
+        <div class="sl-art">${itemArt(it, { size: 'lg' })}</div>
+        <div class="sl-info">
+          ${rarityBadge(it.rarity)} <span class="sl-variant">${esc(variantName(it))}</span>
+          <h3>${esc(it.album)}</h3><p>${esc(it.artist)}</p>
+          ${it.discover ? `<p class="sl-disc">✨ ${esc(t('rec.discoverHint'))}</p>` : ''}
+          <div class="sl-actions">
+            ${it.owned
+              ? `<span class="si-owned">✓ ${esc(t('rec.owned'))}</span>`
+              : `<button type="button" class="btn btn-primary" data-store-buy="${esc(it.id)}" ${lack || rec.busy ? 'disabled' : ''}>${priceTag(it, d)} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${it.price.tier}`) }) : t('rec.buy'))}</button>`}
+            <button type="button" class="btn btn-ghost" data-store-put>↩ ${esc(t('store.putBack'))}</button>
+          </div>
+          <button type="button" class="link-btn sl-more" data-store-detail="${esc(it.id)}">${esc(t('store.details'))} →</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    slot.classList.add('lifted');
+    const card = $('.sl-card', ov);
+    const art = $('.sl-art', ov);
+    if (!reduceMotion) {
+      // FLIP: die Hülle startet genau im Stapel und schwebt nach vorne
+      const a = slot.getBoundingClientRect();
+      const b = art.getBoundingClientRect();
+      const s = a.width / b.width;
+      art.animate([
+        { transform: `translate(${a.left + a.width / 2 - (b.left + b.width / 2)}px, ${a.top + a.height / 2 - (b.top + b.height / 2)}px) scale(${s}) rotate(${slot.style.getPropertyValue('--tilt') || '0deg'})` },
+        { transform: 'translate(0, -24px) scale(1.06) rotate(-2deg)', offset: 0.65 },
+        { transform: 'none' },
+      ], { duration: 650, easing: 'cubic-bezier(.2,.9,.25,1)' });
+      $('.sl-info', ov).animate([{ opacity: 0, transform: 'translateY(16px)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: 300, easing: 'ease-out', fill: 'backwards' });
+      $('.sl-dim', ov).animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, fill: 'backwards' });
+      if (['legendary', 'mythic'].includes(it.rarity)) setTimeout(() => confetti($('.sl-fx', ov), it.rarity === 'mythic' ? 40 : 20), 450);
+    }
+    $('[data-store-buy], [data-store-put]:not(.sl-dim)', card)?.focus();
+  }
+
+  // Zurücklegen: fliegt zurück an ihren Platz im Stapel
+  async function storePut() {
+    const ov = $('.store-lift');
+    if (!ov || ov.dataset.closing) return;
+    ov.dataset.closing = '1';
+    const id = $('[data-store-buy], [data-store-detail]', ov)?.dataset.storeBuy || $('[data-store-detail]', ov)?.dataset.storeDetail;
+    const slot = id ? $(`[data-store-item="${CSS.escape(id)}"]`) : null;
+    if (!reduceMotion && slot) {
+      const art = $('.sl-art', ov);
+      const a = slot.getBoundingClientRect();
+      const b = art.getBoundingClientRect();
+      $('.sl-info', ov).animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, fill: 'forwards' });
+      $('.sl-dim', ov).animate([{ opacity: 1 }, { opacity: 0 }], { duration: 420, fill: 'forwards' });
+      await art.animate([
+        { transform: 'none' },
+        { transform: 'translate(0, -16px) scale(1.04)', offset: 0.25 },
+        { transform: `translate(${a.left + a.width / 2 - (b.left + b.width / 2)}px, ${a.top + a.height / 2 - (b.top + b.height / 2)}px) scale(${a.width / b.width}) rotate(${slot.style.getPropertyValue('--tilt') || '0deg'})` },
+      ], { duration: 480, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'forwards' }).finished.catch(() => {});
+    }
+    slot?.classList.remove('lifted');
+    slot?.classList.add('settle');
+    setTimeout(() => slot?.classList.remove('settle'), 400);
+    ov.remove();
+  }
+
   function renderRecords() {
     const d = rec.data;
     const el = $('#records');
@@ -3521,37 +3696,13 @@
       </section>`;
     } else if (rec.tab === 'shop') {
       const b = d.balance;
-      const cdPage = rec.shopPage === 'cd';
-      const list = cdPage ? d.singles : d.shop;
-      const items = list.map((it) => {
-        const lack = d.free ? 0 : Math.max(0, it.price.amount - b[it.price.tier]);
-        const btn = it.owned
-          ? `<span class="si-owned">✓ ${esc(t('rec.owned'))}</span>`
-          : `<button type="button" class="btn ${lack ? 'btn-ghost' : 'btn-primary'} btn-xs si-buy" data-buy="${esc(it.id)}" ${lack || rec.busy ? 'disabled' : ''}>
-              ${d.free ? `<s>${noteIcon(it.price.tier)} ${fmt(it.price.amount)}</s> 🎁 ${esc(t('rec.free'))}` : `${noteIcon(it.price.tier)} ${fmt(it.price.amount)}`} · ${esc(lack ? t('rec.missing', { n: fmt(lack), tier: t(`note.${it.price.tier}`) }) : t('rec.buy'))}</button>`;
-        const listen = it.discover && realAlbum(it.album_id)
-          ? `<a class="si-listen" href="https://open.spotify.com/${it.kind === 'cd' ? 'track' : 'album'}/${esc(it.album_id)}" target="_blank" rel="noopener">▶ ${esc(t('rec.preview'))}</a>` : '';
-        return `<article class="shop-item r-${it.rarity}${it.owned ? ' owned' : ''}${it.kind === 'cd' ? ' is-cd' : ''}${it.discover ? ' discover' : ''}">
-          ${it.discover ? `<span class="disc-badge" title="${esc(t('rec.discoverHint'))}">✨ ${esc(t('rec.discover'))}</span>` : ''}
-          <button type="button" class="si-art" data-preview="${esc(it.id)}" aria-label="${esc(it.album)}">${itemArt(it, { size: 'lg' })}</button>
-          ${rarityBadge(it.rarity)}
-          <div class="si-text"><b title="${esc(it.album)}">${esc(it.album)}</b><small>${esc(it.artist)}</small><small class="si-variant">${esc(variantName(it))}</small></div>
-          ${listen}${btn}
-        </article>`;
-      }).join('');
+      const cdPage = rec.store.view === 'cds';
       const ex = TIERS.slice(0, 3).map((tr, i) => {
         const to = TIERS[i + 1];
         return `<button type="button" class="ex-btn" data-exchange="${tr}" ${b[tr] < d.exchangeRate ? 'disabled' : ''}>
           ${noteIcon(tr)}<b>${d.exchangeRate}</b> → ${noteIcon(to)}<b>1</b></button>`;
       }).join('');
-      const pages = ['record', 'cd'].map((k) => `<button type="button" class="chip-btn" data-shop-page="${k}" aria-pressed="${(rec.shopPage || 'record') === k}">${k === 'cd' ? '💿' : '🎵'} ${esc(t(k === 'cd' ? 'rec.shopCds' : 'rec.shopRecords'))}</button>`).join('');
-      body = `<section class="card shop-card">
-          <header class="card-head"><div><h2>🛍️ ${esc(t(cdPage ? 'rec.cdShopTitle' : 'rec.shopTitle', { w: d.week.week }))}</h2>
-            <p class="muted small">${esc(countdown(d.week.resetsOn))}</p></div>
-            <div class="chips shop-pages">${pages}</div></header>
-          ${d.free ? `<p class="free-banner">🎁 ${esc(t('rec.freeOn'))}</p>` : ''}
-          ${list.length ? `<div class="shop-grid${cdPage ? ' cd-grid' : ''}">${items}</div>` : `<p class="empty">${esc(t('rec.shopEmpty'))}</p>`}
-        </section>
+      body = `${storeHTML(d)}
         <section class="card"><header class="card-head"><div><h2>${esc(t('rec.exchangeTitle'))}</h2><p class="muted small">${esc(t('rec.exchangeSub', { n: d.exchangeRate }))}</p></div></header>
           <div class="ex-row">${ex}</div></section>
         <section class="card"><header class="card-head"><h2>${esc(t('rec.rarityTitle'))}</h2></header>
@@ -3601,6 +3752,7 @@
       </section>
       ${body}`;
     afterCabinetRender(el);
+    if (rec.tab === 'shop') storeEnter();
     const fresh = d.collection.filter((r) => !recSeen().has(r.id)).length;
     const ct = $('[data-rec-tab="collection"]', el);
     if (ct && fresh && rec.tab !== 'collection') ct.insertAdjacentHTML('beforeend', ` <span class="tab-dot">${fresh}</span>`);
@@ -3667,7 +3819,7 @@
         <div class="rd-fx"></div>
         ${isNew ? `<p class="rd-new">✨ ${esc(t('rec.newIn'))}</p>` : ''}
         <div class="rd-player">
-          <div class="rd-sleeve">${imgOrPlaceholder(r.image, r.album)}${r.rarity === 'legendary' ? signHTML(r.artist) : ''}</div>
+          <div class="rd-sleeve">${imgOrPlaceholder(r.image, r.album)}${signed(r.rarity) ? signHTML(r.artist) : ''}</div>
           <div class="rd-vinyl r-${r.rarity}" style="--hue:${r.hue ?? 0}">
             ${r.rarity === 'epic' && r.image ? `<img class="rd-picture" src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" />` : ''}
             <span class="rd-label">${r.image ? `<img src="${esc(r.image)}" alt="" referrerpolicy="no-referrer" />` : ''}</span>
@@ -3690,14 +3842,14 @@
         </div>
       </div>`;
     if (!dlg.open) dlg.showModal();
-    if (isNew) setTimeout(() => confetti($('.rd-fx', dlg), r.rarity === 'legendary' ? 70 : 40), 250);
+    if (isNew) setTimeout(() => confetti($('.rd-fx', dlg), r.rarity === 'mythic' ? 110 : r.rarity === 'legendary' ? 70 : 40), 250);
   }
 
   async function buyRecord(id) {
     const d = rec.data;
     const it = [...(d?.shop || []), ...(d?.singles || [])].find((x) => x.id === id);
     if (!it || rec.busy) return;
-    if (!d.free && ['epic', 'legendary'].includes(it.rarity) && !confirm(t('rec.confirmBuy', { a: it.album, n: it.price.amount, tier: t(`note.${it.price.tier}`) }))) return;
+    if (!d.free && ['epic', 'legendary', 'mythic'].includes(it.rarity) && !confirm(t('rec.confirmBuy', { a: it.album, n: it.price.amount, tier: t(`note.${it.price.tier}`) }))) return;
     rec.busy = true;
     try {
       const r = await postJSON('/api/records/buy', { id });
@@ -3717,6 +3869,7 @@
     } catch (err) {
       rec.busy = false;
       toast(errMsg(err), true);
+      storePut();
       loadRecords();
     }
   }
@@ -3744,9 +3897,10 @@
   }
 
   async function purchaseAnimation(it) {
-    if (reduceMotion) return;
-    const card = $(`.shop-item [data-preview="${CSS.escape(it.id)}"]`)?.closest('.shop-item');
-    const btn = card ? $('.si-buy', card) : null;
+    if (reduceMotion) { $('.store-lift')?.remove(); return; }
+    const lift = $('.store-lift');
+    const card = lift ? $('.sl-card', lift) : $(`.shop-item [data-preview="${CSS.escape(it.id)}"]`)?.closest('.shop-item');
+    const btn = lift ? $('[data-store-buy]', lift) : card ? $('.si-buy', card) : null;
     const chip = $(`.rec-head [data-note="${it.price.tier}"]`)?.closest('.nb');
     const jobs = [];
     // Noten wandern vom Kontostand zur Platte
@@ -3758,12 +3912,15 @@
     if (card) {
       card.classList.add('just-bought');
       card.insertAdjacentHTML('beforeend', `<span class="sold-stamp">✓ ${esc(t('rec.bought'))}</span>`);
-      confetti($('#fx-layer'), it.rarity === 'legendary' ? 60 : it.rarity === 'common' ? 18 : 34);
+      confetti($('#fx-layer'), it.rarity === 'mythic' ? 100 : it.rarity === 'legendary' ? 60 : it.rarity === 'common' ? 18 : 34);
       await new Promise((r) => setTimeout(r, 450));
       // Platte fliegt zum Reiter „Sammlung“
       const target = $('[data-rec-tab="collection"]') || $('.rec-head');
-      await flyEl(itemArt(it, { size: 'lg' }), $('.si-art', card), target, { dur: 850, rot: -25, scaleTo: 0.25, cls: 'fly-rec' });
+      const from = lift ? $('.sl-art', lift) : $('.si-art', card);
+      if (lift) $('.sl-art', lift).style.visibility = 'hidden';
+      await flyEl(itemArt(it, { size: 'lg' }), from, target, { dur: 850, rot: -25, scaleTo: 0.25, cls: 'fly-rec' });
     }
+    lift?.remove();
   }
 
   async function exchangeNotes(from) {
@@ -3815,11 +3972,33 @@
       const tb = e.target.closest('[data-records-tab]');
       if (tb) { $('#note-toast').hidden = true; openRecordsTab(tb.dataset.recordsTab); return; }
       const sp = e.target.closest('[data-shop-page]');
-      if (sp) { rec.shopPage = sp.dataset.shopPage; rec.tab = 'shop'; if (state.panel !== 'records') showPanel('records'); else renderRecords(); return; }
+      if (sp) {
+        rec.shopPage = sp.dataset.shopPage; rec.tab = 'shop';
+        rec.store = { view: sp.dataset.shopPage === 'cd' ? 'cds' : 'records', entered: true };
+        if (state.panel !== 'records') showPanel('records'); else renderRecords();
+        return;
+      }
       const fs = e.target.closest('#free-shop-switch');
       if (fs) { toggleFreeShop(); return; }
       const rt = e.target.closest('[data-rec-tab]');
-      if (rt) { rec.tab = rt.dataset.recTab; renderRecords(); return; }
+      if (rt) {
+        if (rt.dataset.recTab === 'shop' && rec.tab !== 'shop') rec.store = { view: 'room', entered: false }; // Tür geht wieder auf
+        rec.tab = rt.dataset.recTab; renderRecords(); return;
+      }
+      const sg = e.target.closest('[data-store-go]');
+      if (sg) { storeGo(sg.dataset.storeGo); return; }
+      const si = e.target.closest('[data-store-item]');
+      if (si) { storePick(si.dataset.storeItem); return; }
+      if (e.target.closest('[data-store-put]')) { storePut(); return; }
+      const sb = e.target.closest('[data-store-buy]');
+      if (sb) { sb.disabled = true; buyRecord(sb.dataset.storeBuy); return; }
+      const sdt = e.target.closest('[data-store-detail]');
+      if (sdt) {
+        const it = [...(rec.data?.shop || []), ...(rec.data?.singles || [])].find((x) => x.id === sdt.dataset.storeDetail);
+        $('.store-lift')?.remove(); $$('.stb-item.lifted').forEach((x) => x.classList.remove('lifted'));
+        if (it) openRecord(rec.data.collection.find((x) => x.id === it.id) || it, { owned: it.owned });
+        return;
+      }
       const rf = e.target.closest('[data-rec-filter]');
       if (rf) { rec.filter = rf.dataset.recFilter; renderRecords(); return; }
       const rb = e.target.closest('[data-record]');
@@ -3844,6 +4023,7 @@
     });
     const dlg = $('#record-dialog');
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('.store-lift')) storePut(); });
     watchEggs();
     document.addEventListener('click', (e) => {
       const eg = e.target.closest('[data-egg]');

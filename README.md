@@ -221,7 +221,9 @@ Typisch sind die Cover nach einem Import so in 1–2 Minuten da statt nach ~10 M
 
 **Plattenschrank**: In der Übersicht steht dein Plattenschrank, anfangs leer. Ein Klick auf eine Platte zeigt Hülle und drehende Schallplatte.
 
-**Plattenladen**: Für jeden Nutzer jeden Montag komplett zufällig: 16 Schallplatten aus allen Alben deines Hörverlaufs (jedes Album höchstens einmal pro Woche). Die Seltenheit wird pro Platz neu gewürfelt (Platten: 55 % gewöhnlich, 28 % selten, 12 % episch, 5 % legendär; CDs: 58 / 27 / 11 / 4 %). Seltenheiten:
+**Begehbarer Laden**: Beim Öffnen des Ladens schwingt die Glastür (mit „OPEN“-Schild und Türglocke) auf, man sieht durch die Öffnung hinein und geht in den Laden: Holzvertäfelung, Neon-Schild „Spotlfy Records“, Regale mit Plattenrücken, Schachbrettboden, warmes Licht. **Rechts** steht der Plattentisch mit einer Plattenkiste, **links** der CD-Tisch mit gefächerten CDs (die Labels zeigen Anzahl und das seltenste Stück), **geradeaus** die Studio-Tür („ON AIR“, noch verschlossen). Ein Tisch-Tipp fährt die Kamera hin; auf der Tischplatte liegen alle Stücke der Woche mit Preisschild. Eine Platte/CD antippen hebt sie heraus und lässt sie nach vorne schweben – dann **Kaufen** oder **Zurücklegen** (fliegt zurück an ihren Platz; auch Esc oder Tipp daneben). Legendäre und mythische Stücke funkeln beim Anheben. Beim Kauf fliegen die Noten zum Button, „Gekauft“-Stempel, das Stück fliegt in die Sammlung.
+
+**Plattenladen**: Für jeden Nutzer jeden Montag komplett zufällig: 16 Schallplatten aus allen Alben deines Hörverlaufs (jedes Album höchstens einmal pro Woche). Die Seltenheit wird pro Platz neu gewürfelt (Platten: 55 % gewöhnlich, 28 % selten, 12 % episch, 4 % legendär, 1 % mythisch; CDs: 58 / 27 / 11 / 3 / 1 %). Seltenheiten:
 
 | Seltenheit | Ausführung | Preis |
 |---|---|---|
@@ -229,6 +231,7 @@ Typisch sind die Cover nach einem Import so in 1–2 Minuten da statt nach ~10 M
 | Selten | Farbiges Vinyl | 1–2 Silber |
 | Episch | Limitierte Picture Disc | 1–2 Gold |
 | Legendär | Signierte Erstpressung | 1 Platin |
+| **Mythisch** | Holografische Unikat-Pressung, signiert (CD: holografische Unikat-Single) | 3 Platin (CD: 2 Platin) |
 
 **Autogramme**: Legendäre Platten und CDs tragen ein Autogramm des Künstlers. Echte Unterschriften werden bewusst nicht nachgebildet; jeder Künstler bekommt stattdessen eine eigene, immer gleiche Handschrift (Schrift, Stiftfarbe, Neigung, Schnörkel, ggf. Stern oder Herz), abgeleitet aus seinem Namen. Die Handschrift-Schriften (Permanent Marker, Rock Salt, Mrs Saint Delafield, Homemade Apple, Caveat; SIL OFL / Apache 2.0) werden lokal über `/vendor/sign/` ausgeliefert.
 

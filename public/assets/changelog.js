@@ -7,6 +7,22 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-14g',
+    date: '2026-11-14',
+    items: [
+      {
+        icon: '🚪', go: 'records',
+        t: ['Begehbarer Plattenladen', 'Walk-in record shop', 'Disquaire à visiter', 'Tienda de discos recorrible', 'Negozio di dischi da esplorare', 'Skivbutik att gå in i', 'Pladebutik du kan gå ind i'],
+        d: ['Tür auf, rein: rechts Platten, links CDs – antippen, anheben, kaufen.', 'Open the door: records on the right, CDs on the left – tap, lift, buy.', 'Entre : vinyles à droite, CD à gauche – touche, soulève, achète.', 'Entra: vinilos a la derecha, CD a la izquierda – toca, levanta, compra.', 'Entra: vinili a destra, CD a sinistra – tocca, solleva, compra.', 'In genom dörren: skivor till höger, cd till vänster – tryck, lyft, köp.', 'Ind ad døren: plader til højre, cd’er til venstre – tryk, løft, køb.'],
+      },
+      {
+        icon: '🌈', go: 'records',
+        t: ['Neue Seltenheit: Mythisch', 'New rarity: Mythic', 'Nouvelle rareté : Mythique', 'Nueva rareza: Mítico', 'Nuova rarità: Mitico', 'Ny sällsynthet: Mytisk', 'Ny sjældenhed: Mytisk'],
+        d: ['Holografisch, signiert und noch seltener als legendär.', 'Holographic, signed and even rarer than legendary.', 'Holographique, dédicacé et plus rare que légendaire.', 'Holográfico, firmado y aún más raro que legendario.', 'Olografico, autografato e più raro del leggendario.', 'Holografisk, signerad och ännu ovanligare än legendarisk.', 'Holografisk, signeret og endnu sjældnere end legendarisk.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-14f',
     date: '2026-11-14',
     items: [

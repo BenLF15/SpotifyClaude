@@ -12,7 +12,7 @@ import { UserError } from './users.js';
 import { bestImage, spotifyGet } from './spotify.js';
 
 export const TIERS = ['bronze', 'silver', 'gold', 'platinum'];
-export const RARITIES = ['common', 'rare', 'epic', 'legendary'];
+export const RARITIES = ['common', 'rare', 'epic', 'legendary', 'mythic'];
 const R = (bronze = 0, silver = 0, gold = 0, platinum = 0) => ({ bronze, silver, gold, platinum });
 
 // ================================================================ Belohnungen
@@ -36,6 +36,7 @@ const ONCE = {
   'playlist-1': R(0, 1),
   'playlist-5': R(0, 0, 1),
   'legendary-1': R(0, 0, 1), // erste legendäre Platte
+  'mythic-1': R(0, 0, 0, 1), // erste mythische Platte/CD
 };
 const RECURRING = {
   visit: R(1), // täglicher Besuch
@@ -52,15 +53,15 @@ export const DISCOVER_GOAL = 5;
 const EXCHANGE_RATE = 4; // 4 × niedrigere Stufe = 1 × nächste Stufe
 
 // Preise je Seltenheit (Noten-Stufe + Spanne)
-const PRICE = { common: ['bronze', 2, 4], rare: ['silver', 1, 2], epic: ['gold', 1, 2], legendary: ['platinum', 1, 1] };
+const PRICE = { common: ['bronze', 2, 4], rare: ['silver', 1, 2], epic: ['gold', 1, 2], legendary: ['platinum', 1, 1], mythic: ['platinum', 3, 3] };
 // Wie viele Alben es in welcher Seltenheit überhaupt gibt (Prozent)
-const PRESENCE = { common: 100, rare: 100, epic: 100, legendary: 100 };
+const PRESENCE = { common: 100, rare: 100, epic: 100, legendary: 100, mythic: 100 };
 // Wöchentlich neu gewürfelte Seltenheit je Platz (Prozent)
-const RARITY_ODDS = { record: { common: 55, rare: 28, epic: 12, legendary: 5 }, cd: { common: 58, rare: 27, epic: 11, legendary: 4 } };
+const RARITY_ODDS = { record: { common: 55, rare: 28, epic: 12, legendary: 4, mythic: 1 }, cd: { common: 58, rare: 27, epic: 11, legendary: 3, mythic: 1 } };
 const SHOP_SIZE = 16;
 // CD-Singles: günstiger als Schallplatten (legendär kostet Gold statt Platin)
-const CD_PRICE = { common: ['bronze', 1, 2], rare: ['silver', 1, 1], epic: ['gold', 1, 1], legendary: ['gold', 3, 3] };
-const CD_PRESENCE = { common: 100, rare: 100, epic: 100, legendary: 100 };
+const CD_PRICE = { common: ['bronze', 1, 2], rare: ['silver', 1, 1], epic: ['gold', 1, 1], legendary: ['gold', 3, 3], mythic: ['platinum', 2, 2] };
+const CD_PRESENCE = { common: 100, rare: 100, epic: 100, legendary: 100, mythic: 100 };
 const CD_SHOP_SIZE = 30;
 
 // ================================================================ Hilfen
@@ -167,7 +168,7 @@ function weeklyShop(pool, seed, size = SHOP_SIZE) {
   // Seltenheit je Platz neu gewürfelt; jedes Album/jeder Song höchstens einmal.
   const byBase = new Map();
   for (const it of pool) {
-    const base = it.id.replace(/-(cd-)?(common|rare|epic|legendary)$/, '');
+    const base = it.id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, '');
     if (!byBase.has(base)) byBase.set(base, {});
     byBase.get(base)[it.rarity] = it;
   }
@@ -218,7 +219,7 @@ async function facts(account) {
         GROUP BY 1`,
       [config.timezone, uid, account.id],
     ),
-    query(`SELECT count(*) FILTER (WHERE kind = 'record') AS n, count(*) FILTER (WHERE kind = 'cd') AS cds, count(*) FILTER (WHERE rarity = 'legendary') AS legendary FROM record_collection WHERE account_id = $1`, [account.id]),
+    query(`SELECT count(*) FILTER (WHERE kind = 'record') AS n, count(*) FILTER (WHERE kind = 'cd') AS cds, count(*) FILTER (WHERE rarity = 'legendary') AS legendary, count(*) FILTER (WHERE rarity = 'mythic') AS mythic FROM record_collection WHERE account_id = $1`, [account.id]),
     songOfTheDay(account),
   ]);
   return { ms, ...misc.rows[0], weeks: weeks.rows, months: months.rows, collection: coll.rows[0], sotd };
@@ -237,6 +238,7 @@ function eligibleAwards(account, f) {
   if (f.playlists >= 1) add('playlist-1', ONCE['playlist-1']);
   if (f.playlists >= 5) add('playlist-5', ONCE['playlist-5']);
   if (f.collection.legendary >= 1) add('legendary-1', ONCE['legendary-1']);
+  if (f.collection.mythic >= 1) add('mythic-1', ONCE['mythic-1']);
   for (const m of f.ms.items) {
     if (!m.achieved) continue;
     if (m.kind === 'minutes' && MINUTE_REWARDS[m.value]) add(`min-${m.value}`, MINUTE_REWARDS[m.value]);
@@ -319,6 +321,7 @@ function sources(account, f, earned) {
       key: `cd-${n}`, group: 'collector', reward: r, done: has.has(`cd-${n}`), at: has.get(`cd-${n}`) || null, cur: Math.min(f.collection.cds, Number(n)), goal: Number(n),
     })),
     once('legendary-1', 'collector', Math.min(f.collection.legendary, 1), 1),
+    once('mythic-1', 'collector', Math.min(f.collection.mythic || 0, 1), 1),
     { key: 'visit', group: 'recurring', reward: RECURRING.visit, done: has.has(`visit:${today}`), at: has.get(`visit:${today}`) || null },
     { key: 'week', group: 'recurring', reward: RECURRING.week, done: has.has(`week:${thisWeek}`), at: has.get(`week:${thisWeek}`) || null,
       cur: Math.min(f.weeks.find((w) => w.w === thisWeek)?.minutes || 0, WEEK_GOAL), goal: WEEK_GOAL },
@@ -621,7 +624,7 @@ export async function openEgg(account, eggId) {
       query('SELECT record_id FROM record_collection WHERE account_id = $1', [account.id]),
     ]);
     const owned = new Set(own.rows.map((r) => r.record_id));
-    const cands = pool.filter((it) => !owned.has(it.id) && it.rarity !== 'legendary')
+    const cands = pool.filter((it) => !owned.has(it.id) && !['legendary', 'mythic'].includes(it.rarity))
       .sort((a, b) => hashInt(`${key}#${a.id}`) - hashInt(`${key}#${b.id}`));
     if (cands.length) gift = cands[0];
     else reward = R(0, 0, 1);
@@ -789,8 +792,8 @@ async function composeShop(account, year, week, pool, tpool) {
   const dRec = weeklyShop(disc.records, `${seed}#disc`, DISCOVER_RECORDS);
   const dCd = weeklyShop(disc.cds, `${seed}#disc-cd`, DISCOVER_CDS);
   const merge = (base, extra, size) => {
-    const ids = new Set(extra.map((x) => x.id.replace(/-(cd-)?(common|rare|epic|legendary)$/, '')));
-    const rest = weeklyShop(base.filter((x) => !ids.has(x.id.replace(/-(cd-)?(common|rare|epic|legendary)$/, ''))), seed + (size === CD_SHOP_SIZE ? '#cd' : ''), size - extra.length);
+    const ids = new Set(extra.map((x) => x.id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, '')));
+    const rest = weeklyShop(base.filter((x) => !ids.has(x.id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, ''))), seed + (size === CD_SHOP_SIZE ? '#cd' : ''), size - extra.length);
     return [...extra, ...rest].sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || Number(Boolean(b.discover)) - Number(Boolean(a.discover)) || a.artist.localeCompare(b.artist));
   };
   return { shopList: merge(pool, dRec, SHOP_SIZE), singleList: merge(tpool, dCd, CD_SHOP_SIZE) };
