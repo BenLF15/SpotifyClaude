@@ -2174,7 +2174,6 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 .st-eq i:nth-child(2) { animation-delay: -0.3s; } .st-eq i:nth-child(3) { animation-delay: -0.6s; } .st-eq i:nth-child(4) { animation-delay: -0.15s; }
 .st-now.muted .st-eq i { animation-play-state: paused; transform: scaleY(0.25); background: rgba(255, 255, 255, 0.6); }
 @keyframes st-eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
-.st-hint { margin: 6px 0 0; font-size: 0.8rem; opacity: 0.8; }
 
 /* Hintergrund: unscharfes Cover + schwebende Farbflächen */
 .st-backdrop { position: absolute; inset: -60px; background-size: cover; background-position: center; filter: blur(46px) saturate(1.4); opacity: 0.4; z-index: 0; }

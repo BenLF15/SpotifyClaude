@@ -2351,8 +2351,7 @@
 
     const slides = [];
     slides.push({ cls: 'st-intro', tr: 'zoom', fx: 'fade', track: choose(tracks[1], m.month, s1), html: `<div class="st-logo"><img src="/assets/logo-animated.svg" alt="" width="96" height="96"></div>
-          <p class="st-kicker">Spotlfy · ${d.year}</p><h2 id="story-title">${esc(t('story.introTitle', { year: d.year }))}</h2><p class="st-text">${esc(t('story.introText'))}</p>
-          <p class="st-hint">🎧 ${esc(t('story.soundHint'))}</p>` });
+          <p class="st-kicker">Spotlfy · ${d.year}</p><h2 id="story-title">${esc(t('story.introTitle', { year: d.year }))}</h2>` });
     slides.push({ cls: 'st-minutes', tr: 'iris', fx: 'sweep', track: choose(m.month, tracks[2], tracks[1]), html: `<p class="st-kicker">${esc(t('story.minutesKicker'))}</p>
           <div class="st-num" data-count="${d.minutes}">0</div><p class="st-unit">${esc(t('story.minutesUnit'))}</p>
           <p class="st-text">${esc(t('story.minutesEquiv', { n: (d.minutes / 1440).toFixed(1).replace('.', decSep), f: fmt(films) }))}</p>
