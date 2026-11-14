@@ -77,7 +77,8 @@
     void el.offsetWidth;
     el.style.animation = '';
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.hidden = true; }, 4500);
+    el.classList.remove('out');
+    toastTimer = setTimeout(() => { el.classList.add('out'); toastTimer = setTimeout(() => { el.hidden = true; el.classList.remove('out'); }, 320); }, 4500);
   }
 
   const rtf = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' });
@@ -301,17 +302,8 @@
     $('#auth-banner').hidden = !sp?.auth_expired;
     $('#user-line').textContent = sp?.display_name && sp.display_name !== s.account.username
       ? `${s.account.username} · ${sp.display_name}` : s.account.username;
-    // Profil-Button oben rechts: Spotify-Bild oder Initiale
-    const avatar = $('#avatar');
-    const initialsEl = $('#avatar-initials');
-    if (sp?.avatar_url) {
-      avatar.src = sp.avatar_url;
-      avatar.hidden = false;
-      initialsEl.textContent = '';
-    } else {
-      avatar.hidden = true;
-      initialsEl.textContent = (s.account.username[0] || '?').toUpperCase();
-    }
+    // Profil-Button oben rechts: eigenes Bild, sonst Spotify-Bild, sonst Initiale
+    paintAvatars();
     $('#admin-tab').hidden = !s.account.is_admin;
     renderProfile(s);
     updateFestive();
@@ -374,7 +366,7 @@
   }
 
   async function chooseTheme(mode) {
-    T.setMode(mode);
+    smoothSwap(() => T.setMode(mode), 'fade');
     await saveSettings({ theme: mode });
   }
 
@@ -397,16 +389,217 @@
     location.reload(); // Formate (Datum, Zahlen) und alle Texte neu aufbauen
   }
 
+  // ================================================================ Profilbild: hochladen, zuschneiden, entfernen
+  // Das Bild wird im Browser auf 320×320 zugeschnitten und verkleinert – hochgeladen werden nur wenige KB.
+  const avEdit = { img: null, url: null, zoom: 1, x: 0, y: 0, drag: null };
+  const myAvatar = () => state.account?.avatar_url || state.spotify?.avatar_url || null;
+
+  function paintAvatars() {
+    const url = myAvatar();
+    const name = state.account?.username || '?';
+    const avatar = $('#avatar');
+    const initialsEl = $('#avatar-initials');
+    if (url) {
+      if (avatar.getAttribute('src') !== url) {
+        avatar.classList.add('av-fade');
+        avatar.onload = () => avatar.classList.remove('av-fade');
+        avatar.src = url;
+      }
+      avatar.hidden = false;
+      initialsEl.textContent = '';
+    } else {
+      avatar.hidden = true;
+      avatar.removeAttribute('src');
+      initialsEl.textContent = (name[0] || '?').toUpperCase();
+    }
+    const av = $('#profile-avatar');
+    if (av) {
+      av.innerHTML = `${url ? `<img src="${esc(url)}" alt="" referrerpolicy="no-referrer" />` : `<span>${esc((name[0] || '?').toUpperCase())}</span>`}
+        <span class="av-edit" aria-hidden="true">📷</span>`;
+      av.setAttribute('aria-label', t('avatar.change'));
+      av.title = t('avatar.change');
+    }
+    const rm = $('#avatar-remove');
+    if (rm) rm.hidden = !state.account?.custom_avatar;
+  }
+
+  function openAvatarPicker() {
+    const inp = $('#avatar-file');
+    inp.value = '';
+    inp.click();
+  }
+
+  async function loadAvatarFile(file) {
+    if (!file) return;
+    if (!/^image\//.test(file.type) && !/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(file.name)) { toast(t('avatar.invalid'), true); return; }
+    if (file.size > 25 * 1024 * 1024) { toast(t('avatar.tooBig'), true); return; }
+    // als data:-URL lesen (die Sicherheitsregeln der Seite erlauben keine blob:-Bilder)
+    const dataUrl = await new Promise((res, rej) => { const fr2 = new FileReader(); fr2.onload = () => res(fr2.result); fr2.onerror = rej; fr2.readAsDataURL(file); }).catch(() => null);
+    if (!dataUrl) { toast(t('avatar.invalid'), true); return; }
+    avEdit.url = null;
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      Object.assign(avEdit, { img, zoom: 1, x: 0, y: 0 });
+      const dlg = $('#avatar-dialog');
+      $('#avatar-zoom').value = '1';
+      if (!dlg.open) dlg.showModal();
+      drawAvatarPreview();
+    };
+    img.onerror = () => toast(t('avatar.invalid'), true);
+    img.src = dataUrl;
+  }
+
+  // Ausschnitt berechnen: Bild füllt den Kreis immer ganz aus (cover), Zoom und Verschieben darin
+  function avatarCrop(size) {
+    const { img, zoom } = avEdit;
+    const base = size / Math.min(img.naturalWidth, img.naturalHeight);
+    const s = base * zoom;
+    const w = img.naturalWidth * s;
+    const h = img.naturalHeight * s;
+    const maxX = (w - size) / 2;
+    const maxY = (h - size) / 2;
+    avEdit.x = Math.max(-maxX, Math.min(maxX, avEdit.x));
+    avEdit.y = Math.max(-maxY, Math.min(maxY, avEdit.y));
+    return { s, w, h, dx: (size - w) / 2 + avEdit.x, dy: (size - h) / 2 + avEdit.y };
+  }
+
+  function drawAvatarPreview() {
+    const c = $('#avatar-canvas');
+    if (!c || !avEdit.img) return;
+    const size = c.width;
+    const ctx = c.getContext('2d');
+    const { w, h, dx, dy } = avatarCrop(size);
+    ctx.clearRect(0, 0, size, size);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(avEdit.img, dx, dy, w, h);
+  }
+
+  async function saveAvatar() {
+    const btn = $('#avatar-save');
+    const out = document.createElement('canvas');
+    out.width = out.height = 320;
+    const prev = $('#avatar-canvas');
+    // gleiche Bildaufteilung wie in der Vorschau, nur in 320 px
+    const k = 320 / prev.width;
+    const save = { x: avEdit.x, y: avEdit.y };
+    avEdit.x *= k; avEdit.y *= k;
+    const { w, h, dx, dy } = avatarCrop(320);
+    Object.assign(avEdit, save);
+    const ctx = out.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(avEdit.img, dx, dy, w, h);
+    let data = out.toDataURL('image/webp', 0.86);
+    if (!data.startsWith('data:image/webp')) data = out.toDataURL('image/jpeg', 0.88); // Safari kann kein WebP erzeugen
+    btn.disabled = true;
+    try {
+      const r = await postJSON('/api/me/avatar', { image: data });
+      state.account.avatar_url = r.avatar_url;
+      state.account.custom_avatar = true;
+      $('#avatar-dialog').close();
+      paintAvatars();
+      toast(t('avatar.saved'));
+      fr.data = null; // Freundesliste mit neuem Bild laden
+    } catch (err) {
+      toast(errMsg(err), true);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function removeAvatar() {
+    if (!confirm(t('avatar.removeConfirm'))) return;
+    try {
+      const r = await api('/api/me/avatar', { method: 'DELETE' });
+      state.account.avatar_url = r.avatar_url;
+      state.account.custom_avatar = false;
+      paintAvatars();
+      toast(t('avatar.removed'));
+    } catch (err) { toast(errMsg(err), true); }
+  }
+
+  function bindAvatar() {
+    $('#profile-avatar')?.addEventListener('click', openAvatarPicker);
+    $('#avatar-change')?.addEventListener('click', openAvatarPicker);
+    $('#avatar-remove')?.addEventListener('click', removeAvatar);
+    $('#avatar-file')?.addEventListener('change', (e) => loadAvatarFile(e.target.files?.[0]));
+    $('#avatar-zoom')?.addEventListener('input', (e) => { avEdit.zoom = Number(e.target.value); drawAvatarPreview(); });
+    $('#avatar-save')?.addEventListener('click', saveAvatar);
+    $('#avatar-other')?.addEventListener('click', openAvatarPicker);
+    const c = $('#avatar-canvas');
+    if (!c) return;
+    // Verschieben mit Finger/Maus, Zoomen mit Mausrad oder zwei Fingern
+    const pts = new Map();
+    c.addEventListener('pointerdown', (e) => { c.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); avEdit.drag = { x: e.clientX, y: e.clientY, ox: avEdit.x, oy: avEdit.y, pinch: null }; });
+    c.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId) || !avEdit.drag) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const scale = c.width / c.getBoundingClientRect().width;
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        if (!avEdit.drag.pinch) avEdit.drag.pinch = { dist, zoom: avEdit.zoom };
+        avEdit.zoom = Math.max(1, Math.min(4, avEdit.drag.pinch.zoom * (dist / avEdit.drag.pinch.dist)));
+        $('#avatar-zoom').value = String(avEdit.zoom);
+      } else {
+        avEdit.x = avEdit.drag.ox + (e.clientX - avEdit.drag.x) * scale;
+        avEdit.y = avEdit.drag.oy + (e.clientY - avEdit.drag.y) * scale;
+      }
+      drawAvatarPreview();
+    });
+    const end = (e) => { pts.delete(e.pointerId); if (!pts.size) avEdit.drag = null; };
+    c.addEventListener('pointerup', end);
+    c.addEventListener('pointercancel', end);
+    c.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      avEdit.zoom = Math.max(1, Math.min(4, avEdit.zoom * (e.deltaY < 0 ? 1.08 : 0.92)));
+      $('#avatar-zoom').value = String(avEdit.zoom);
+      drawAvatarPreview();
+    }, { passive: false });
+    $('#avatar-dialog').addEventListener('close', () => { avEdit.img = null; });
+  }
+
+  // ================================================================ Sanfte Übergänge
+  // Bereichswechsel gleiten (View Transitions, Richtung je nach Tab-Reihenfolge); Dialoge blenden weich
+  // ein UND aus; Hinweise gleiten weg statt zu verschwinden.
+  const canVT = typeof document.startViewTransition === 'function';
+  function smoothSwap(update, dir) {
+    if (!canVT || reduceMotion || document.hidden) { update(); return; }
+    document.documentElement.dataset.vtDir = dir || 'none';
+    try {
+      const vt = document.startViewTransition(update);
+      vt.finished.finally(() => { delete document.documentElement.dataset.vtDir; });
+    } catch { update(); }
+  }
+
+  (function smoothDialogs() {
+    const P = HTMLDialogElement.prototype;
+    const close = P.close;
+    const showModal = P.showModal;
+    P.close = function (v) {
+      if (!this.open || reduceMotion || this.id === 'story' || this.classList.contains('dlg-closing')) return close.call(this, v);
+      this.classList.add('dlg-closing');
+      clearTimeout(this._dlgT);
+      this._dlgT = setTimeout(() => { this.classList.remove('dlg-closing'); if (this.open) close.call(this, v); }, 210);
+    };
+    P.showModal = function () {
+      if (this.classList.contains('dlg-closing')) { clearTimeout(this._dlgT); this.classList.remove('dlg-closing'); if (this.open) close.call(this); }
+      return showModal.call(this);
+    };
+    // Esc: ebenfalls weich schließen
+    document.addEventListener('cancel', (e) => {
+      const d = e.target;
+      if (d instanceof HTMLDialogElement && d.id !== 'story' && !reduceMotion) { e.preventDefault(); d.close(); }
+    }, true);
+  })();
+
   // ================================================================ Profil
   function renderProfile(s) {
     renderThemeSettings();
     renderLangPicker();
     const sp = s.spotify;
     const acc = s.account;
-    const av = $('#profile-avatar');
-    av.innerHTML = sp?.avatar_url
-      ? `<img src="${esc(sp.avatar_url)}" alt="" referrerpolicy="no-referrer" />`
-      : esc((acc.username[0] || '?').toUpperCase());
+    paintAvatars();
     $('#profile-name').innerHTML = `${esc(acc.username)}${acc.is_admin ? ` <span class="tag tag-admin">${esc(t('role.admin'))}</span>` : ''}`;
     $('#profile-sub').textContent = [sp?.display_name, sp?.email].filter(Boolean).join(' · ') || t('profile.notConnectedSub');
 
@@ -1617,6 +1810,14 @@
   function showPanel(panel) {
     if (!PANELS.includes(panel)) return;
     const changed = panel !== state.panel;
+    if (changed && !showPanel.inVT) {
+      // Richtung wie die Tab-Reihenfolge: weiter rechts → gleitet von rechts herein
+      const tabs = [...$$('#panel-tabs [data-panel]')].map((b) => b.dataset.panel).concat(['records', 'profile']);
+      const a = tabs.indexOf(state.panel); const b = tabs.indexOf(panel);
+      const dir = a < 0 || b < 0 ? 'fade' : b > a ? 'fwd' : 'back';
+      smoothSwap(() => { showPanel.inVT = true; try { showPanel(panel); } finally { showPanel.inVT = false; } }, dir);
+      return;
+    }
     try { if (changed && panel !== 'records' && rec.store) { rec.store = { view: 'room', entered: false }; rec.studio.mode = null; studioStopAudio(); document.querySelector('.store-lift')?.remove(); } } catch { /* Laden noch nicht initialisiert */ }
     state.panel = panel;
     session.set('panel', panel);
@@ -1705,7 +1906,7 @@
 
   async function toggleGlass() {
     const on = !T.glass();
-    T.setGlass(on); // sofort sichtbar, dann am Konto speichern
+    smoothSwap(() => T.setGlass(on), 'fade'); // sofort sichtbar, dann am Konto speichern
     $('#glass-switch').setAttribute('aria-checked', String(on));
     if (state.account) state.account.glass = on;
     if (!(await saveSettings({ glass: on }))) {
@@ -2964,7 +3165,7 @@
     const c = fr.compare;
     const box = $('#compare');
     const meName = state.account.username;
-    const meAv = state.spotify?.avatar_url;
+    const meAv = myAvatar();
     const duel = (label, a, b) => {
       const max = Math.max(1, a, b);
       return `<li class="duel"><span class="duel-v me">${fmt(a)}</span>
@@ -4347,6 +4548,7 @@
     });
     $('#festive-switch').addEventListener('click', toggleFestive);
     bindNews();
+    bindAvatar();
     bindStudio();
     document.addEventListener('visibilitychange', () => { if (document.hidden) studioStopAudio(); });
     $('#glass-switch').addEventListener('click', toggleGlass);

@@ -11,7 +11,7 @@ const gunzip = promisify(zlib.gunzip);
 export const BACKUP_TABLES = [
   'app_meta', 'users', 'accounts', 'artists', 'tracks', 'artist_genres',
   'plays', 'top_snapshots', 'sync_log', 'login_events', 'friendships', 'created_playlists',
-  'note_ledger', 'record_collection',
+  'note_ledger', 'record_collection', 'account_avatars',
 ];
 const SERIAL_TABLES = ['accounts', 'plays', 'sync_log', 'login_events', 'created_playlists', 'note_ledger'];
 

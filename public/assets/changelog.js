@@ -7,6 +7,22 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-14i',
+    date: '2026-11-14',
+    items: [
+      {
+        icon: '🖼️', go: 'profile',
+        t: ['Eigenes Profilbild', 'Your own profile picture', 'Ta propre photo de profil', 'Tu propia foto de perfil', 'La tua immagine del profilo', 'Egen profilbild', 'Dit eget profilbillede'],
+        d: ['Im Profil aufs Bild tippen, Foto wählen, zuschneiden – fertig.', 'Tap your picture in the profile, pick a photo, crop – done.', 'Touche ta photo dans le profil, choisis, recadre – c’est fait.', 'Toca tu foto en el perfil, elige una, recórtala y listo.', 'Tocca l’immagine nel profilo, scegli, ritaglia – fatto.', 'Tryck på bilden i profilen, välj foto, beskär – klart.', 'Tryk på billedet i profilen, vælg foto, beskær – færdig.'],
+      },
+      {
+        icon: '🌊', go: null,
+        t: ['Sanftere Übergänge', 'Smoother transitions', 'Transitions plus douces', 'Transiciones más suaves', 'Transizioni più morbide', 'Mjukare övergångar', 'Blødere overgange'],
+        d: ['Bereiche gleiten ineinander, Fenster blenden weich ein und aus.', 'Sections glide into each other, windows fade in and out softly.', 'Les sections glissent, les fenêtres apparaissent en douceur.', 'Las secciones se deslizan y las ventanas aparecen suavemente.', 'Le sezioni scorrono, le finestre appaiono e spariscono dolcemente.', 'Vyer glider in i varandra, fönster tonar mjukt in och ut.', 'Visninger glider ind i hinanden, vinduer toner blødt ind og ud.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-14h',
     date: '2026-11-14',
     items: [

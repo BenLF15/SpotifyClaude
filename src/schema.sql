@@ -189,6 +189,14 @@ ALTER TABLE tracks ADD COLUMN IF NOT EXISTS cover_checked_at timestamptz;
 ALTER TABLE record_collection DROP CONSTRAINT IF EXISTS record_collection_rarity_check;
 ALTER TABLE record_collection ADD CONSTRAINT record_collection_rarity_check CHECK (rarity IN ('common', 'rare', 'epic', 'legendary', 'mythic'));
 
+-- ---------------------------------------------------------------- Eigene Profilbilder (Base64-Text → Backup als JSON problemlos)
+CREATE TABLE IF NOT EXISTS account_avatars (
+  account_id  bigint PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+  mime        text NOT NULL,
+  data        text NOT NULL,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
 -- ---------------------------------------------------------------- Studio: tägliche Session (Intro-Quiz)
 CREATE TABLE IF NOT EXISTS studio_sessions (
   account_id  bigint NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

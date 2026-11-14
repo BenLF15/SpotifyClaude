@@ -303,6 +303,18 @@ app.get('/auth/callback', async (req, res) => {
 // Ersatz-Cover (Deezer/Apple) über den eigenen Server – öffentlich, nur erlaubte Bild-CDNs
 app.get('/img/cover', coverProxy);
 
+// Eigene Profilbilder (nur für angemeldete Nutzer; URL enthält die Version → lange cachebar)
+app.get('/avatar/:id', async (req, res) => {
+  try {
+    const av = await users.getAvatar(Number(req.params.id) || 0);
+    if (!av) return res.status(404).end();
+    res.set({ 'Content-Type': av.mime, 'Cache-Control': 'private, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'" });
+    res.send(av.buf);
+  } catch {
+    res.status(500).end();
+  }
+});
+
 const api = express.Router();
 const wrap = (fn) => (req, res) =>
   fn(req, res).catch((err) => {
@@ -320,6 +332,7 @@ api.get(
       account: {
         id: a.id, username: a.username, is_admin: a.is_admin, created_at: a.created_at,
         theme: a.theme, lang: a.lang, festive: a.festive, glass: a.glass, birthday: a.birthday,
+        avatar_url: a.avatar_url || null, custom_avatar: Boolean(a.custom_avatar),
         privacy_accepted: Boolean(a.privacy_accepted_at),
       },
       spotify: a.spotify_user_id
@@ -327,7 +340,7 @@ api.get(
             id: a.spotify_user_id,
             display_name: a.display_name,
             email: a.email,
-            avatar_url: a.avatar_url,
+            avatar_url: a.spotify_avatar_url,
             country: a.country,
             product: a.product,
             auth_expired: Boolean(a.auth_error),
@@ -352,6 +365,23 @@ api.post(
   }),
 );
 
+api.post(
+  '/me/avatar',
+  express.json({ limit: '700kb' }),
+  wrap(async (req, res) => {
+    await users.setAvatar(req.account.id, req.body?.image);
+    const a = await users.getAccount(req.account.id);
+    res.json({ ok: true, avatar_url: a.avatar_url });
+  }),
+);
+api.delete(
+  '/me/avatar',
+  wrap(async (req, res) => {
+    await users.removeAvatar(req.account.id);
+    const a = await users.getAccount(req.account.id);
+    res.json({ ok: true, avatar_url: a.avatar_url || null });
+  }),
+);
 // Darstellung (Hell/Dunkel/System/Jahreszeit) speichern
 api.post(
   '/me/settings',

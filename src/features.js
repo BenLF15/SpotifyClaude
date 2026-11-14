@@ -383,10 +383,11 @@ const other = (me) => `CASE WHEN f.requester_id = ${me} THEN f.addressee_id ELSE
 export async function listFriends(accountId) {
   const { rows } = await query(
     `SELECT f.status, f.requester_id = $1 AS outgoing, f.created_at, f.accepted_at,
-            a.id, a.username, a.spotify_user_id IS NOT NULL AS connected, u.avatar_url, u.display_name
+            a.id, a.username, a.spotify_user_id IS NOT NULL AS connected, COALESCE(CASE WHEN av.updated_at IS NOT NULL THEN '/avatar/' || a.id || '?v=' || floor(extract(epoch FROM av.updated_at))::bigint END, u.avatar_url) AS avatar_url, u.display_name
        FROM friendships f
        JOIN accounts a ON a.id = ${other('$1')}
        LEFT JOIN users u ON u.id = a.spotify_user_id
+       LEFT JOIN account_avatars av ON av.account_id = a.id
       WHERE f.requester_id = $1 OR f.addressee_id = $1
       ORDER BY f.accepted_at DESC NULLS LAST, f.created_at DESC`,
     [accountId],
@@ -491,9 +492,10 @@ async function tasteOf(userId, days) {
 /** Musikgeschmack mit einem Freund vergleichen (nur bei bestätigter Freundschaft). */
 export async function compare(account, friendId, days) {
   const { rows } = await query(
-    `SELECT a.id, a.username, a.spotify_user_id, u.avatar_url, u.display_name
+    `SELECT a.id, a.username, a.spotify_user_id, COALESCE(CASE WHEN av.updated_at IS NOT NULL THEN '/avatar/' || a.id || '?v=' || floor(extract(epoch FROM av.updated_at))::bigint END, u.avatar_url) AS avatar_url, u.display_name
        FROM friendships f JOIN accounts a ON a.id = $2
        LEFT JOIN users u ON u.id = a.spotify_user_id
+       LEFT JOIN account_avatars av ON av.account_id = a.id
       WHERE f.status = 'accepted'
         AND ((f.requester_id = $1 AND f.addressee_id = $2) OR (f.requester_id = $2 AND f.addressee_id = $1))`,
     [account.id, friendId],

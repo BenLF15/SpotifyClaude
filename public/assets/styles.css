@@ -2770,3 +2770,84 @@ mark { background: rgba(var(--accent-rgb), 0.25); color: inherit; border-radius:
 .stu-recap img, .stu-recap .placeholder { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
 .stu-recap span { display: flex; flex-direction: column; min-width: 0; } .stu-recap b, .stu-recap small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .stu-recap small { opacity: 0.7; font-size: 0.72rem; }
 .stu-recap em { font-style: normal; font-weight: 800; } .stu-recap .ok em { color: #1ed760; } .stu-recap .no em { color: #e66767; }
+
+/* ================================================================== Sanfte Übergänge (überall)
+   Weichere Kurven und etwas längere Dauer; Bereiche gleiten per View Transition in Tab-Richtung. */
+:root { --ease-soft: cubic-bezier(0.25, 0.8, 0.25, 1); --ease-glide: cubic-bezier(0.32, 0.72, 0, 1); --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1); }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+.btn, .chip-btn, .link-btn, .nb, .ex-btn, .profile-btn {
+  transition-timing-function: var(--ease-soft); transition-duration: 0.3s; }
+.btn:active, .chip-btn:active { transform: scale(0.97); transition-duration: 0.12s; }
+.switch-knob { transition: transform 0.4s var(--ease-spring), background 0.3s var(--ease-soft); }
+.switch { transition: background 0.35s var(--ease-soft), border-color 0.35s var(--ease-soft); }
+.tabs .tab-ink { transition: transform 0.5s var(--ease-glide), width 0.5s var(--ease-glide); }
+.segmented .seg-pill { transition: transform 0.5s var(--ease-glide), width 0.5s var(--ease-glide); }
+.segmented button, .tabs button { transition: color 0.35s var(--ease-soft); }
+/* Fallback ohne View Transitions: Bereich gleitet etwas weicher herein */
+.panel { animation: panel-in 0.55s var(--ease-glide); }
+@keyframes panel-in { from { opacity: 0; transform: translateY(10px); } }
+html[data-vt-dir] .panel { animation: none; }
+
+/* View Transitions: Kopf und Tab-Leiste bleiben stehen, nur der Inhalt gleitet */
+.topbar { view-transition-name: topbar; }
+.subnav { view-transition-name: subnav; }
+.container { view-transition-name: main; }
+::view-transition-group(*) { animation-duration: 0.5s; animation-timing-function: var(--ease-glide); }
+::view-transition-old(main), ::view-transition-new(main) { animation-duration: 0.5s; animation-timing-function: var(--ease-glide); }
+html[data-vt-dir='fwd']::view-transition-old(main) { animation-name: vt-out-left; }
+html[data-vt-dir='fwd']::view-transition-new(main) { animation-name: vt-in-right; }
+html[data-vt-dir='back']::view-transition-old(main) { animation-name: vt-out-right; }
+html[data-vt-dir='back']::view-transition-new(main) { animation-name: vt-in-left; }
+html[data-vt-dir='fade']::view-transition-old(main) { animation-name: vt-fade-out; }
+html[data-vt-dir='fade']::view-transition-new(main) { animation-name: vt-fade-in; }
+@keyframes vt-out-left { to { opacity: 0; transform: translateX(-36px); filter: blur(2px); } }
+@keyframes vt-in-right { from { opacity: 0; transform: translateX(36px); filter: blur(2px); } }
+@keyframes vt-out-right { to { opacity: 0; transform: translateX(36px); filter: blur(2px); } }
+@keyframes vt-in-left { from { opacity: 0; transform: translateX(-36px); filter: blur(2px); } }
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-in { from { opacity: 0; } }
+/* Farbwechsel (Hell/Dunkel/Glas): ganzes Bild blendet weich über */
+html[data-vt-dir='fade']::view-transition-old(root), html[data-vt-dir='fade']::view-transition-new(root) { animation-duration: 0.45s; }
+
+/* Dialoge: weich herein UND hinaus, Hintergrund blendet mit */
+.dialog[open] { animation: dlg-in 0.42s var(--ease-glide); }
+.dialog[open]::backdrop { animation: bd-in 0.42s var(--ease-soft); }
+.dialog.dlg-closing { animation: dlg-out 0.21s var(--ease-soft) forwards; pointer-events: none; }
+.dialog.dlg-closing::backdrop { animation: bd-out 0.21s var(--ease-soft) forwards; }
+@keyframes dlg-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } }
+@keyframes dlg-out { to { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes bd-in { from { opacity: 0; } }
+@keyframes bd-out { to { opacity: 0; } }
+.story.dlg-closing { animation: none; }
+
+/* Hinweise gleiten weg */
+.toast { animation: toast-in 0.45s var(--ease-glide); transition: opacity 0.3s var(--ease-soft), transform 0.3s var(--ease-soft); }
+.toast.out { opacity: 0; transform: translate(-50%, 10px); }
+
+/* Bilder blenden weich ein */
+.av-fade { opacity: 0; } #avatar { transition: opacity 0.35s var(--ease-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* ================================================================== Profilbild */
+.profile-avatar { position: relative; border: 0; padding: 0; cursor: pointer; font: inherit; overflow: visible; }
+.profile-avatar > img, .profile-avatar > span:first-child { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: grid; place-items: center; overflow: hidden; }
+.profile-avatar .av-edit { position: absolute; right: -4px; bottom: -4px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 0.85rem;
+  background: var(--surface-2); box-shadow: 0 0 0 2px var(--surface), 0 4px 10px rgba(0, 0, 0, 0.35); transition: transform 0.3s var(--ease-spring); }
+.profile-avatar:hover .av-edit, .profile-avatar:focus-visible .av-edit { transform: scale(1.15) rotate(-8deg); }
+.profile-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.avatar-actions { display: flex; gap: 14px; margin-top: 6px; }
+.avatar-actions .danger { color: var(--down); }
+.avatar-dlg { width: min(420px, calc(100vw - 32px)); }
+.avatar-dlg .dialog-inner { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.avatar-dlg h2 { margin: 4px 0 0; font-size: 1.15rem; }
+.avatar-crop { position: relative; width: min(280px, 72vw); aspect-ratio: 1; border-radius: 50%; overflow: hidden; margin: 8px 0 4px;
+  box-shadow: 0 0 0 4px var(--surface-2), 0 0 0 6px var(--accent-soft), 0 20px 40px -18px rgba(0, 0, 0, 0.6); background: repeating-conic-gradient(var(--surface-3) 0 25%, var(--surface-2) 0 50%) 0 0 / 20px 20px; }
+.avatar-crop canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.avatar-crop canvas:active { cursor: grabbing; }
+.avatar-zoom { display: flex; align-items: center; gap: 10px; width: min(280px, 72vw); color: var(--text-3); font-weight: 700; }
+.avatar-zoom input { flex: 1; accent-color: var(--accent); }
+.avatar-btns { display: flex; gap: 8px; margin-top: 6px; }

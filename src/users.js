@@ -110,8 +110,10 @@ export async function getAccount(id) {
   const { rows } = await query(
     `SELECT a.id, a.username, a.is_admin, a.spotify_user_id, a.created_at, a.theme, a.lang, a.festive, a.glass,
             to_char(a.birthday, 'YYYY-MM-DD') AS birthday, a.privacy_accepted_at, a.milestones_seen,
-            u.display_name, u.scope, u.email, u.avatar_url, u.country, u.product, u.auth_error
+            u.display_name, u.scope, u.email, COALESCE(CASE WHEN av.updated_at IS NOT NULL THEN '/avatar/' || a.id || '?v=' || floor(extract(epoch FROM av.updated_at))::bigint END, u.avatar_url) AS avatar_url, u.avatar_url AS spotify_avatar_url, av.updated_at IS NOT NULL AS custom_avatar,
+            u.country, u.product, u.auth_error
        FROM accounts a LEFT JOIN users u ON u.id = a.spotify_user_id
+       LEFT JOIN account_avatars av ON av.account_id = a.id
       WHERE a.id = $1`,
     [id],
   );
@@ -228,12 +230,13 @@ export async function adminOverview() {
   const [accounts, logins] = await Promise.all([
     query(
       `SELECT a.id, a.username, a.is_admin, a.login_count, a.created_at, a.last_login_at, a.last_seen_at,
-              a.spotify_user_id, u.display_name, u.email, u.avatar_url, u.country, u.product,
+              a.spotify_user_id, u.display_name, u.email, COALESCE(CASE WHEN av.updated_at IS NOT NULL THEN '/avatar/' || a.id || '?v=' || floor(extract(epoch FROM av.updated_at))::bigint END, u.avatar_url) AS avatar_url, u.country, u.product,
               u.auth_error IS NOT NULL AS auth_expired,
               COALESCE(p.plays, 0) AS plays, COALESCE(p.minutes, 0) AS minutes, p.last_play,
               s.last_sync, s.last_sync_ok
          FROM accounts a
          LEFT JOIN users u ON u.id = a.spotify_user_id
+         LEFT JOIN account_avatars av ON av.account_id = a.id
          LEFT JOIN LATERAL (
            SELECT count(*) AS plays, round(sum(ms_played) / 60000.0)::int AS minutes, max(played_at) AS last_play
              FROM plays WHERE user_id = a.spotify_user_id
@@ -245,10 +248,11 @@ export async function adminOverview() {
         ORDER BY a.last_login_at DESC NULLS LAST, a.created_at DESC`,
     ),
     query(
-      `SELECT l.at, l.user_agent, a.id AS account_id, a.username, u.display_name, u.email, u.avatar_url
+      `SELECT l.at, l.user_agent, a.id AS account_id, a.username, u.display_name, u.email, COALESCE(CASE WHEN av.updated_at IS NOT NULL THEN '/avatar/' || a.id || '?v=' || floor(extract(epoch FROM av.updated_at))::bigint END, u.avatar_url) AS avatar_url
          FROM login_events l
          JOIN accounts a ON a.id = l.account_id
          LEFT JOIN users u ON u.id = a.spotify_user_id
+         LEFT JOIN account_avatars av ON av.account_id = a.id
         ORDER BY l.at DESC LIMIT 50`,
     ),
   ]);
@@ -360,4 +364,37 @@ export async function accountsCsv() {
 /** Datenschutzerklärung bestätigt (bestehende Konten). */
 export async function acceptPrivacy(accountId) {
   await query('UPDATE accounts SET privacy_accepted_at = now() WHERE id = $1 AND privacy_accepted_at IS NULL', [accountId]);
+}
+
+// ================================================================ Profilbild
+const AVATAR_MAX = 400 * 1024; // nach dem Verkleinern im Browser sind es meist 20–60 KB
+function sniffImage(buf) {
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (buf.length > 12 && buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+  return null;
+}
+
+/** Speichert ein Profilbild (Data-URL). Der Typ wird am Inhalt erkannt, nicht an der Angabe des Browsers. */
+export async function setAvatar(accountId, dataUrl) {
+  const m = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new UserError('Ungültiges Bild.', 400, 'avatarInvalid');
+  const buf = Buffer.from(m[2], 'base64');
+  const mime = sniffImage(buf);
+  if (!mime) throw new UserError('Ungültiges Bild.', 400, 'avatarInvalid');
+  if (buf.length > AVATAR_MAX) throw new UserError('Das Bild ist zu groß.', 413, 'avatarTooBig');
+  await query(
+    `INSERT INTO account_avatars (account_id, mime, data, updated_at) VALUES ($1, $2, $3, now())
+     ON CONFLICT (account_id) DO UPDATE SET mime = EXCLUDED.mime, data = EXCLUDED.data, updated_at = now()`,
+    [accountId, mime, buf.toString('base64')],
+  );
+}
+
+export async function removeAvatar(accountId) {
+  await query('DELETE FROM account_avatars WHERE account_id = $1', [accountId]);
+}
+
+export async function getAvatar(accountId) {
+  const { rows } = await query('SELECT mime, data, updated_at FROM account_avatars WHERE account_id = $1', [accountId]);
+  return rows[0] ? { mime: rows[0].mime, buf: Buffer.from(rows[0].data, 'base64'), updated: rows[0].updated_at } : null;
 }
