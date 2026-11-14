@@ -84,12 +84,6 @@ export function isoWeek(day) {
   return { year, week };
 }
 
-function nextMonday(day) {
-  const d = new Date(`${day}T00:00:00Z`);
-  const dow = (d.getUTCDay() + 6) % 7;
-  d.setUTCDate(d.getUTCDate() + (7 - dow));
-  return d.toISOString().slice(0, 10);
-}
 
 
 // ================================================================ Platten-Pool (alle gehörten Alben)
@@ -183,7 +177,8 @@ function weeklyShop(pool, seed, size = SHOP_SIZE) {
   });
   return picked.sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || a.artist.localeCompare(b.artist));
 }
-const shopSeed = (account, year, week) => `${account.id}#${year}-W${week}`;
+// Angebot wechselt jeden Tag (fest innerhalb des Tages, für jeden Nutzer anders)
+const shopSeed = (account, day) => `${account.id}#${day}`;
 
 // ================================================================ Belohnungen auswerten (idempotent)
 async function facts(account) {
@@ -357,13 +352,13 @@ export async function overviewFor(account) {
   ]);
   const free = Boolean(freeRow.rows[0]?.free_shop);
   const owned = new Set(collection.rows.map((r) => r.id));
-  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool);
+  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool, today);
   const shop = shopList.map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
   const singles = singleList.map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
   return {
     balance,
     fresh,
-    week: { year, week, resetsOn: nextMonday(today) },
+    week: { year, week, day: today, resetsOn: dayShift(today, 1) },
     shop,
     singles,
     free,
@@ -390,7 +385,7 @@ export async function buy(account, recordId) {
     query('SELECT free_shop FROM accounts WHERE id = $1', [account.id]),
   ]);
   const free = Boolean(freeRow.rows[0]?.free_shop);
-  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool);
+  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool, today);
   const item = [...shopList, ...singleList].find((it) => it.id === String(recordId));
   if (!item) throw new UserError('Diese Platte gibt es diese Woche nicht.', 404, 'recordNotInShop');
   const result = await withTransaction(async (db) => {
@@ -792,8 +787,8 @@ async function discoverPool(userId, year, week) {
 }
 
 /** Wochenangebot: gehörte Lieblinge plus ein paar ungehörte Höranstöße (je Album/Song höchstens einmal). */
-async function composeShop(account, year, week, pool, tpool) {
-  const seed = shopSeed(account, year, week);
+async function composeShop(account, year, week, pool, tpool, day = localDate()) {
+  const seed = shopSeed(account, day);
   const disc = await discoverPool(account.spotify_user_id, year, week);
   const dRec = weeklyShop(disc.records, `${seed}#disc`, DISCOVER_RECORDS);
   const dCd = weeklyShop(disc.cds, `${seed}#disc-cd`, DISCOVER_CDS);

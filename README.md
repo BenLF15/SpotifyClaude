@@ -223,7 +223,7 @@ Typisch sind die Cover nach einem Import so in 1–2 Minuten da statt nach ~10 M
 
 **Plattenschrank**: In der Übersicht steht dein Plattenschrank, anfangs leer. Ein Klick auf eine Platte zeigt Hülle und drehende Schallplatte.
 
-**Begehbarer Laden**: Beim Öffnen des Ladens schwingt die Glastür (mit „OPEN“-Schild und Türglocke) auf, man sieht durch die Öffnung hinein und geht in den Laden: Holzvertäfelung, Neon-Schild „Spotlfy Records“, Regale mit Plattenrücken, Schachbrettboden, warmes Licht. **Rechts** steht der Plattentisch mit einer Plattenkiste, **links** der CD-Tisch mit gefächerten CDs (die Labels zeigen Anzahl und das seltenste Stück), **geradeaus** die Studio-Tür („ON AIR“). Ein Tisch-Tipp fährt die Kamera hin; auf der Tischplatte liegen alle Stücke der Woche mit Preisschild. Eine Platte/CD antippen hebt sie heraus und lässt sie nach vorne schweben – dann **Kaufen** oder **Zurücklegen** (fliegt zurück an ihren Platz; auch Esc oder Tipp daneben). Legendäre und mythische Stücke funkeln beim Anheben. Beim Kauf fliegen die Noten zum Button, „Gekauft“-Stempel, das Stück fliegt in die Sammlung.
+**Begehbarer Laden**: Beim Öffnen des Ladens schwingt die Glastür (mit „OPEN“-Schild und Türglocke) auf, man sieht durch die Öffnung hinein und geht in den Laden: Holzvertäfelung, Neon-Schild „Spotlfy Records“, Regale mit Plattenrücken, Schachbrettboden, warmes Licht. **Rechts** steht der Plattentisch mit einer Plattenkiste, **links** der CD-Tisch mit gefächerten CDs (die Labels zeigen Anzahl und das seltenste Stück), **geradeaus** die Studio-Tür („ON AIR“). Ein Tisch-Tipp fährt die Kamera hin; auf der Tischplatte liegen alle Stücke des Tages mit Preisschild. Eine Platte/CD antippen hebt sie heraus und lässt sie nach vorne schweben – dann **Kaufen** oder **Zurücklegen** (fliegt zurück an ihren Platz; auch Esc oder Tipp daneben). Legendäre und mythische Stücke funkeln beim Anheben. Beim Kauf fliegen die Noten zum Button, „Gekauft“-Stempel, das Stück fliegt in die Sammlung.
 
 **Reinhören**: Öffnet man eine Platte oder CD – in der Sammlung, beim Anheben im Laden, in den Details oder in der Sammlung eines Freundes –, läuft sofort die 30-s-Hörprobe in Schleife und blendet beim Wegklicken (✕, Esc, Zurücklegen, Bereichswechsel, App im Hintergrund) weich aus. CD-Single → genau dieser Song; Schallplatte → der „Hauptsong“ des Albums: dein meistgehörter Song daraus, sonst der beliebteste Song des Albums laut Deezer (Ersatz iTunes). Eine kleine Anzeige zeigt Equalizer und Songtitel, 🔊/🔇 schaltet stumm (wird gemerkt). Wechselt man vom angehobenen Stück in die Details oder kauft es, läuft derselbe Song nahtlos weiter. Server: `/api/records/song` (Titel) und `/api/records/song/audio` (Hörprobe über den eigenen Server).
 
@@ -242,7 +242,7 @@ Admins können jedes Fest über das Test-Datum ansehen.
 - **Platten veredeln**: Ein Stück aus der eigenen Sammlung auf die Presse legen und gegen Noten eine Seltenheit höher heben (bis Mythisch). Die Presse senkt sich, Blitz, Funken, die neue Seltenheit erscheint. Kosten Platte / CD: gewöhnlich→selten 2 Silber / 1 Silber, selten→episch 2 Gold / 1 Gold, episch→legendär 1 Platin / 3 Gold, legendär→mythisch 3 Platin / 2 Platin. Gibt es die höhere Ausführung schon in der Sammlung, geht es nicht. Mit „Plattenladen kostenlos“ (Admin) gratis.
 - **Intro-Quiz (tägliche Session)**: Einmal am Tag 5 Runden mit eigenen Lieblingssongs (≥ 2 Wiedergaben im letzten Jahr). Pro Runde ein ganz kurzer Ausschnitt vom Anfang der 30-s-Hörprobe (Deezer, Ersatz iTunes; Spotify bietet keine Hörproben mehr – die Hörprobe ist meist nicht der echte Songanfang), dazu 4 Antworten. 1 s hören = 3 Punkte, auf 2 s verlängern = 2, auf 4 s = 1, falsch = 0. Lösung und Song-IDs bleiben auf dem Server; der Server liefert bei MP3 wirklich nur die angeforderten Sekunden und merkt sich die längste angehörte Stufe. Belohnung am Ende: ≥ 12 Punkte 1 Gold, ≥ 8 → 2 Silber, ≥ 4 → 2 Bronze, sonst 1 Bronze.
 
-**Plattenladen**: Für jeden Nutzer jeden Montag komplett zufällig: 16 Schallplatten aus allen Alben deines Hörverlaufs (jedes Album höchstens einmal pro Woche). Die Seltenheit wird pro Platz neu gewürfelt (Platten: 55 % gewöhnlich, 28 % selten, 12 % episch, 4 % legendär, 1 % mythisch; CDs: 58 / 27 / 11 / 3 / 1 %). Seltenheiten:
+**Plattenladen**: Für jeden Nutzer jeden Tag (ab Mitternacht) komplett zufällig: 16 Schallplatten aus allen Alben deines Hörverlaufs (jedes Album höchstens einmal pro Tag). Die Seltenheit wird pro Platz neu gewürfelt (Platten: 55 % gewöhnlich, 28 % selten, 12 % episch, 4 % legendär, 1 % mythisch; CDs: 58 / 27 / 11 / 3 / 1 %). Seltenheiten:
 
 | Seltenheit | Ausführung | Preis |
 |---|---|---|
@@ -256,7 +256,7 @@ Admins können jedes Fest über das Test-Datum ansehen.
 
 Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen. Die Noten-Münzen glänzen: Ein Lichtstreif mit kurzem Funkeln wandert nacheinander über Bronze, Silber, Gold und Platin (abgeschaltet bei „Bewegung reduzieren“).
 
-**CD-Singles**: Auf der zweiten Seite des Ladens gibt es jede Woche 30 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (Metall, Glasböden, LED-Leiste).
+**CD-Singles**: Auf der zweiten Seite des Ladens gibt es jeden Tag 30 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (Metall, Glasböden, LED-Leiste).
 
 | Seltenheit | Ausführung | Preis |
 |---|---|---|
@@ -267,7 +267,7 @@ Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich g
 
 Für CD-Singles gibt es eigene Sammler-Belohnungen (1 / 10 / 25 / 50 / 100 CDs).
 
-**Höranstoß im Laden**: Ein Teil des Angebots sind Stücke deiner Lieblingskünstler, die du **noch nie gehört** hast (4 von 16 Platten, 8 von 30 CDs), markiert mit „✨ Noch nie gehört“ und einem „▶ Reinhören“-Link. Spotlfy sucht sie einmal pro Woche über die Spotify-Suche (6 Anfragen pro Nutzer, gecacht in `discover_cache`); klappt das nicht, nimmt es ungehörte Songs und Alben dieser Künstler aus dem eigenen Katalog (z. B. von Freunden).
+**Höranstoß im Laden**: Ein Teil des Angebots sind Stücke deiner Lieblingskünstler, die du **noch nie gehört** hast (4 von 16 Platten, 8 von 30 CDs), markiert mit „✨ Noch nie gehört“ und einem „▶ Reinhören“-Link. Spotlfy sucht die Kandidaten einmal pro Woche über die Spotify-Suche (die tägliche Auswahl daraus wechselt jeden Tag) (6 Anfragen pro Nutzer, gecacht in `discover_cache`); klappt das nicht, nimmt es ungehörte Songs und Alben dieser Künstler aus dem eigenen Katalog (z. B. von Freunden).
 
 **Versteckte Überraschungen**: Jede Woche sind 1–2 kleine 🎁 an zufälligen Stellen in der App versteckt (z. B. Heatmap, Podium, Plattenschrank, CD-Regal, Laden, Profil, Rückblick, Freunde). Ein Klick öffnet ein Geschenk: meist Noten (3 Bronze, 2 Silber, 1 Gold, selten 1 Platin), manchmal eine Gratis-CD-Single oder Schallplatte für die Sammlung. Deren Seltenheit wird eigens gewürfelt: 52 % gewöhnlich, 28 % selten, 15,5 % episch, 4 % legendär, 0,5 % mythisch (gibt es die Stufe nicht mehr ungekauft, die nächstniedrigere). Legendäre und mythische Geschenke kommen mit eigenen Strahlen, Lichtschein und doppeltem Konfetti. Es gibt bewusst keinen Hinweis darauf – man muss sie selbst entdecken.
 
@@ -331,7 +331,7 @@ Du brauchst Node ≥ 20 und Postgres. Das Schema legt sich beim Start selbst an.
 | `src/importer.js` | Parser für `Streaming_History_Audio_*.json` |
 | `src/stats.js` | SQL-Auswertungen |
 | `src/features.js` | Rückblick, Suche & Details, Meilensteine, Freunde, Playlist, Aktuell läuft, Datenexport |
-| `src/records.js` | Plattensammlung & CD-Singles: Musiknoten, Belohnungen, tägliche Aufgaben, wöchentlicher Laden, Kauf & Tausch |
+| `src/records.js` | Plattensammlung & CD-Singles: Musiknoten, Belohnungen, tägliche Aufgaben, täglich neuer Laden, Kauf & Tausch |
 | `src/backup.js` | Backup (gestreamt, gzip) und Wiederherstellung |
 | `src/schema.sql` | Idempotentes Schema |
 | `public/` | Frontend (Vanilla JS + Chart.js, ohne Build-Schritt) |

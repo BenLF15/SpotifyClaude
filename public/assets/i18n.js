@@ -404,6 +404,9 @@
     'avatar.preset': ['Vorlage', 'Preset', 'Modèle', 'Plantilla', 'Modello', 'Mall', 'Skabelon'],
     'recplay.loading': ['Hörprobe lädt …', 'Loading preview …', 'Chargement de l’extrait …', 'Cargando avance …', 'Caricamento anteprima …', 'Laddar provlyssning …', 'Indlæser smagsprøve …'],
     'recplay.none': ['Keine Hörprobe verfügbar', 'No preview available', 'Pas d’extrait disponible', 'Sin avance disponible', 'Nessuna anteprima', 'Ingen provlyssning', 'Ingen smagsprøve'],
+    'rec.shopToday': ['Plattenladen · heute', 'Record shop · today', 'Disquaire · aujourd’hui', 'Tienda · hoy', 'Negozio · oggi', 'Skivbutik · i dag', 'Pladebutik · i dag'],
+    'rec.cdShopToday': ['CD-Singles · heute', 'CD singles · today', 'CD singles · aujourd’hui', 'CD singles · hoy', 'CD singoli · oggi', 'Cd-singlar · i dag', 'Cd-singler · i dag'],
+    'rec.resetInHours': ['Neues Angebot in {h} h {m} min', 'New offers in {h} h {m} min', 'Nouvelles offres dans {h} h {m} min', 'Nuevas ofertas en {h} h {m} min', 'Nuove offerte tra {h} h {m} min', 'Nya erbjudanden om {h} h {m} min', 'Nye tilbud om {h} t {m} min'],
     'tour.close': ['Schließen', 'Close', 'Fermer', 'Cerrar', 'Chiudi', 'Stäng', 'Luk'],
     'tour.step': ['Schritt {i} von {n}', 'Step {i} of {n}', 'Étape {i} sur {n}', 'Paso {i} de {n}', 'Passo {i} di {n}', 'Steg {i} av {n}', 'Trin {i} af {n}'],
 

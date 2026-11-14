@@ -3772,7 +3772,8 @@
     const ms = new Date(`${day}T00:00:00`) - Date.now();
     const d = Math.max(0, Math.floor(ms / 864e5));
     const h = Math.max(0, Math.floor((ms % 864e5) / 36e5));
-    return t('rec.resetIn', { d, h });
+    const m = Math.max(0, Math.floor((ms % 36e5) / 6e4));
+    return d ? t('rec.resetIn', { d, h }) : t('rec.resetInHours', { h, m });
   }
 
   // ---------------------------------------------------------------- Plattenladen als begehbare Szene
@@ -3874,7 +3875,7 @@
       table = `<div class="store-table ${isCd ? 'is-cd' : 'is-rec'}">${storeDecoHTML('table')}
         <div class="stb-head">
           <button type="button" class="btn btn-ghost btn-xs" data-store-go="room">← ${esc(t('store.back'))}</button>
-          <div><b>${isCd ? '💿' : '🎵'} ${esc(t(isCd ? 'rec.cdShopTitle' : 'rec.shopTitle', { w: d.week.week }))}</b><small>${esc(countdown(d.week.resetsOn))}</small></div>
+          <div><b>${isCd ? '💿' : '🎵'} ${esc(t(isCd ? 'rec.cdShopToday' : 'rec.shopToday'))}</b><small>${esc(countdown(d.week.resetsOn))}</small></div>
         </div>
         ${list.length ? `<div class="stb-items">${list.map((it, i) => `
           <button type="button" class="stb-item r-${it.rarity}${it.owned ? ' owned' : ''}" data-store-item="${esc(it.id)}" style="--i:${i};--tilt:${((i * 37) % 9) - 4}deg" aria-label="${esc(`${it.album} · ${it.artist}`)}">

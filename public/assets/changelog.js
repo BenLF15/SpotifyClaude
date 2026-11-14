@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-15d',
+    date: '2026-11-15',
+    items: [
+      {
+        icon: '📅', go: 'records',
+        t: ['Jeden Tag neues Angebot', 'New offers every day', 'Nouvelles offres chaque jour', 'Ofertas nuevas cada día', 'Nuove offerte ogni giorno', 'Nya erbjudanden varje dag', 'Nye tilbud hver dag'],
+        d: ['Der Plattenladen füllt Plattentisch und CD-Tisch jetzt täglich neu.', 'The record shop now restocks the record and CD tables every day.', 'Le disquaire renouvelle ses tables chaque jour.', 'La tienda renueva sus mesas cada día.', 'Il negozio rinnova i tavoli ogni giorno.', 'Skivbutiken fyller på skiv- och cd-borden varje dag.', 'Pladebutikken fylder plade- og cd-bordene op hver dag.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-15c',
     date: '2026-11-15',
     items: [
