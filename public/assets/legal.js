@@ -67,6 +67,7 @@
         <li><b>Spotify</b> (Spotify AB, Regeringsgatan 19, 111 53 ${L('Stockholm, Schweden', 'Stockholm, Sweden')}): ${L('Abruf deiner Daten über die offizielle Web API. Cover und Profilbilder werden direkt von Spotify-Servern (scdn.co) geladen; dabei erhält Spotify deine IP-Adresse.', 'your data is retrieved via the official Web API. Covers and profile pictures are loaded directly from Spotify servers (scdn.co), which receive your IP address.')}</li>
         <li><b>Hosting</b>: ${esc(c.hosting)}.</li>
         <li><b>${L('Datenbank', 'Database')}</b>: ${dbLine}.</li>
+        <li><b>Deezer</b> (Deezer SA, Frankreich) ${L('und ersatzweise', 'and, as a fallback,')} <b>Apple iTunes Search</b> (Apple Inc., USA): ${L('für die Musik im Jahresrückblick sucht der Server 30-Sekunden-Hörproben. Übermittelt werden nur Songtitel und Künstlername, ohne Bezug zu deiner Person; die Hörprobe wird über diesen Server an deinen Browser durchgereicht, dein Browser verbindet sich nicht mit diesen Diensten.', 'for the music in the year in review, the server looks up 30-second previews. Only song title and artist name are sent, without any reference to you; the preview is relayed through this server, your browser does not connect to these services.')}</li>
         <li><b>MusicBrainz</b> (MetaBrainz Foundation, USA): ${L('zur Genre-Einordnung werden ausschließlich Künstlernamen ohne Bezug zu deiner Person abgefragt.', 'for genre classification, only artist names are queried, without any reference to you.')}</li>
       </ul>
       <p>${L(

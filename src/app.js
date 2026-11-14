@@ -13,6 +13,7 @@ import * as features from './features.js';
 import { lastBackup, restoreBackup, streamBackup } from './backup.js';
 import * as records from './records.js';
 import { startScheduler, syncAllDue, triggerSync } from './scheduler.js';
+import * as preview from './preview.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
@@ -582,6 +583,20 @@ api.get(
     const years = await features.wrappedYears(req.sid);
     const year = yearParam(req.query.year) || years[0] || new Date().getFullYear();
     res.json({ years, ...(await features.wrapped(req.sid, year)) });
+  }),
+);
+// Hörprobe eines Songs für die Story (über den eigenen Server durchgereicht)
+api.get(
+  '/preview/:trackId',
+  wrap(async (req, res) => {
+    if (!/^[A-Za-z0-9]{10,40}$/.test(req.params.trackId)) return res.status(400).json({ error: 'Ungültige ID.' });
+    try {
+      await preview.streamPreview(req.params.trackId, req, res);
+    } catch (err) {
+      if (res.headersSent) return res.end();
+      console.warn('[preview]', err.message);
+      res.status(502).json({ error: 'Hörprobe nicht erreichbar.' });
+    }
   }),
 );
 api.get('/search', wrap(async (req, res) => res.json(await features.search(req.sid, req.query.q))));

@@ -2308,49 +2308,98 @@
   const STORY_MS = 6500;
 
   function buildSlides(d) {
-    const monthName = (m) => new Intl.DateTimeFormat(LOCALE, { month: 'long' }).format(new Date(2024, m - 1, 15));
+    const monthName = (m, style = 'long') => new Intl.DateTimeFormat(LOCALE, { month: style }).format(new Date(2024, m - 1, 15));
     const a1 = d.topArtists[0];
     const s1 = d.topTracks[0];
+    const m = d.music || {};
     const delta = d.previousYearMinutes ? Math.round(((d.minutes - d.previousYearMinutes) / d.previousYearMinutes) * 100) : null;
-    const mini = (list, kind) => `<ol class="st-mini">${list.slice(1, 5).map((x, i) => `<li><span>${i + 2}</span>${imgOrPlaceholder(x.image, x.name)}<b>${esc(x.name)}</b><small>${kind === 'artist' ? `${fmt(x.minutes)} ${esc(t('unit.min'))}` : `${fmt(x.plays)}×`}</small></li>`).join('')}</ol>`;
-    const slides = [
-      { cls: 'st-intro', html: `<div class="st-logo"><img src="/assets/logo-animated.svg" alt="" width="96" height="96"></div>
-          <p class="st-kicker">Spotlfy · ${d.year}</p><h2 id="story-title">${esc(t('story.introTitle', { year: d.year }))}</h2><p class="st-text">${esc(t('story.introText'))}</p>` },
-      { cls: 'st-minutes', html: `<p class="st-kicker">${esc(t('story.minutesKicker'))}</p>
+    const mini = (list, kind) => `<ol class="st-mini">${list.slice(1, 5).map((x, i) => `<li style="--i:${i}"><span>${i + 2}</span>${imgOrPlaceholder(x.image, x.name)}<b>${esc(x.name)}</b><small>${kind === 'artist' ? `${fmt(x.minutes)} ${esc(t('unit.min'))}` : `${fmt(x.plays)}×`}</small></li>`).join('')}</ol>`;
+
+    // Musik pro Folie: möglichst jede Folie ein eigener, passender Song
+    const used = new Set(s1 ? [s1.id] : []);
+    const choose = (...cands) => {
+      const list = cands.filter((x) => x && x.id);
+      const fresh = list.find((x) => !used.has(x.id));
+      const hit = fresh || list[0] || null;
+      if (hit) used.add(hit.id);
+      return hit;
+    };
+    const tracks = d.topTracks;
+
+    // Monatskurve
+    const maxM = Math.max(1, ...d.monthly);
+    const monthsChart = `<div class="st-months" aria-hidden="true">${d.monthly.map((v, i) => `<span class="${i + 1 === d.topMonth ? 'top' : ''}" style="--h:${Math.max(4, (v / maxM) * 100)}%;--i:${i}"><i></i><em>${esc(monthName(i + 1, 'narrow'))}</em></span>`).join('')}</div>`;
+    // 24-Stunden-Uhr
+    const hours = d.hours || [];
+    const maxH = Math.max(1, ...hours);
+    const clock = hours.length ? `<div class="st-clock" aria-hidden="true">${hours.map((v, h) => `<span class="${h === d.peakHour ? 'top' : ''}" style="--a:${h * 15}deg;--h:${12 + (v / maxH) * 88}%;--i:${h}"></span>`).join('')}
+        <div class="st-clock-c"><b>${esc(hourRange(d.peakHour))}</b><small>${esc(t('insight.peakTime'))}</small></div></div>` : '';
+    const wd = d.weekdays || [];
+    const maxW = Math.max(1, ...wd);
+    const weekChart = wd.length ? `<div class="st-week" aria-hidden="true">${wd.map((v, i) => `<span class="${i === d.peakWeekday ? 'top' : ''}" style="--h:${Math.max(6, (v / maxW) * 100)}%;--i:${i}"><i></i><em>${esc(DAYS[i])}</em></span>`).join('')}</div>` : '';
+    // Genre-Donut
+    let acc = 0;
+    const stops = d.genres.map((g) => { const from = acc; acc += g.share * 100; return `${genreColor(g.genre)} ${from}% ${acc}%`; });
+    const donut = d.genres.length ? `<div class="st-donut" style="--g:conic-gradient(${stops.join(', ')}${acc < 100 ? `, rgba(255,255,255,0.15) ${acc}% 100%` : ''})"><div><b>${Math.round(d.genres[0].share * 100)} %</b><small>${esc(genreName(d.genres[0].genre))}</small></div></div>` : '';
+    // Serie: Flammen-Punkte
+    const dots = Math.min(d.streak.len, 28);
+    const streakDots = dots ? `<div class="st-dots" aria-hidden="true">${Array.from({ length: dots }, (_, i) => `<i style="--i:${i}"></i>`).join('')}${d.streak.len > dots ? '<b>…</b>' : ''}</div>` : '';
+    // Collage fürs Finale
+    const covers = [...new Set([...tracks.map((x) => x.image), ...d.topArtists.map((x) => x.image)].filter(Boolean))].slice(0, 9);
+    const collage = covers.length >= 4 ? `<div class="st-collage" aria-hidden="true">${Array.from({ length: 12 }, (_, i) => `<img src="${esc(covers[i % covers.length])}" alt="" referrerpolicy="no-referrer" style="--i:${i}">`).join('')}</div>` : '';
+    const films = Math.round(d.minutes / 120);
+
+    const slides = [];
+    slides.push({ cls: 'st-intro', track: choose(tracks[1], m.month, s1), html: `<div class="st-logo"><img src="/assets/logo-animated.svg" alt="" width="96" height="96"></div>
+          <p class="st-kicker">Spotlfy · ${d.year}</p><h2 id="story-title">${esc(t('story.introTitle', { year: d.year }))}</h2><p class="st-text">${esc(t('story.introText'))}</p>
+          <p class="st-hint">🎧 ${esc(t('story.soundHint'))}</p>` });
+    slides.push({ cls: 'st-minutes', track: choose(m.month, tracks[2], tracks[1]), html: `<p class="st-kicker">${esc(t('story.minutesKicker'))}</p>
           <div class="st-num" data-count="${d.minutes}">0</div><p class="st-unit">${esc(t('story.minutesUnit'))}</p>
-          <p class="st-text">${esc(t('story.minutesDays', { n: (d.minutes / 1440).toFixed(1).replace('.', decSep) }))}</p>
-          ${delta != null ? `<p class="st-pill">${delta >= 0 ? '▲' : '▼'} ${esc(t('story.vsYear', { p: `${Math.abs(delta)} %`, y: d.year - 1 }))}</p>` : ''}` },
-    ];
-    if (a1) slides.push({ cls: 'st-artist', html: `<p class="st-kicker">${esc(t('story.artistKicker'))}</p>
-          <div class="st-photo round">${imgOrPlaceholder(a1.image, a1.name)}</div><h2>${esc(a1.name)}</h2>
+          <p class="st-text">${esc(t('story.minutesEquiv', { n: (d.minutes / 1440).toFixed(1).replace('.', decSep), f: fmt(films) }))}</p>
+          ${monthsChart}
+          ${delta != null ? `<p class="st-pill">${delta >= 0 ? '▲' : '▼'} ${esc(t('story.vsYear', { p: `${Math.abs(delta)} %`, y: d.year - 1 }))}</p>` : ''}` });
+    if (a1) {
+      slides.push({ cls: 'st-artist', track: choose(m.artist, s1), bg: a1.image, html: `<p class="st-kicker">${esc(t('story.artistKicker'))}</p>
+          <div class="st-photo-wrap"><span class="st-ring"></span><span class="st-ring r2"></span><div class="st-photo round">${imgOrPlaceholder(a1.image, a1.name)}</div><span class="st-badge">#1</span></div>
+          <h2>${esc(a1.name)}</h2>
           <p class="st-text">${esc(t('story.artistText', { n: fmt(a1.minutes) }))}</p>${mini(d.topArtists, 'artist')}` });
-    if (s1) slides.push({ cls: 'st-song', html: `<p class="st-kicker">${esc(t('story.songKicker'))}</p>
-          <div class="st-photo">${imgOrPlaceholder(s1.image, s1.name)}</div><h2>${esc(s1.name)}</h2>
-          <p class="st-text">${esc(s1.artists)} · ${esc(t('story.songText', { n: fmt(s1.plays) }))}</p>${mini(d.topTracks, 'track')}` });
-    if (d.genres.length) slides.push({ cls: 'st-genres', html: `<p class="st-kicker">${esc(t('story.genreKicker'))}</p>
-          <h2>${esc(genreName(d.genres[0].genre))}</h2>
-          <ul class="st-bars">${d.genres.map((g, i) => `<li style="--i:${i}"><span>${esc(genreName(g.genre))}</span><i><b style="width:${Math.max(3, g.share * 100)}%;background:${genreColor(g.genre)}"></b></i><em>${Math.round(g.share * 100)} %</em></li>`).join('')}</ul>` });
-    slides.push({ cls: 'st-rhythm', html: `<p class="st-kicker">${esc(t('story.rhythmKicker'))}</p><h2>${esc(t('story.rhythmTitle'))}</h2>
+    }
+    if (s1) {
+      slides.push({ cls: 'st-song', track: s1, bg: s1.image, html: `<p class="st-kicker">${esc(t('story.songKicker'))}</p>
+          <div class="st-turntable"><div class="st-vinyl"><div class="st-vlabel">${imgOrPlaceholder(s1.image, s1.name)}</div></div><div class="st-sleeve">${imgOrPlaceholder(s1.image, s1.name)}</div><span class="st-arm"></span></div>
+          <h2>${esc(s1.name)}</h2>
+          <p class="st-text">${esc(s1.artists)} · ${esc(t('story.songText', { n: fmt(s1.plays) }))}</p>${mini(tracks, 'track')}` });
+    }
+    if (d.genres.length) {
+      slides.push({ cls: 'st-genres', track: choose(m.genre, tracks[3]), html: `<p class="st-kicker">${esc(t('story.genreKicker'))}</p>
+          <h2>${esc(genreName(d.genres[0].genre))}</h2>${donut}
+          <ul class="st-bars">${d.genres.map((g, i) => `<li style="--i:${i}"><span><i class="st-gdot" style="background:${genreColor(g.genre)}"></i>${esc(genreName(g.genre))}</span><i><b style="width:${Math.max(3, g.share * 100)}%;background:${genreColor(g.genre)}"></b></i><em>${Math.round(g.share * 100)} %</em></li>`).join('')}</ul>` });
+    }
+    slides.push({ cls: 'st-rhythm', track: choose(m.night, tracks[4], tracks[2]), html: `<p class="st-kicker">${esc(t('story.rhythmKicker'))}</p><h2>${esc(t('story.rhythmTitle'))}</h2>
+          ${clock}${weekChart}
           <div class="st-tiles">
             <div style="--i:0"><span>${esc(t('story.topMonth'))}</span><b>${esc(monthName(d.topMonth))}</b></div>
-            <div style="--i:1"><span>${esc(t('insight.peakTime'))}</span><b>${esc(hourRange(d.peakHour))}</b></div>
-            <div style="--i:2"><span>${esc(t('insight.favDay'))}</span><b>${esc(DAYS_LONG[d.peakWeekday])}</b></div>
-            ${d.bestDay ? `<div style="--i:3"><span>${esc(t('insight.bestDay'))}</span><b>${esc(dateFmt.format(parseDay(d.bestDay.day)))}</b><small>${fmt(d.bestDay.minutes)} ${esc(t('unit.min'))}</small></div>` : ''}
+            ${d.bestDay ? `<div style="--i:1"><span>${esc(t('insight.bestDay'))}</span><b>${esc(dateFmt.format(parseDay(d.bestDay.day)))}</b><small>${fmt(d.bestDay.minutes)} ${esc(t('unit.min'))}</small></div>` : `<div style="--i:1"><span>${esc(t('insight.favDay'))}</span><b>${esc(DAYS_LONG[d.peakWeekday])}</b></div>`}
           </div>` });
-    slides.push({ cls: 'st-streak', html: `<p class="st-kicker">${esc(t('story.streakKicker'))}</p>
+    slides.push({ cls: 'st-streak', track: choose(m.discovery, tracks[3], tracks[1]), bg: d.topDiscovery?.image, html: `<p class="st-kicker">${esc(t('story.streakKicker'))}</p>
+          <div class="st-flame" aria-hidden="true">🔥</div>
           <div class="st-num" data-count="${d.streak.len}">0</div><p class="st-unit">${esc(tn('unit.dayWord', d.streak.len))} ${esc(t('insight.inARow'))}</p>
+          ${streakDots}
           ${d.streak.from ? `<p class="st-text">${esc(dateFmt.format(parseDay(d.streak.from)))} – ${esc(dateFmt.format(parseDay(d.streak.to)))}</p>` : ''}
           <div class="st-split"><div><b>${fmt(d.newArtists)}</b><span>${esc(t('story.newArtists'))}</span></div>
           ${d.topDiscovery ? `<div class="st-disc">${imgOrPlaceholder(d.topDiscovery.image, d.topDiscovery.name)}<span>${esc(t('wrapped.discovery'))}</span><b>${esc(d.topDiscovery.name)}</b></div>` : ''}</div>` });
-    if (d.firstSong) slides.push({ cls: 'st-first', html: `<p class="st-kicker">${esc(t('wrapped.firstSong', { year: d.year }))}</p>
+    if (d.firstSong) {
+      slides.push({ cls: 'st-first', track: d.firstSong, bg: d.firstSong.image, html: `<p class="st-kicker">${esc(t('wrapped.firstSong', { year: d.year }))}</p>
           <div class="st-photo spin">${imgOrPlaceholder(d.firstSong.image, d.firstSong.name)}</div><h2>${esc(d.firstSong.name)}</h2>
-          <p class="st-text">${esc(d.firstSong.artists)} · ${esc(dateFmt.format(new Date(d.firstSong.local_time)))}, ${esc(timeFmt.format(new Date(d.firstSong.local_time)))}</p>` });
-    slides.push({ cls: 'st-outro', outro: true, html: `<div class="st-fx"></div><p class="st-kicker">Spotlfy · ${d.year}</p><h2>${esc(t('story.outroTitle'))}</h2>
+          <p class="st-text">${esc(d.firstSong.artists)}</p>
+          <p class="st-pill">📅 ${esc(dateFmt.format(new Date(d.firstSong.local_time)))}, ${esc(timeFmt.format(new Date(d.firstSong.local_time)))}</p>` });
+    }
+    slides.push({ cls: 'st-outro', outro: true, track: s1, html: `${collage}<div class="st-fx"></div><p class="st-kicker">Spotlfy · ${d.year}</p><h2>${esc(t('story.outroTitle'))}</h2>
           <div class="st-summary">
             <div><span>${esc(t('kpi.minutes'))}</span><b>${fmt(d.minutes)}</b></div>
             <div><span>${esc(t('kpi.artists'))}</span><b>${fmt(d.artists)}</b></div>
-            ${a1 ? `<div class="wide"><span>${esc(t('story.artistKicker'))}</span><b>${esc(a1.name)}</b></div>` : ''}
-            ${s1 ? `<div class="wide"><span>${esc(t('story.songKicker'))}</span><b>${esc(s1.name)}</b></div>` : ''}
+            ${a1 ? `<div class="wide st-sum-img">${imgOrPlaceholder(a1.image, a1.name)}<p><span>${esc(t('story.artistKicker'))}</span><b>${esc(a1.name)}</b></p></div>` : ''}
+            ${s1 ? `<div class="wide st-sum-img">${imgOrPlaceholder(s1.image, s1.name)}<p><span>${esc(t('story.songKicker'))}</span><b>${esc(s1.name)}</b></p></div>` : ''}
             ${d.genres[0] ? `<div class="wide"><span>${esc(t('insight.topGenre'))}</span><b>${esc(genreName(d.genres[0].genre))}</b></div>` : ''}
           </div>
           <div class="st-actions"><button type="button" class="btn btn-primary" data-story="share">${esc(t('story.share'))}</button>
@@ -2358,16 +2407,86 @@
     return slides;
   }
 
+  // ---------------------------------------------------------------- Story-Musik (30-s-Hörproben, stummschaltbar)
+  const music = {
+    el: null, cur: null, fade: 0, muted: store.get('story-muted') === '1', failed: new Set(),
+    audio() {
+      if (!this.el) {
+        this.el = new Audio();
+        this.el.preload = 'auto';
+        this.el.loop = true;
+        this.el.addEventListener('error', () => { if (this.cur) this.failed.add(this.cur.id); this.showChip(null); });
+        this.el.addEventListener('playing', () => this.showChip(this.cur));
+      }
+      return this.el;
+    },
+    // Lautstärke weich ändern (iOS ignoriert volume – dort wird hart umgeschaltet)
+    ramp(to, ms, done) {
+      const a = this.audio();
+      cancelAnimationFrame(this.fade);
+      const from = a.volume;
+      const t0 = performance.now();
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / ms);
+        a.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+        if (k < 1) this.fade = requestAnimationFrame(step); else done?.();
+      };
+      this.fade = requestAnimationFrame(step);
+    },
+    play(track) {
+      const a = this.audio();
+      if (!track?.id || this.failed.has(track.id)) { this.cur = null; this.ramp(0, 500, () => a.pause()); this.showChip(null); return; }
+      if (this.cur?.id === track.id && !a.paused) return; // gleicher Song läuft weiter
+      const start = () => {
+        this.cur = track;
+        a.src = `/api/preview/${encodeURIComponent(track.id)}`;
+        a.muted = this.muted;
+        a.volume = 0;
+        const p = a.play();
+        if (p?.catch) p.catch(() => {}); // Autoplay blockiert → still weiter
+        this.ramp(0.85, 900);
+      };
+      if (this.cur && !a.paused) this.ramp(0, 350, start); else start();
+    },
+    stop() { cancelAnimationFrame(this.fade); if (this.el) { this.el.pause(); this.el.removeAttribute('src'); this.el.load(); } this.cur = null; },
+    toggleMute() {
+      this.muted = !this.muted;
+      store.set('story-muted', this.muted ? '1' : '0');
+      if (this.el) this.el.muted = this.muted;
+      if (!this.muted && this.el?.paused && this.cur) this.el.play().catch(() => {});
+      this.renderBtn();
+    },
+    renderBtn() {
+      const b = $('#story [data-story="mute"]');
+      if (!b) return;
+      b.innerHTML = this.muted ? '🔇' : '🔊';
+      b.setAttribute('aria-label', t(this.muted ? 'story.unmute' : 'story.mute'));
+      b.title = t(this.muted ? 'story.unmute' : 'story.mute');
+      b.setAttribute('aria-pressed', String(this.muted));
+      $('#story .st-now')?.classList.toggle('muted', this.muted);
+    },
+    showChip(track) {
+      const c = $('#story .st-now');
+      if (!c) return;
+      if (!track) { c.classList.remove('on'); return; }
+      $('.st-now-t', c).textContent = `${track.name} · ${track.artists || ''}`;
+      c.classList.add('on');
+    },
+  };
+
   function openStory() {
     const d = wr.data;
     if (!d || d.empty) return;
     story.slides = buildSlides(d);
     $('#story-body').innerHTML = `
       <div class="st-bars-top">${story.slides.map(() => '<span><i></i></span>').join('')}</div>
+      <button type="button" class="st-mute" data-story="mute"></button>
       <button type="button" class="st-close" data-close-dialog aria-label="${esc(t('tour.close'))}">✕</button>
-      <div class="st-stage">${story.slides.map((s, i) => `<section class="st-slide ${s.cls}" data-i="${i}" aria-hidden="true"><div class="st-content">${s.html}</div></section>`).join('')}</div>
+      <div class="st-stage">${story.slides.map((s, i) => `<section class="st-slide ${s.cls}" data-i="${i}" aria-hidden="true"><div class="st-blobs" aria-hidden="true"><i></i><i></i><i></i></div>${s.bg ? `<div class="st-backdrop" style="background-image:url('${esc(s.bg)}')"></div>` : ''}<div class="st-content">${s.html}</div></section>`).join('')}</div>
+      <div class="st-now" aria-live="polite"><span class="st-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="st-now-t"></span></div>
       <button type="button" class="st-nav prev" data-story="prev" aria-label="${esc(t('tour.back'))}"></button>
       <button type="button" class="st-nav next" data-story="next" aria-label="${esc(t('tour.next'))}"></button>`;
+    music.renderBtn();
     const dlg = $('#story');
     dlg.showModal();
     storyGo(0);
@@ -2387,6 +2506,7 @@
     $$('#story .st-bars-top i').forEach((b, k) => { b.style.width = k < story.i ? '100%' : '0%'; });
     const slide = $(`#story .st-slide[data-i="${story.i}"]`);
     $$('.st-num', slide).forEach((el) => { el.dataset.value = 0; countUp(el, Number(el.dataset.count)); });
+    music.play(story.slides[story.i].track);
     if (story.slides[story.i].outro) {
       setTimeout(() => confetti($('.st-fx', slide), 50), 300);
       // Rückblick bis zum Ende angesehen → Musiknoten (einmal pro Jahr)
@@ -2412,6 +2532,7 @@
 
   function closeStory() {
     cancelAnimationFrame(story.raf);
+    music.stop();
     const dlg = $('#story');
     if (dlg.open) dlg.close();
   }
@@ -2435,6 +2556,7 @@
       else if (act === 'prev') storyGo(story.i - 1);
       else if (act === 'share') shareWrapped();
       else if (act === 'restart') storyGo(0);
+      else if (act === 'mute') music.toggleMute();
     });
     // Gedrückt halten = pausieren
     dlg.addEventListener('pointerdown', (e) => { if (e.target.closest('.st-nav')) story.paused = true; });
@@ -2442,8 +2564,9 @@
     dlg.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); storyGo(story.i + 1); }
       if (e.key === 'ArrowLeft') storyGo(story.i - 1);
+      if (e.key === 'm' || e.key === 'M') music.toggleMute();
     });
-    dlg.addEventListener('close', () => cancelAnimationFrame(story.raf));
+    dlg.addEventListener('close', () => { cancelAnimationFrame(story.raf); music.stop(); });
   }
 
   // Hinweis im Dezember/Januar: „Dein Rückblick ist da“

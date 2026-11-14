@@ -46,6 +46,25 @@ function streaks(days) {
   return best;
 }
 
+// Passende Songs für die Folien der Story: jeweils der meistgehörte Song im Kontext der Folie
+async function storyMusic(args, { artist, genre, month, discovery }) {
+  const pick = (where, extra = []) => query(
+    `WITH ${YEAR_CTE}
+     SELECT t.id, t.name, array_to_string(t.artist_names, ', ') AS artists, t.album_image AS image
+       FROM p JOIN tracks t ON t.id = p.track_id
+      WHERE ${where} GROUP BY t.id ORDER BY count(*) DESC, sum(p.ms_played) DESC LIMIT 1`,
+    [...args, ...extra],
+  ).then((r) => r.rows[0] || null);
+  const [byArtist, byGenre, byMonth, byDiscovery, night] = await Promise.all([
+    artist ? pick('lower(p.artist) = lower($4)', [artist]) : null,
+    genre ? pick('lower(p.artist) IN (SELECT name_key FROM artist_genres WHERE main_genre = $4)', [genre]) : null,
+    pick('extract(month FROM p.lt)::int = $4', [month]),
+    discovery ? pick('lower(p.artist) = lower($4)', [discovery]) : null,
+    pick('extract(hour FROM p.lt)::int >= 22 OR extract(hour FROM p.lt)::int < 4'),
+  ]);
+  return { artist: byArtist, genre: byGenre, month: byMonth, discovery: byDiscovery, night };
+}
+
 export async function wrapped(userId, year) {
   const args = [TZ(), userId, year];
   const [tot, arts, trks, months, hours, dows, daily, fresh, gen, first, prev] = await Promise.all([
@@ -120,6 +139,10 @@ export async function wrapped(userId, year) {
   const genreTotal = gen.rows.reduce((a, r) => a + r.ms, 0);
   const f = fresh.rows[0];
   const prevMin = minutes(prev.rows[0].ms);
+  const topMonth = monthly.indexOf(Math.max(...monthly)) + 1;
+  const music = await storyMusic(args, {
+    artist: arts.rows[0]?.name, genre: gen.rows[0]?.genre, month: topMonth, discovery: f.name,
+  });
   return {
     year,
     empty: false,
@@ -132,7 +155,10 @@ export async function wrapped(userId, year) {
     topArtists: arts.rows,
     topTracks: trks.rows,
     monthly,
-    topMonth: monthly.indexOf(Math.max(...monthly)) + 1,
+    topMonth,
+    hours: hourArr,
+    weekdays: dowArr,
+    music,
     peakHour: hourArr.indexOf(Math.max(...hourArr)),
     peakWeekday: dowArr.indexOf(Math.max(...dowArr)),
     bestDay: bestDay ? { day: bestDay.day, minutes: minutes(bestDay.ms) } : null,
