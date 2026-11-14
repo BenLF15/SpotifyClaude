@@ -2887,3 +2887,54 @@ html[data-vt-dir='fade']::view-transition-old(root), html[data-vt-dir='fade']::v
 @keyframes am-pulse { 50% { transform: scale(0.9); opacity: 0.6; } }
 .profile-avatar.av-pop { animation: av-pop 0.7s var(--ease-spring); }
 @keyframes av-pop { 30% { transform: scale(0.85); } 70% { transform: scale(1.08); } }
+
+/* ================================================================== Festlich geschmückter Plattenladen */
+.sdc { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.store-table .sdc, .store-studio .sdc { z-index: 0; }
+.store-table > :not(.sdc), .store-studio > :not(.sdc) { position: relative; z-index: 1; }
+/* Girlande: durchhängende Schnur mit Lichtern, Wimpeln, Luftschlangen oder Blüten */
+.sdc-garland { position: absolute; left: -2%; right: -2%; top: 0; height: 46px; display: flex; justify-content: space-between; padding: 0 2%;
+  background: radial-gradient(120% 140% at 50% -60%, transparent 62%, rgba(40, 30, 20, 0.9) 63%, rgba(40, 30, 20, 0.9) 65%, transparent 66%) top / 50% 100% repeat-x; }
+.sdc-garland i { position: relative; top: 10px; flex: none; font-style: normal; }
+.sdc-garland i:nth-child(2n) { top: 22px; } .sdc-garland i:nth-child(4n) { top: 26px; } .sdc-garland i:nth-child(4n+1) { top: 12px; }
+.g-lights i { width: 9px; height: 14px; border-radius: 50% 50% 45% 45%; background: var(--c); box-shadow: 0 0 10px var(--c), 0 0 18px var(--c); animation: twinkle 1.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.27s); }
+.g-lights i::before { content: ''; position: absolute; top: -4px; left: 2px; width: 5px; height: 5px; border-radius: 1px; background: #3b4a3b; }
+@keyframes twinkle { 50% { opacity: 0.35; box-shadow: 0 0 2px var(--c); } }
+.g-flags i { width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 20px solid var(--c); filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35)); transform-origin: top center; animation: flag-sway 3s ease-in-out infinite; animation-delay: calc(var(--i) * -0.2s); }
+@keyframes flag-sway { 50% { transform: rotate(6deg); } }
+.g-streamers i { width: 6px; height: 36px; border-radius: 3px; background: repeating-linear-gradient(170deg, var(--c) 0 6px, rgba(255, 255, 255, 0.5) 6px 8px); transform-origin: top center; animation: flag-sway 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * -0.3s); }
+.g-flowers i { font-size: 1.1rem; animation: flag-sway 3.4s ease-in-out infinite; animation-delay: calc(var(--i) * -0.25s); }
+.in-table .sdc-garland, .in-studio .sdc-garland { height: 36px; }
+/* Ecken, Tische, Studio-Tür */
+.sdc-corner { position: absolute; bottom: 41%; display: flex; align-items: flex-end; gap: 2px; font-size: clamp(1.3rem, 4vw, 2.2rem); filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5)); }
+.sdc-corner.l { left: 1.5%; } .sdc-corner.r { right: 1.5%; }
+html[data-fest]:not([data-fest='']) .sr-neon { top: 13%; }
+html[data-fest]:not([data-fest='']) .sr-shelf { top: 34%; }
+.sdc-corner span { display: inline-block; animation: deco-bob 3.2s ease-in-out infinite; animation-delay: calc(var(--i) * -0.8s); }
+.sdc-corner span:first-child { font-size: 1.35em; }
+@keyframes deco-bob { 50% { transform: translateY(-4px) rotate(-3deg); } }
+.sdc-table { position: absolute; bottom: 33%; font-size: clamp(1rem, 3vw, 1.5rem); filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)); animation: deco-bob 2.6s ease-in-out infinite; }
+.sdc-table.t-cds { left: 8%; } .sdc-table.t-recs { right: 8%; animation-delay: -1.3s; }
+.sdc-door { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); font-size: clamp(1.2rem, 3.5vw, 1.9rem); filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6)); }
+.sdc-banner { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); padding: 3px 12px; border-radius: 6px; font-weight: 800; font-size: clamp(0.65rem, 2vw, 0.9rem); white-space: nowrap; color: #2b0b1e;
+  background: linear-gradient(90deg, #ff9ac9, #ffd23f, #5ce1e6); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); animation: deco-bob 3s ease-in-out infinite; }
+/* Teilchen: Schnee, Konfetti, Blütenblätter */
+.sdc-fall { position: absolute; inset: 0; overflow: hidden; }
+.sdc-fall i { position: absolute; top: -8%; left: var(--x); font-style: normal; font-size: calc(var(--s) * 1rem); opacity: 0.9; animation: deco-fall var(--t) linear var(--d) infinite; }
+.m-snow i { color: #fff; text-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
+.m-confetti i { color: var(--c); font-size: calc(var(--s) * 0.7rem); }
+.m-petals i { font-size: calc(var(--s) * 0.85rem); }
+@keyframes deco-fall { 0% { transform: translate3d(0, 0, 0) rotate(0deg); } 50% { transform: translate3d(14px, 55vh, 0) rotate(180deg); } 100% { transform: translate3d(-6px, 115vh, 0) rotate(360deg); opacity: 0.2; } }
+.store-room .sdc-fall i { animation-name: deco-fall-room; }
+@keyframes deco-fall-room { 0% { transform: translate3d(0, 0, 0) rotate(0deg); } 50% { transform: translate3d(14px, 300px, 0) rotate(180deg); } 100% { transform: translate3d(-6px, 620px, 0) rotate(360deg); opacity: 0.2; } }
+/* Kranz/Schmuck an der Ladentür */
+.sd-wreath { position: absolute; z-index: 3; top: 24%; left: 50%; transform: translateX(-50%); font-size: 2rem; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6)); }
+/* Neon-Schild in Festfarben */
+html[data-fest='christmas'] .sr-neon { color: #ffe5e5; text-shadow: 0 0 4px #fff, 0 0 12px #ff2b2b, 0 0 26px #ff2b2b; }
+html[data-fest='christmas'] .sr-neon b { text-shadow: 0 0 4px #fff, 0 0 12px #2bd16a, 0 0 26px #2bd16a; }
+html[data-fest='newyear'] .sr-neon, html[data-fest='newyear'] .sr-neon b { color: #fff6d0; text-shadow: 0 0 4px #fff, 0 0 12px #ffd700, 0 0 28px #ffb300; }
+html[data-fest='easter'] .sr-neon { text-shadow: 0 0 4px #fff, 0 0 12px #ff9ac9, 0 0 24px #ff9ac9; } html[data-fest='easter'] .sr-neon b { text-shadow: 0 0 4px #fff, 0 0 12px #ffe066, 0 0 24px #ffd23f; }
+html[data-fest='midsummer'] .sr-neon { text-shadow: 0 0 4px #fff, 0 0 12px #ffe066, 0 0 24px #ffb000; } html[data-fest='midsummer'] .sr-neon b { text-shadow: 0 0 4px #fff, 0 0 12px #8fdc6f, 0 0 24px #4caf50; }
+html[data-fest='carnival'] .sr-neon { animation: neon-flicker 6s infinite, neon-hue 4s linear infinite; }
+@keyframes neon-hue { to { filter: hue-rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sdc *, .sd-wreath { animation: none !important; } .sdc-fall { display: none; } }

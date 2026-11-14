@@ -225,6 +225,17 @@ Typisch sind die Cover nach einem Import so in 1–2 Minuten da statt nach ~10 M
 
 **Begehbarer Laden**: Beim Öffnen des Ladens schwingt die Glastür (mit „OPEN“-Schild und Türglocke) auf, man sieht durch die Öffnung hinein und geht in den Laden: Holzvertäfelung, Neon-Schild „Spotlfy Records“, Regale mit Plattenrücken, Schachbrettboden, warmes Licht. **Rechts** steht der Plattentisch mit einer Plattenkiste, **links** der CD-Tisch mit gefächerten CDs (die Labels zeigen Anzahl und das seltenste Stück), **geradeaus** die Studio-Tür („ON AIR“). Ein Tisch-Tipp fährt die Kamera hin; auf der Tischplatte liegen alle Stücke der Woche mit Preisschild. Eine Platte/CD antippen hebt sie heraus und lässt sie nach vorne schweben – dann **Kaufen** oder **Zurücklegen** (fliegt zurück an ihren Platz; auch Esc oder Tipp daneben). Legendäre und mythische Stücke funkeln beim Anheben. Beim Kauf fliegen die Noten zum Button, „Gekauft“-Stempel, das Stück fliegt in die Sammlung.
 
+**Festlicher Laden**: Sind „Festliche Effekte“ an und läuft gerade ein Fest, ist der Laden geschmückt – Girlande unter der Decke, Deko in den Ecken, auf beiden Tischen und an Studio- und Ladentür, fallende Teilchen und ein Neon-Schild in Festfarben; Tischansicht und Studio bekommen Girlande und Teilchen mit:
+| Fest | Girlande | Deko | Teilchen |
+|---|---|---|---|
+| Weihnachten | bunte Lichterkette (funkelt) | 🎄🎁 ⛄🎁, 🎅 auf den Tischen, 🎄 an der Tür; Schild rot/grün | Schnee |
+| Silvester | Gold-/Silber-Luftschlangen | 🍾🥂 🎆🕛, 🎉; Schild gold | goldene Funken |
+| Ostern | Pastell-Wimpel | 🐰🌷 🧺🥚, 🥚, 🐣 an der Tür; Schild rosa/gelb | Blüten |
+| Fasching | bunte Wimpel | 🎭🎉 🎺🎊; Schild wechselt die Farbe | Konfetti |
+| Mittsommer | Blütenkranz | 🌻🌿 🍓🌼, 🌸; Schild gelb/grün | Blüten & Blätter |
+| Geburtstag | bunte Wimpel + Banner „Alles Gute zum Geburtstag, …!“ | 🎈🎈🎂 🎁🎈, 🎂 | Konfetti |
+Admins können jedes Fest über das Test-Datum ansehen.
+
 **Studio** (im Laden geradeaus durch die Tür mit „ON AIR“-Lampe): Die Tür schwingt auf, die Kamera fährt hinein. Zwei Stationen:
 - **Platten veredeln**: Ein Stück aus der eigenen Sammlung auf die Presse legen und gegen Noten eine Seltenheit höher heben (bis Mythisch). Die Presse senkt sich, Blitz, Funken, die neue Seltenheit erscheint. Kosten Platte / CD: gewöhnlich→selten 2 Silber / 1 Silber, selten→episch 2 Gold / 1 Gold, episch→legendär 1 Platin / 3 Gold, legendär→mythisch 3 Platin / 2 Platin. Gibt es die höhere Ausführung schon in der Sammlung, geht es nicht. Mit „Plattenladen kostenlos“ (Admin) gratis.
 - **Intro-Quiz (tägliche Session)**: Einmal am Tag 5 Runden mit eigenen Lieblingssongs (≥ 2 Wiedergaben im letzten Jahr). Pro Runde ein ganz kurzer Ausschnitt vom Anfang der 30-s-Hörprobe (Deezer, Ersatz iTunes; Spotify bietet keine Hörproben mehr – die Hörprobe ist meist nicht der echte Songanfang), dazu 4 Antworten. 1 s hören = 3 Punkte, auf 2 s verlängern = 2, auf 4 s = 1, falsch = 0. Lösung und Song-IDs bleiben auf dem Server; der Server liefert bei MP3 wirklich nur die angeforderten Sekunden und merkt sich die längste angehörte Stufe. Belohnung am Ende: ≥ 12 Punkte 1 Gold, ≥ 8 → 2 Silber, ≥ 4 → 2 Bronze, sonst 1 Bronze.

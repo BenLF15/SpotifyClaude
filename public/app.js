@@ -1569,6 +1569,7 @@
       clearFestive();
       festive.key = ev;
       document.documentElement.dataset.fest = ev || '';
+      if (state.panel === 'records' && rec.tab === 'shop') { rec.store.entered = true; renderRecords(); }
       if (ev) {
         decorateStatic();
         decoratePanel(state.panel);
@@ -3785,6 +3786,47 @@
       : `${noteIcon(it.price.tier)} ${fmt(it.price.amount)}`;
   }
 
+  // ---------------------------------------------------------------- Laden-Schmuck zu den festlichen Tagen
+  // Girlande unter der Decke, Deko in den Ecken, auf den Tischen und an der Studio-Tür, dazu fallende/steigende
+  // Teilchen und ein passend gefärbtes Neon-Schild. Nur wenn „Festliche Effekte“ an ist und gerade ein Fest läuft.
+  const STORE_DECO = {
+    christmas: { garland: 'lights', colors: ['#ff3b3b', '#ffd23f', '#3bd16f', '#3fa9ff', '#ff7ad9'], left: ['🎄', '🎁', '🎁'], right: ['⛄', '🎁'], table: '🎅', door: '🎄', fall: ['❄', '❅', '❆'], mode: 'snow' },
+    newyear: { garland: 'streamers', colors: ['#ffd700', '#e6e6e6', '#ffb347', '#c0c0c0'], left: ['🍾', '🥂'], right: ['🎆', '🕛'], table: '🎉', door: '✨', fall: ['✦', '✧', '•'], mode: 'confetti' },
+    easter: { garland: 'flags', colors: ['#ffc6e0', '#fff3a6', '#c6f2d6', '#c9dcff', '#e6ccff'], left: ['🐰', '🌷'], right: ['🧺', '🥚'], table: '🥚', door: '🐣', fall: ['🌸', '🌼'], mode: 'petals' },
+    carnival: { garland: 'flags', colors: ['#ff3b6b', '#ffd23f', '#3bd1c4', '#7b5cff', '#3fa9ff', '#ff8a3b'], left: ['🎭', '🎉'], right: ['🎺', '🎊'], table: '🎭', door: '🎊', fall: ['▪', '●', '▲'], mode: 'confetti' },
+    midsummer: { garland: 'flowers', colors: ['#ffffff', '#ffe066', '#ff9ac9', '#8fdc6f'], left: ['🌻', '🌿'], right: ['🍓', '🌼'], table: '🌸', door: '🌿', fall: ['🌸', '🌼', '🍃'], mode: 'petals' },
+    birthday: { garland: 'flags', colors: ['#ff6b9e', '#ffd23f', '#5ce1e6', '#9b7bff', '#7be08a'], left: ['🎈', '🎈', '🎂'], right: ['🎁', '🎈'], table: '🎂', door: '🎈', fall: ['▪', '●', '▲'], mode: 'confetti', banner: true },
+  };
+
+  function storeDecoHTML(where = 'room') {
+    const ev = festive.key;
+    const c = ev && STORE_DECO[ev];
+    if (!c) return '';
+    const n = where === 'room' ? 15 : 11;
+    const garland = `<div class="sdc-garland g-${c.garland}" aria-hidden="true">${Array.from({ length: n }, (_, i) => {
+      const col = c.colors[i % c.colors.length];
+      if (c.garland === 'flowers') return `<i style="--i:${i}">${['🌼', '🌸', '🌿'][i % 3]}</i>`;
+      return `<i style="--c:${col};--i:${i}"></i>`;
+    }).join('')}</div>`;
+    const parts = Array.from({ length: where === 'room' ? 18 : 10 }, (_, i) => {
+      const x = (i * 37) % 100;
+      const sym = c.fall[i % c.fall.length];
+      const col = c.colors[i % c.colors.length];
+      return `<i style="--x:${x}%;--d:${(i * 0.63) % 6}s;--t:${5 + (i % 5)}s;--c:${col};--s:${0.7 + (i % 4) * 0.18}">${sym}</i>`;
+    }).join('');
+    const fx = `<div class="sdc-fall m-${c.mode}" aria-hidden="true">${parts}</div>`;
+    if (where !== 'room') return `<div class="sdc sdc-${ev} in-${where}">${garland}${fx}</div>`;
+    const banner = c.banner ? `<div class="sdc-banner" aria-hidden="true">${esc(t('greet.birthday', { name: state.account?.username || '' }))}</div>` : '';
+    return `<div class="sdc sdc-${ev}" aria-hidden="true">
+        ${garland}${banner}
+        <div class="sdc-corner l">${c.left.map((e, i) => `<span style="--i:${i}">${e}</span>`).join('')}</div>
+        <div class="sdc-corner r">${c.right.map((e, i) => `<span style="--i:${i}">${e}</span>`).join('')}</div>
+        <span class="sdc-table t-cds">${c.table}</span><span class="sdc-table t-recs">${c.table}</span>
+        <span class="sdc-door">${c.door}</span>
+        ${fx}
+      </div>`;
+  }
+
   function storeHTML(d) {
     const st = rec.store;
     const recs = d.shop || [];
@@ -3817,18 +3859,19 @@
             <span class="sr-label">🎵 ${esc(t('rec.shopRecords'))} <small>${fmt(recs.length)}</small>${top(recs)}</span>
           </button>
           <div class="sr-light" aria-hidden="true"></div>
+          ${storeDecoHTML('room')}
         </div>
         ${st.entered ? '' : `<div class="store-door" aria-hidden="true">
           <div class="sd-frame"><div class="sd-panel l"><span class="sd-glass"><span class="sd-open">OPEN</span></span><span class="sd-handle"></span></div>
           <div class="sd-panel r"><span class="sd-glass"></span><span class="sd-handle"></span></div></div>
-          <div class="sd-sign">Spotlfy Records</div><span class="sd-bell">🔔</span></div>`}
+          <div class="sd-sign">Spotlfy Records</div><span class="sd-bell">🔔</span>${festive.key && STORE_DECO[festive.key] ? `<span class="sd-wreath">${STORE_DECO[festive.key].door}</span>` : ''}</div>`}
       </div>`;
     let table = '';
     if (st.view === 'studio') table = studioHTML(d);
     if (st.view === 'records' || st.view === 'cds') {
       const isCd = st.view === 'cds';
       const list = isCd ? cdl : recs;
-      table = `<div class="store-table ${isCd ? 'is-cd' : 'is-rec'}">
+      table = `<div class="store-table ${isCd ? 'is-cd' : 'is-rec'}">${storeDecoHTML('table')}
         <div class="stb-head">
           <button type="button" class="btn btn-ghost btn-xs" data-store-go="room">← ${esc(t('store.back'))}</button>
           <div><b>${isCd ? '💿' : '🎵'} ${esc(t(isCd ? 'rec.cdShopTitle' : 'rec.shopTitle', { w: d.week.week }))}</b><small>${esc(countdown(d.week.resetsOn))}</small></div>
@@ -4003,7 +4046,7 @@
     } else {
       body = sessionHTML();
     }
-    return `<div class="store-studio">${head}<div class="stu-body">${body}</div></div>`;
+    return `<div class="store-studio">${storeDecoHTML('studio')}${head}<div class="stu-body">${body}</div></div>`;
   }
 
   function sessionHTML() {

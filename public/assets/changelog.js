@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-15b',
+    date: '2026-11-15',
+    items: [
+      {
+        icon: '🎄', go: 'records',
+        t: ['Festlicher Plattenladen', 'Festive record shop', 'Disquaire en fête', 'Tienda de discos festiva', 'Negozio di dischi in festa', 'Festlig skivbutik', 'Festlig pladebutik'],
+        d: ['Zu Weihnachten, Silvester, Ostern, Fasching, Mittsommer und deinem Geburtstag ist der Laden geschmückt.', 'At Christmas, New Year, Easter, carnival, midsummer and on your birthday the shop is decorated.', 'À Noël, au Nouvel An, à Pâques, au carnaval, à la Saint-Jean et à ton anniversaire, le magasin est décoré.', 'En Navidad, Año Nuevo, Pascua, Carnaval, San Juan y tu cumpleaños, la tienda está decorada.', 'A Natale, Capodanno, Pasqua, Carnevale, mezza estate e al tuo compleanno il negozio è addobbato.', 'Till jul, nyår, påsk, karneval, midsommar och din födelsedag är butiken pyntad.', 'Til jul, nytår, påske, fastelavn, sankthans og din fødselsdag er butikken pyntet.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-14k',
     date: '2026-11-14',
     items: [
