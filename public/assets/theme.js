@@ -6,19 +6,19 @@
   const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
   const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* egal */ } };
 
-  // ---------------------------------------------------------------- Jahreszeiten (astronomisch, Nordhalbkugel)
-  // Frühling ab 20.3., Sommer ab 21.6., Herbst ab 23.9., Winter ab 21.12.
+  // ---------------------------------------------------------------- Jahreszeiten (meteorologisch, Nordhalbkugel)
+  // Frühling ab 1.3., Sommer ab 1.6., Herbst ab 1.9., Winter ab 1.12. – passt besser zum gefühlten Wetter
   const SEASONS = {
-    spring: { name: 'Frühling', icon: '🌸', start: [3, 20], next: 'summer' },
-    summer: { name: 'Sommer', icon: '☀️', start: [6, 21], next: 'autumn' },
-    autumn: { name: 'Herbst', icon: '🍂', start: [9, 23], next: 'winter' },
-    winter: { name: 'Winter', icon: '❄️', start: [12, 21], next: 'spring' },
+    spring: { name: 'Frühling', icon: '🌸', start: [3, 1], next: 'summer' },
+    summer: { name: 'Sommer', icon: '☀️', start: [6, 1], next: 'autumn' },
+    autumn: { name: 'Herbst', icon: '🍂', start: [9, 1], next: 'winter' },
+    winter: { name: 'Winter', icon: '❄️', start: [12, 1], next: 'spring' },
   };
   function seasonOf(date) {
-    const md = (date.getMonth() + 1) * 100 + date.getDate();
-    if (md >= 1221 || md < 320) return 'winter';
-    if (md < 621) return 'spring';
-    if (md < 923) return 'summer';
+    const m = date.getMonth() + 1;
+    if (m === 12 || m < 3) return 'winter';
+    if (m < 6) return 'spring';
+    if (m < 9) return 'summer';
     return 'autumn';
   }
   function seasonEnd(key, date) {

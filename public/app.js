@@ -339,12 +339,11 @@
     const mode = T.mode();
     $$('#theme-picker [data-theme-mode]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeMode === mode)));
     const override = T.seasonDate();
-    const testNote = override ? ` · <span class="tag tag-warn">${esc(t('season.testDate', { d: shortDate.format(parseDay(override)) }))}</span>` : '';
     const hints = {
       system: esc(t('theme.hint.system', { x: t(T.resolve('system') === 'light' ? 'theme.word.light' : 'theme.word.dark') })),
       light: esc(t('theme.hint.light')),
       dark: esc(t('theme.hint.dark')),
-      season: t('theme.hint.season', { s: seasonText() }) + testNote,
+      season: t('theme.hint.season', { s: seasonText() }),
     };
     $('#theme-hint').innerHTML = hints[mode] || '';
     // Admin-Tester
@@ -1327,6 +1326,7 @@
   const TOUR_KEYS = ['carnival', 'easter', 'midsummer', 'christmas', 'newyear', 'birthday'];
   const tour = { step: 0 };
   const tourSeenKey = () => `fest-tour-seen-${state.account?.id}`;
+  const tourOffKey = () => `fest-tour-off-${state.account?.id}`;
 
   function nextDateOf(key) {
     const now = T.effectiveDate();
@@ -1377,6 +1377,7 @@
       </div>
       <div class="tour-foot">
         <div class="tour-dots">${dots}</div>
+        ${tour.repeat ? `<label class="tour-optout"><input type="checkbox" id="tour-optout" ${tour.optOut ? 'checked' : ''} /> <span>${esc(t('tour.optOut'))}</span></label>` : ''}
         <div class="tour-btns">
           ${i > 0 ? `<button type="button" class="btn btn-ghost" data-tour="back">${esc(t('tour.back'))}</button>` : ''}
           <button type="button" class="btn btn-primary" data-tour="next">${esc(t(i === 0 ? 'tour.start' : last ? 'tour.done' : 'tour.next'))}</button>
@@ -1388,6 +1389,8 @@
     const dlg = $('#fest-tour');
     if (dlg.open) return;
     tour.step = 0;
+    tour.repeat = Boolean(store.get(tourSeenKey())); // ab dem zweiten Mal abwählbar
+    tour.optOut = false;
     renderTour();
     dlg.showModal();
     $('[data-tour="next"]', dlg)?.focus();
@@ -1395,6 +1398,7 @@
 
   function closeTour() {
     store.set(tourSeenKey(), '1');
+    if (tour.optOut) store.set(tourOffKey(), '1');
     const dlg = $('#fest-tour');
     if (dlg.open) dlg.close();
   }
@@ -1419,7 +1423,8 @@
         requestAnimationFrame(() => { const inp = $('#birthday-input'); inp.scrollIntoView({ block: 'center' }); inp.focus(); });
       }
     });
-    dlg.addEventListener('cancel', () => store.set(tourSeenKey(), '1')); // Esc
+    dlg.addEventListener('cancel', () => { store.set(tourSeenKey(), '1'); if (tour.optOut) store.set(tourOffKey(), '1'); }); // Esc
+    dlg.addEventListener('change', (e) => { if (e.target.id === 'tour-optout') tour.optOut = e.target.checked; });
     dlg.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight') $('[data-tour="next"]', dlg)?.click();
       if (e.key === 'ArrowLeft') $('[data-tour="back"]', dlg)?.click();
@@ -1622,7 +1627,7 @@
     if (await saveSettings({ festive: on })) {
       state.account.festive = on;
       $('#festive-switch').setAttribute('aria-checked', String(on));
-      if (on) openTour();
+      if (on && !store.get(tourOffKey())) openTour();
       updateFestive({ burst: on });
       renderThemeSettings();
     }

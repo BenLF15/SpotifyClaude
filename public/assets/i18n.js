@@ -192,7 +192,6 @@
     'season.summer': ['Sommer', 'Summer', 'Été', 'Verano', 'Estate', 'Sommar', 'Sommer'],
     'season.autumn': ['Herbst', 'Autumn', 'Automne', 'Otoño', 'Autunno', 'Höst', 'Efterår'],
     'season.winter': ['Winter', 'Winter', 'Hiver', 'Invierno', 'Inverno', 'Vinter', 'Vinter'],
-    'season.testDate': ['Test-Datum {d}', 'Test date {d}', 'Date de test {d}', 'Fecha de prueba {d}', 'Data di test {d}', 'Testdatum {d}', 'Testdato {d}'],
     'account.title': ['Konto', 'Account', 'Compte', 'Cuenta', 'Account', 'Konto', 'Konto'],
     'account.sub': ['Dein Spotlfy-Konto', 'Your Spotlfy account', 'Ton compte Spotlfy', 'Tu cuenta de Spotlfy', 'Il tuo account Spotlfy', 'Ditt Spotlfy-konto', 'Din Spotlfy-konto'],
     'account.username': ['Benutzername', 'Username', 'Nom d’utilisateur', 'Usuario', 'Nome utente', 'Användarnamn', 'Brugernavn'],
@@ -333,6 +332,7 @@
     'tour.back': ['Zurück', 'Back', 'Retour', 'Atrás', 'Indietro', 'Tillbaka', 'Tilbage'],
     'tour.start': ['Los geht’s', 'Let’s go', 'C’est parti', 'Vamos', 'Iniziamo', 'Kör', 'Lad os starte'],
     'tour.done': ['Fertig', 'Done', 'Terminé', 'Listo', 'Fatto', 'Klar', 'Færdig'],
+    'tour.optOut': ['Nicht mehr anzeigen', 'Don’t show again', 'Ne plus afficher', 'No volver a mostrar', 'Non mostrare più', 'Visa inte igen', 'Vis ikke igen'],
     'tour.close': ['Schließen', 'Close', 'Fermer', 'Cerrar', 'Chiudi', 'Stäng', 'Luk'],
     'tour.step': ['Schritt {i} von {n}', 'Step {i} of {n}', 'Étape {i} sur {n}', 'Paso {i} de {n}', 'Passo {i} di {n}', 'Steg {i} av {n}', 'Trin {i} af {n}'],
 

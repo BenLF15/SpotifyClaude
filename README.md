@@ -17,8 +17,8 @@ Ein selbst gehostetes Statistik-Dashboard für dein Spotify-Konto. Es speichert 
   - Spotify-Ranking mit Verlauf
   - Verlauf nach Tagen (je 5 Songs, aufklappbar, mit Hör-Aktivität pro Stunde)
 - Dunkles, mobilfreundliches Design mit flüssigen Animationen.
-- **Darstellung**: Hell, Dunkel, System oder **Jahreszeit** (Farbwelt wechselt exakt zu Frühlings-, Sommer-, Herbst- und Winteranfang). Wird am Konto gespeichert.
-- **Festliche Effekte** (im Profil ein-/ausschaltbar): Zu Fasching (Weiberfastnacht bis Faschingsdienstag und am 11.11.), Ostern (Karfreitag bis Ostermontag), Midsommar, Weihnachten (24.–26.12.), Neujahr (31.12.–1.1.) und zum **eigenen Geburtstag** (im Profil eintragbar) erscheinen kleine Animationen: ein Gruß-Banner, Deko an Logo, Überschriften, Podium, Genre-Diagramm, Heatmap und Profil sowie ein kurzer Partikel-Effekt beim ersten Öffnen jedes Tabs. Admins können jedes Event über ein Test-Datum ausprobieren. Beim Einschalten (und einmalig beim ersten Besuch) erklärt ein kurzer Walkthrough Schritt für Schritt alle Events – durchklicken oder direkt mit ✕ schließen.
+- **Darstellung**: Hell, Dunkel, System oder **Jahreszeit** (Farbwelt wechselt zum meteorologischen Jahreszeitenbeginn: Frühling 1. März, Sommer 1. Juni, Herbst 1. September, Winter 1. Dezember). Wird am Konto gespeichert.
+- **Festliche Effekte** (im Profil ein-/ausschaltbar): Zu Fasching (Weiberfastnacht bis Faschingsdienstag und am 11.11.), Ostern (Karfreitag bis Ostermontag), Midsommar, Weihnachten (24.–26.12.), Neujahr (31.12.–1.1.) und zum **eigenen Geburtstag** (im Profil eintragbar) erscheinen kleine Animationen: ein Gruß-Banner, Deko an Logo, Überschriften, Podium, Genre-Diagramm, Heatmap und Profil sowie ein kurzer Partikel-Effekt beim ersten Öffnen jedes Tabs. Admins können jedes Event über ein Test-Datum ausprobieren. Beim Einschalten (und einmalig beim ersten Besuch) erklärt ein kurzer Walkthrough Schritt für Schritt alle Events – durchklicken oder direkt mit ✕ schließen. Ab dem zweiten Mal gibt es das Kästchen „Nicht mehr anzeigen“; danach erscheint der Walkthrough auch beim Aus- und Wiedereinschalten nicht mehr (pro Konto und Browser).
 - **Sprachen**: Deutsch, Englisch, Französisch, Spanisch, Italienisch, Schwedisch und Dänisch – die gesamte Oberfläche inkl. Datums- und Zahlenformaten. Wählbar im Profil und auf der Login-Seite.
 - Als App installierbar (PWA), ohne Browserleiste und ohne Zoomen.
 - **Ladezustände**: Platzhalter („Skeletons“) beim ersten Laden, beim Zeitraumwechsel bleibt der alte Stand ausgegraut sichtbar.
@@ -222,7 +222,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 
 **Autogramme**: Legendäre Platten und CDs tragen ein Autogramm des Künstlers. Echte Unterschriften werden bewusst nicht nachgebildet; jeder Künstler bekommt stattdessen eine eigene, immer gleiche Handschrift (Schrift, Stiftfarbe, Neigung, Schnörkel, ggf. Stern oder Herz), abgeleitet aus seinem Namen. Die Handschrift-Schriften (Permanent Marker, Rock Salt, Mrs Saint Delafield, Homemade Apple, Caveat; SIL OFL / Apache 2.0) werden lokal über `/vendor/sign/` ausgeliefert.
 
-Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen.
+Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen. Die Noten-Münzen glänzen: Ein Lichtstreif mit kurzem Funkeln wandert nacheinander über Bronze, Silber, Gold und Platin (abgeschaltet bei „Bewegung reduzieren“).
 
 **CD-Singles**: Auf der zweiten Seite des Ladens gibt es jede Woche 30 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (Metall, Glasböden, LED-Leiste).
 
