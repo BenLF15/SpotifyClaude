@@ -45,7 +45,7 @@ export const config = {
   sessionSecret: env('SESSION_SECRET') || derivedSecret(),
   sessionDays: int('SESSION_DAYS', 30),
   timezone: env('TIMEZONE', 'Europe/Berlin'),
-  enrichLimit: int('ENRICH_LIMIT', 150),
+  enrichLimit: int('ENRICH_LIMIT', 2000),
   minPlayMs: int('MIN_PLAY_MS', 30000),
   internalScheduler: bool('INTERNAL_SCHEDULER', true),
   syncIntervalMinutes: Math.max(5, int('SYNC_INTERVAL_MINUTES', 30)),

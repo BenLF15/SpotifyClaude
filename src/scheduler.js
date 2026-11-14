@@ -5,17 +5,36 @@
 // - Optionales Keep-Alive, damit ein Render-Free-Service nicht einschläft.
 import { config } from './config.js';
 import { query } from './db.js';
-import { runCron } from './sync.js';
+import { enrichMetadata, runCron } from './sync.js';
 import { classifyPendingArtists } from './genres.js';
 
 const running = new Map();
+const enriching = new Set();
+let enrichQueue = Promise.resolve();
+
+/**
+ * Cover/Genres nachladen läuft im Hintergrund (bei ENRICH_LIMIT 2000 bis zu ~10 Min.),
+ * damit Sync-Button und Zeitplan nicht darauf warten. Alle Nutzer teilen sich eine
+ * Warteschlange, damit das Spotify-Rate-Limit der App geschont wird.
+ */
+export function triggerEnrich(userId) {
+  if (enriching.has(userId)) return;
+  enriching.add(userId);
+  enrichQueue = enrichQueue
+    .then(() => enrichMetadata(userId))
+    .then((r) => { if (r?.tracks || r?.artists) console.log(`[enrich] ${userId}: ${r.tracks} Songs, ${r.artists} Künstler`); })
+    .catch((err) => console.warn('[enrich]', userId, err.message))
+    .finally(() => enriching.delete(userId));
+}
 
 /** Startet einen Sync-Lauf für einen Nutzer; läuft schon einer, wird dessen Ergebnis zurückgegeben. */
 export function triggerSync(userId, opts = {}) {
   if (!running.has(userId)) {
     running.set(
       userId,
-      runCron(userId, opts).finally(() => running.delete(userId)),
+      runCron(userId, { ...opts, enrich: false })
+        .then((summary) => { triggerEnrich(userId); return { ...summary, enrich: 'background' }; })
+        .finally(() => running.delete(userId)),
     );
   }
   return running.get(userId);

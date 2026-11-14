@@ -244,12 +244,13 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
 }
 
 /** Ein kompletter Sync-Lauf für einen Nutzer. */
-export async function runCron(userId, { forceSnapshot = false } = {}) {
+export async function runCron(userId, { forceSnapshot = false, enrich = true } = {}) {
   const summary = {};
   summary.recent = await syncRecentlyPlayed(userId);
   if (forceSnapshot || !(await hasSnapshot(userId))) {
     summary.snapshot = await takeTopSnapshot(userId);
   }
+  if (!enrich) return summary;
   try {
     summary.enrich = await enrichMetadata(userId);
   } catch (err) {

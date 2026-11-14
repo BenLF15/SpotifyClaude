@@ -174,7 +174,7 @@ DATABASE_URL="postgres://…render.com/…" npm run import -- "./Spotify Extende
 
 Der Import ist **idempotent**. Doppelte Plays werden übersprungen, auch wenn sie sich mit schon per API gespeicherten Plays überschneiden: Derselbe Track innerhalb von ±90 s gilt als derselbe Play. Podcasts und Plays unter 30 s werden ignoriert.
 
-Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweise nach (`ENRICH_LIMIT` pro Lauf), die meistgehörten zuerst.
+Cover und Genres der importierten Songs lädt die App bei jedem Sync im Hintergrund nach (bis zu `ENRICH_LIMIT` = 2000 pro Lauf, die meistgehörten zuerst; ~1.700 Songs dauern etwa 10 Minuten). Der Sync-Button wartet darauf nicht.
 
 ---
 
@@ -194,7 +194,7 @@ Cover und Genres der importierten Songs lädt die App bei jedem Sync schrittweis
 | `SYNC_INTERVAL_MINUTES` | – | Sync-Intervall (Standard 30) |
 | `KEEP_ALIVE` | – | Selbst-Ping gegen Einschlafen (Standard: an auf Render) |
 | `CRON_SECRET` | – | Aktiviert `/cron/run?key=…` für externe Trigger |
-| `ENRICH_LIMIT` | – | Tracks bzw. Künstler, die pro Lauf angereichert werden (Standard 150) |
+| `ENRICH_LIMIT` | – | Tracks bzw. Künstler, die pro Lauf angereichert werden (Standard 2000) |
 | `MIN_PLAY_MS` | – | Mindestdauer für importierte Plays (Standard 30000) |
 | `OPERATOR_NAME` | für öffentliche Nutzung | Name des Verantwortlichen (Datenschutzerklärung) |
 | `OPERATOR_ADDRESS` | für öffentliche Nutzung | Ladungsfähige Anschrift, Zeilen mit `|` trennen, z. B. `Musterstraße 1 \| 12345 Musterstadt` |
