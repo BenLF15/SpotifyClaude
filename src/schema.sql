@@ -202,6 +202,8 @@ CREATE TABLE IF NOT EXISTS fame (
   pop         integer,                    -- Spotify-Popularität
   checked_at  timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE fame ADD COLUMN IF NOT EXISTS parts jsonb;          -- Einzelwerte (Stück, Künstler, Kultur, Charts …)
+ALTER TABLE fame ADD COLUMN IF NOT EXISTS v integer NOT NULL DEFAULT 1; -- Berechnungsversion (höher → neu messen)
 
 -- ---------------------------------------------------------------- Eigene Profilbilder (Base64-Text → Backup als JSON problemlos)
 CREATE TABLE IF NOT EXISTS account_avatars (

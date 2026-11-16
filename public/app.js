@@ -4517,7 +4517,17 @@
     const s = f.score;
     const lvl = s >= 95 ? 'world' : s >= 85 ? 'star' : s >= 70 ? 'high' : s >= 50 ? 'known' : 'tip';
     const bars = Array.from({ length: 5 }, (_, i) => `<i class="${s >= [1, 50, 70, 85, 95][i] ? 'on' : ''}"></i>`).join('');
-    return `<span class="fame f-${lvl}" title="${esc(t('fame.hint'))}"><span class="fame-bars" aria-hidden="true">${bars}</span>${esc(t(`fame.${lvl}`))}${f.fans ? ` · ${esc(t('fame.fans', { n: compactNum.format(f.fans) }))}` : ''}</span>`;
+    const p = f.parts || {};
+    const chips = [
+      p.charted ? `📈 ${esc(t('fame.charts'))}` : '',
+      p.awards ? `🏆 ${esc(tn('fame.awards', p.awards, { n: fmt(p.awards) }))}` : '',
+      p.links ? `🌍 ${esc(t('fame.wiki', { n: fmt(p.links) }))}` : '',
+      f.fans ? `💿 ${esc(t('fame.fans', { n: compactNum.format(f.fans) }))}` : '',
+      p.listeners ? `🎧 ${esc(t('fame.listeners', { n: compactNum.format(p.listeners) }))}` : '',
+      p.artistFans ? `🎤 ${esc(t('fame.artistFans', { n: compactNum.format(p.artistFans) }))}` : '',
+    ].filter(Boolean);
+    return `<span class="fame f-${lvl}" title="${esc(t('fame.hint'))}"><span class="fame-bars" aria-hidden="true">${bars}</span>${esc(t(`fame.${lvl}`))}</span>
+      ${chips.length ? `<span class="fame-chips">${chips.map((c) => `<span>${c}</span>`).join('')}</span>` : ''}`;
   }
 
   function openRecord(r, { owned = true, isNew = false, friendName = null } = {}) {

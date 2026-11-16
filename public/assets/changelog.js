@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-16b',
+    date: '2026-11-16',
+    items: [
+      {
+        icon: '🌟', go: 'records',
+        t: ['Status zählt mit', 'Status counts too', 'Le statut compte aussi', 'El estatus también cuenta', 'Conta anche lo status', 'Status räknas också', 'Status tæller også'],
+        d: ['Für die Seltenheit zählen jetzt auch Künstler-Status, Auszeichnungen, Wikipedia-Präsenz und aktuelle Charts.', 'Rarity now also considers artist status, awards, Wikipedia presence and current charts.', 'La rareté tient compte du statut de l’artiste, des distinctions, de Wikipédia et des charts.', 'La rareza ahora considera estatus del artista, premios, Wikipedia y listas actuales.', 'La rarità considera ora status dell’artista, premi, Wikipedia e classifiche.', 'Sällsyntheten räknar nu även artiststatus, utmärkelser, Wikipedia och listor.', 'Sjældenheden tæller nu også kunstnerstatus, priser, Wikipedia og hitlister.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-16a',
     date: '2026-11-16',
     items: [

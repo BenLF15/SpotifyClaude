@@ -3013,3 +3013,7 @@ html[data-fest='carnival'] .sr-neon { animation: neon-flicker 6s infinite, neon-
 .fame-bars i.on { background: var(--accent); }
 .f-star .fame-bars i.on { background: #f5c542; }
 .f-world .fame-bars i.on { background: linear-gradient(#ff6ec7, #7873f5, #4adede); }
+
+.fame-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; margin-top: 6px; }
+.fame-chips span { padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; background: rgba(var(--ink-rgb), 0.07); white-space: nowrap; }
+.store-lift .fame-chips span { background: rgba(255, 255, 255, 0.12); }

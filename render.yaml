@@ -35,6 +35,9 @@ services:
         sync: false
       - key: TIMEZONE
         value: Europe/Berlin
+      # optional: Last.fm-Hörerzahlen für die Bekanntheit der Platten (kostenloser Schlüssel: last.fm/api)
+      - key: LASTFM_API_KEY
+        sync: false
       # Datenschutz (Angaben zum Verantwortlichen)
       - key: OPERATOR_NAME
         sync: false
