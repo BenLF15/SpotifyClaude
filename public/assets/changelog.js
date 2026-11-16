@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-16c',
+    date: '2026-11-16',
+    items: [
+      {
+        icon: '🎧', go: 'records',
+        t: ['Hörproben zuverlässiger', 'More reliable previews', 'Extraits plus fiables', 'Avances más fiables', 'Anteprime più affidabili', 'Pålitligare provlyssning', 'Mere pålidelige smagsprøver'],
+        d: ['Platten spielen ihren Song jetzt zuverlässig – und „Nochmal versuchen“ hilft, falls es doch hakt.', 'Records now reliably play their song – and “Try again” helps if it ever stalls.', 'Les vinyles jouent leur titre de façon fiable – « Réessayer » aide en cas de souci.', 'Los discos reproducen su canción de forma fiable; «Reintentar» ayuda si falla.', 'I dischi riproducono la canzone in modo affidabile – «Riprova» aiuta se si blocca.', 'Skivor spelar sin låt pålitligt – ”Försök igen” hjälper om det krånglar.', 'Plader spiller deres sang pålideligt – ”Prøv igen” hjælper, hvis det driller.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-16b',
     date: '2026-11-16',
     items: [

@@ -4450,9 +4450,10 @@
     return pill;
   }
 
-  function playRecordSong(r, host) {
+  function playRecordSong(r, host, { retry = false } = {}) {
     if (!r?.artist || !r?.album) return;
-    const q = recSongQuery(r);
+    recPlayer.last = { r, host };
+    const q = recSongQuery(r) + (retry ? '&fresh=1' : '');
     const pill = recPill(host);
     const same = recPlayer.key === q && recPlayer.el && !recPlayer.el.paused;
     if (!same) {
@@ -4464,7 +4465,7 @@
       try { a.volume = 0; } catch { /* iOS */ }
       recPlayer.el = a;
       a.addEventListener('playing', () => { $('.rp-pill')?.classList.remove('loading', 'paused'); });
-      a.addEventListener('error', () => { if (recPlayer.el === a) { const p = $('.rp-pill'); if (p) { p.classList.add('none'); $('.rp-t', p).textContent = t('recplay.none'); } } });
+      a.addEventListener('error', () => { if (recPlayer.el === a) recNone(); });
       const pr = a.play();
       pr?.then?.(() => recFade(a, 0.8, 900)).catch(() => {
         // Autoplay gesperrt → Tippen auf die Anzeige startet
@@ -4475,10 +4476,19 @@
       if (recPlayer.key !== q) return;
       const p = $('.rp-pill');
       if (!p) return;
-      if (!info?.ok) { p.classList.add('none'); $('.rp-t', p).textContent = t('recplay.none'); return; }
+      if (!info?.ok) { recNone(); return; }
       $('.rp-t', p).textContent = `♪ ${info.title}`;
       p.title = `${info.title} · ${info.artist}`;
     }).catch(() => {});
+  }
+
+  // Keine Hörprobe: Anzeige mit „Nochmal versuchen“ (z. B. wenn Deezer gerade ausgelastet war)
+  function recNone() {
+    const p = $('.rp-pill');
+    if (!p) return;
+    p.classList.add('none');
+    p.classList.remove('loading');
+    $('.rp-t', p).innerHTML = `${esc(t('recplay.none'))} · <button type="button" class="link-btn inline rp-retry" data-rp-retry>↻ ${esc(t('recplay.retry'))}</button>`;
   }
 
   function stopRecordSong(immediate = false) {
@@ -4500,6 +4510,12 @@
         if (recPlayer.el) recPlayer.el.muted = recPlayer.muted;
         m.textContent = recPlayer.muted ? '🔇' : '🔊';
         m.closest('.rp-pill')?.classList.toggle('muted', recPlayer.muted);
+        return;
+      }
+      if (e.target.closest('[data-rp-retry]')) {
+        e.stopPropagation();
+        const l = recPlayer.last;
+        if (l) { stopRecordSong(true); playRecordSong(l.r, l.host, { retry: true }); }
         return;
       }
       const p = e.target.closest('.rp-pill[data-rp-play]');

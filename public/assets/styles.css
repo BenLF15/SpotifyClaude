@@ -3006,3 +3006,5 @@ html[data-fest='carnival'] .sr-neon { animation: neon-flicker 6s infinite, neon-
 .bottom-nav { view-transition-name: bottomnav; }
 
 
+
+.rp-pill.none .rp-retry { font-size: 0.8rem; }

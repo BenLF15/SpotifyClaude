@@ -643,7 +643,7 @@ api.post(
   }),
 );
 // Hörprobe zu einer Platte/CD (Laden, Sammlung, Freunde): erst Titel holen, dann abspielen
-const songArgs = (req) => ({ userId: req.sid, kind: req.query.kind === 'cd' ? 'cd' : 'record', artist: req.query.artist, album: req.query.album, albumId: req.query.album_id || null });
+const songArgs = (req) => ({ userId: req.sid, kind: req.query.kind === 'cd' ? 'cd' : 'record', artist: req.query.artist, album: req.query.album, albumId: req.query.album_id || null, fresh: req.query.fresh === '1' });
 api.get(
   '/records/song',
   wrap(async (req, res) => {

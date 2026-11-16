@@ -3,6 +3,7 @@
 // Server Titel + Künstler bei Deezer (Ersatz: iTunes) und reicht die MP3/M4A über die eigene
 // Domain durch – der Browser des Nutzers spricht nie direkt mit einem Fremddienst, und an
 // die Musikdienste gehen nur Songtitel und Künstlername, keine Nutzerdaten.
+import { getJSON as getJSONShared } from './apiclient.js';
 import { query } from './db.js';
 
 const HOSTS = [/\.dzcdn\.net$/, /\.deezer\.com$/, /\.mzstatic\.com$/, /\.apple\.com$/];
@@ -16,11 +17,8 @@ const norm = (s) => String(s || '').toLowerCase()
   .normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9]+/g, ' ').trim();
 
-async function getJSON(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(6000), headers: { Accept: 'application/json' } });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+// Hörproben werden angeklickt → in der gemeinsamen Deezer-Warteschlange vorziehen
+const getJSON = (url) => getJSONShared(url, { timeout: 8000, priority: 'high' });
 
 const allowed = (u) => { try { const h = new URL(u); return h.protocol === 'https:' && HOSTS.some((r) => r.test(h.hostname)); } catch { return false; } };
 
@@ -61,7 +59,7 @@ export async function previewUrl(trackId) {
   }
   if (cache.size > 2000) cache.clear();
   // Netzwerkfehler nur kurz merken, „nicht gefunden“ länger
-  cache.set(trackId, { url, exp: Date.now() + (url ? HIT_MS : failed === 2 ? 120_000 : MISS_MS) });
+  cache.set(trackId, { url, exp: Date.now() + (url ? HIT_MS : failed ? 90_000 : MISS_MS) });
   return url;
 }
 
@@ -129,14 +127,16 @@ async function itunesAlbumTop(album, artist) {
   return hit ? { url: hit.previewUrl, title: hit.trackName } : null;
 }
 
-export async function resolveRecordSong({ userId, kind, artist, album, albumId }) {
+export async function resolveRecordSong({ userId, kind, artist, album, albumId, fresh = false }) {
   artist = String(artist || '').slice(0, 200);
   album = String(album || '').slice(0, 300);
   if (!artist || !album) return null;
   const key = `${userId}|${kind}|${norm(artist)}|${norm(album)}|${albumId || ''}`;
   const c = songCache.get(key);
-  if (c && c.exp > Date.now()) return c.url ? c : null;
+  if (!(fresh && !c?.url) && c && c.exp > Date.now()) return c.url ? c : null;
+  if (fresh) for (const k of [...cache.keys()]) { const e = cache.get(k); if (e && !e.url) cache.delete(k); } // fehlgeschlagene Songs neu suchen
   let out = null;
+  let failed = 0;
   try {
     if (kind === 'cd') {
       if (albumId) {
@@ -145,7 +145,7 @@ export async function resolveRecordSong({ userId, kind, artist, album, albumId }
       }
       if (!out) {
         for (const src of [fromDeezer, fromItunes]) {
-          const url = await src(album, artist).catch(() => null);
+          const url = await src(album, artist).catch(() => { failed++; return null; });
           if (url && allowed(url)) { out = { url, title: album, artist }; break; }
         }
       }
@@ -163,14 +163,15 @@ export async function resolveRecordSong({ userId, kind, artist, album, albumId }
       }
       if (!out) {
         for (const src of [deezerAlbumTop, itunesAlbumTop]) {
-          const hit = await src(album, artist).catch(() => null);
+          const hit = await src(album, artist).catch(() => { failed++; return null; });
           if (hit && allowed(hit.url)) { out = { ...hit, artist }; break; }
         }
       }
     }
-  } catch (err) { console.warn('[record-song]', err.message); }
+  } catch (err) { failed++; console.warn('[record-song]', err.message); }
   if (songCache.size > 3000) songCache.clear();
-  songCache.set(key, { ...(out || { url: null }), exp: Date.now() + (out ? HIT_MS : 30 * 60_000) });
+  // nicht gefunden → 30 Min. merken; Dienst war nur nicht erreichbar/ausgelastet → nach 1 Min. neu versuchen
+  songCache.set(key, { ...(out || { url: null }), exp: Date.now() + (out ? HIT_MS : failed ? 60_000 : 30 * 60_000) });
   return out;
 }
 

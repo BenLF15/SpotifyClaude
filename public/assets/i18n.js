@@ -410,6 +410,7 @@
     'nav.more': ['Mehr', 'More', 'Plus', 'Más', 'Altro', 'Mer', 'Mere'],
     'nav.main': ['Hauptnavigation', 'Main navigation', 'Navigation principale', 'Navegación principal', 'Navigazione principale', 'Huvudnavigering', 'Hovednavigation'],
     'nav.profile': ['Profil', 'Profile', 'Profil', 'Perfil', 'Profilo', 'Profil', 'Profil'],
+    'recplay.retry': ['Nochmal versuchen', 'Try again', 'Réessayer', 'Reintentar', 'Riprova', 'Försök igen', 'Prøv igen'],
     'tour.close': ['Schließen', 'Close', 'Fermer', 'Cerrar', 'Chiudi', 'Stäng', 'Luk'],
     'tour.step': ['Schritt {i} von {n}', 'Step {i} of {n}', 'Étape {i} sur {n}', 'Paso {i} de {n}', 'Passo {i} di {n}', 'Steg {i} av {n}', 'Trin {i} af {n}'],
 

@@ -8,6 +8,7 @@
 //   4. Aktuell in den Charts:   Deezer-Weltcharts (Top 100 Songs/Alben) → Bonus
 // Gewichtung (nur vorhandene Werte zählen): Stück 50 %, Künstler 20 %, Kultur 30 %, + Charts-Bonus.
 // An die Dienste gehen nur Künstler- und Titelnamen, keine Nutzerdaten.
+import { getJSON as getJSONShared } from './apiclient.js';
 import { query } from './db.js';
 import { norm } from './covers.js';
 
@@ -32,14 +33,7 @@ const wikiScore = (links, awards) => (links == null ? null : clamp(links * 2.2 +
 // Titel aufräumen: „(Deluxe Edition)“, „- Remastered 2011“ usw. stören beim Nachschlagen
 const cleanTitle = (s) => String(s || '').replace(/\s*[([].*?[)\]]\s*/g, ' ').replace(/\s+-\s+.*$/, '').trim();
 
-async function getJSON(url, headers = {}) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(10_000), headers: { Accept: 'application/json', ...headers } });
-  if (res.status === 429) { const e = new Error('Rate-Limit'); e.status = 429; throw e; }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const d = await res.json();
-  if (d?.error?.code === 4) { const e = new Error('Quota'); e.status = 429; throw e; } // Deezer: zu viele Anfragen
-  return d;
-}
+const getJSON = (url, headers = {}) => getJSONShared(url, { headers, timeout: 10_000 });
 const sameText = (a, b) => { const x = norm(a); const y = norm(b); return x && y && (x === y || x.startsWith(`${y} `) || y.startsWith(`${x} `)); };
 
 // ---------------------------------------------------------------- Deezer

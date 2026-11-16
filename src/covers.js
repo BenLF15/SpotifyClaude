@@ -4,6 +4,7 @@
 // sucht der Server fehlende Albumcover zusätzlich bei Deezer und iTunes (nur Künstler + Albumname,
 // keine Nutzerdaten). Die Bilder werden über /img/cover durch den eigenen Server gereicht –
 // der Browser lädt nie direkt von Deezer/Apple.
+import { getJSON as getJSONShared } from './apiclient.js';
 import { query } from './db.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -19,12 +20,7 @@ const allowedUpstream = (u) => {
   try { const x = new URL(u); return x.protocol === 'https:' && PROXY_HOSTS.some((r) => r.test(x.hostname)); } catch { return false; }
 };
 
-async function getJSON(url) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000), headers: { Accept: 'application/json' } });
-  if (res.status === 429) { const e = new Error('Rate-Limit'); e.status = 429; throw e; }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+const getJSON = (url) => getJSONShared(url, { timeout: 8000 });
 
 const sameAlbum = (a, b) => { const x = norm(a); const y = norm(b); return x && y && (x === y || x.startsWith(`${y} `) || y.startsWith(`${x} `)); };
 
