@@ -4316,7 +4316,7 @@
       body = `${storeHTML(d)}
         <section class="card"><header class="card-head"><div><h2>${esc(t('rec.exchangeTitle'))}</h2><p class="muted small">${esc(t('rec.exchangeSub', { n: d.exchangeRate }))}</p></div></header>
           <div class="ex-row">${ex}</div></section>
-        <section class="card"><header class="card-head"><div><h2>${esc(t('rec.rarityTitle'))}</h2><p class="muted small">${esc(t('fame.explain'))}</p></div></header>
+        <section class="card"><header class="card-head"><h2>${esc(t('rec.rarityTitle'))}</h2></header>
           <ul class="rarity-legend">${RARITIES.map((r) => `<li>${rarityBadge(r)}<span>${esc(t(cdPage ? `rec.cv.${r}` : `rec.v.${r}`))}</span><small>${esc(t(cdPage ? `rec.cdPrice.${r}` : `rec.price.${r}`))}</small></li>`).join('')}</ul></section>`;
     } else {
       const groups = ['start', 'social', 'minutes', 'streak', 'variety', 'collector', 'recurring'];
@@ -4510,26 +4510,6 @@
     window.addEventListener('pagehide', () => stopRecordSong(true));
   }
 
-  // Bekanntheit: 5 Balken + Einordnung (+ Deezer-Fans bei Alben)
-  const compactNum = new Intl.NumberFormat(LOCALE, { notation: 'compact', maximumFractionDigits: 1 });
-  function fameHTML(f) {
-    if (!f || f.score == null) return `<span class="muted">${esc(t('fame.unknown'))}</span>`;
-    const s = f.score;
-    const lvl = s >= 95 ? 'world' : s >= 85 ? 'star' : s >= 70 ? 'high' : s >= 50 ? 'known' : 'tip';
-    const bars = Array.from({ length: 5 }, (_, i) => `<i class="${s >= [1, 50, 70, 85, 95][i] ? 'on' : ''}"></i>`).join('');
-    const p = f.parts || {};
-    const chips = [
-      p.charted ? `📈 ${esc(t('fame.charts'))}` : '',
-      p.awards ? `🏆 ${esc(tn('fame.awards', p.awards, { n: fmt(p.awards) }))}` : '',
-      p.links ? `🌍 ${esc(t('fame.wiki', { n: fmt(p.links) }))}` : '',
-      f.fans ? `💿 ${esc(t('fame.fans', { n: compactNum.format(f.fans) }))}` : '',
-      p.listeners ? `🎧 ${esc(t('fame.listeners', { n: compactNum.format(p.listeners) }))}` : '',
-      p.artistFans ? `🎤 ${esc(t('fame.artistFans', { n: compactNum.format(p.artistFans) }))}` : '',
-    ].filter(Boolean);
-    return `<span class="fame f-${lvl}" title="${esc(t('fame.hint'))}"><span class="fame-bars" aria-hidden="true">${bars}</span>${esc(t(`fame.${lvl}`))}</span>
-      ${chips.length ? `<span class="fame-chips">${chips.map((c) => `<span>${c}</span>`).join('')}</span>` : ''}`;
-  }
-
   function openRecord(r, { owned = true, isNew = false, friendName = null } = {}) {
     const dlg = $('#record-dialog');
     const variant = variantName(r);
@@ -4554,7 +4534,6 @@
         ${r.discover || r.price?.discover ? `<p class="rd-discover">✨ ${esc(t('rec.discoverHint'))}</p>` : ''}
         <dl class="sys-list">
           ${friendName ? `<dt>${esc(t('cmp.owner'))}</dt><dd>${esc(friendName)}</dd>` : ''}
-          <dt>${esc(t('fame.label'))}</dt><dd>${fameHTML(r.fame)}</dd>
           ${owned && r.acquired_at ? `<dt>${esc(t('rec.acquired'))}</dt><dd>${esc(dateFmtYear.format(new Date(r.acquired_at)))}</dd>` : ''}
           ${!r.price?.tier ? '' : `<dt>${esc(t('rec.price'))}</dt><dd>${noteIcon(r.price.tier)} ${fmt(r.price.amount)} ${esc(t(`note.${r.price.tier}`))}${r.price.free ? ` <span class="price-free">· 🎁 ${esc(t(r.price.gift ? 'rec.gotGift' : 'rec.gotFree'))}</span>` : ''}</dd>`}
         </dl>
