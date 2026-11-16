@@ -3004,3 +3004,12 @@ html[data-fest='carnival'] .sr-neon { animation: neon-flicker 6s infinite, neon-
 .ms-item.on { border-color: var(--accent); background: var(--accent-soft); }
 :root[data-glass='1'] .ms-item { background: linear-gradient(160deg, var(--glass-strong), var(--glass)); border-color: var(--glass-edge); }
 .bottom-nav { view-transition-name: bottomnav; }
+
+/* Bekanntheit in der Detailansicht */
+.fame { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.fame-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; }
+.fame-bars i { width: 4px; border-radius: 1px; background: rgba(var(--ink-rgb), 0.18); }
+.fame-bars i:nth-child(1) { height: 40%; } .fame-bars i:nth-child(2) { height: 55%; } .fame-bars i:nth-child(3) { height: 70%; } .fame-bars i:nth-child(4) { height: 85%; } .fame-bars i:nth-child(5) { height: 100%; }
+.fame-bars i.on { background: var(--accent); }
+.f-star .fame-bars i.on { background: #f5c542; }
+.f-world .fame-bars i.on { background: linear-gradient(#ff6ec7, #7873f5, #4adede); }

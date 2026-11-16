@@ -738,5 +738,6 @@ export async function friendCollection(account, friendId) {
        FROM record_collection WHERE account_id = $1 ORDER BY acquired_at DESC`,
     [friendId],
   );
-  return { friend: rows[0], collection: items };
+  const { attachFame } = await import('./fame.js');
+  return { friend: rows[0], collection: await attachFame(items) };
 }

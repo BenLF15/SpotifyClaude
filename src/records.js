@@ -3,6 +3,7 @@
 //
 // - Der Laden zeigt jede Woche (ab Montag) eine neue Zufallsauswahl, jedes Album bzw. jeder Song höchstens einmal.
 // - Noten-Gutschriften stehen in note_ledger; einmalige Belohnungen haben einen eindeutigen Schlüssel (idempotent).
+import { attachFame } from './fame.js';
 import { refreshCollectionImages } from './covers.js';
 import crypto from 'node:crypto';
 import { config } from './config.js';
@@ -120,7 +121,7 @@ async function albumPool(userId) {
       });
     }
   }
-  return items;
+  return attachFame(items);
 }
 
 /** CD-Singles: alle gehörten Songs. */
@@ -153,28 +154,45 @@ async function trackPool(userId) {
       });
     }
   }
-  return items;
+  return attachFame(items);
 }
 
 /** Angebot der Woche: Platten dieser Kalenderwoche, bei kleiner Sammlung ergänzt aus den nächstgelegenen Wochen. */
 function weeklyShop(pool, seed, size = SHOP_SIZE) {
-  // Für jeden Nutzer jede Woche komplett zufällig (fest innerhalb der Woche): zufällige Alben/Songs,
-  // Seltenheit je Platz neu gewürfelt; jedes Album/jeder Song höchstens einmal.
+  // Jeden Tag für jeden Nutzer zufällig – die Seltenheit eines Stücks steht aber fest: sie folgt seiner
+  // Bekanntheit (Deezer-Fans/-Rank, Spotify-Popularität). Pro Platz wird gewürfelt, welche Seltenheit
+  // drankommt (RARITY_ODDS), dann ein passendes Album/Song gezogen. Noch nicht gemessene Stücke
+  // füllen Lücken mit der gewürfelten Seltenheit; sonst springt die nächstliegende Stufe ein.
   const byBase = new Map();
   for (const it of pool) {
     const base = it.id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, '');
-    if (!byBase.has(base)) byBase.set(base, {});
-    byBase.get(base)[it.rarity] = it;
+    if (!byBase.has(base)) byBase.set(base, { base, variants: {}, fr: null });
+    const b = byBase.get(base);
+    b.variants[it.rarity] = it;
+    if (it.fameRarity) b.fr = it.fameRarity;
   }
-  const bases = [...byBase.keys()].sort((a, b) => hashInt(`${seed}#${a}`) - hashInt(`${seed}#${b}`)).slice(0, size);
-  const picked = bases.map((base) => {
-    const variants = byBase.get(base);
-    const kind = Object.values(variants)[0].kind === 'cd' ? 'cd' : 'record';
-    let roll = hashInt(`${seed}#${base}#rarity`) % 100;
-    let rarity = 'common';
-    for (const r of RARITIES) { if (roll < RARITY_ODDS[kind][r]) { rarity = r; break; } roll -= RARITY_ODDS[kind][r]; }
-    return variants[rarity] || variants.common || Object.values(variants)[0];
-  });
+  const order = [...byBase.values()].sort((a, b) => hashInt(`${seed}#${a.base}`) - hashInt(`${seed}#${b.base}`));
+  const used = new Set();
+  const take = (pred) => { const b = order.find((x) => !used.has(x.base) && pred(x)); if (b) used.add(b.base); return b; };
+  const picked = [];
+  for (let slot = 0; slot < Math.min(size, order.length); slot++) {
+    const kind = order[0].variants[Object.keys(order[0].variants)[0]].kind === 'cd' ? 'cd' : 'record';
+    let roll = hashInt(`${seed}#slot${slot}#rarity`) % 100;
+    let target = 'common';
+    for (const r of RARITIES) { if (roll < RARITY_ODDS[kind][r]) { target = r; break; } roll -= RARITY_ODDS[kind][r]; }
+    const ti = RARITIES.indexOf(target);
+    let b = take((x) => x.fr === target);
+    let rarity = target;
+    if (!b) b = take((x) => !x.fr); // noch ungemessen → bekommt die gewürfelte Stufe
+    if (!b) {
+      for (let d = 1; d < RARITIES.length && !b; d++) {
+        for (const r of [RARITIES[ti - d], RARITIES[ti + d]]) { if (r && !b) b = take((x) => x.fr === r); }
+      }
+      if (b) rarity = b.fr;
+    }
+    if (!b) break;
+    picked.push(b.variants[rarity] || b.variants.common || Object.values(b.variants)[0]);
+  }
   return picked.sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || a.artist.localeCompare(b.artist));
 }
 // Angebot wechselt jeden Tag (fest innerhalb des Tages, für jeden Nutzer anders)
@@ -363,7 +381,7 @@ export async function overviewFor(account) {
     singles,
     free,
     poolSize: pool.length,
-    collection: collection.rows,
+    collection: await attachFame(collection.rows),
     sources: sources(account, f, ledger.rows.filter((r) => r.key && !r.key.startsWith('buy:') && !r.key.startsWith('refine:'))),
     refineCost: REFINE_COST,
     exchangeRate: EXCHANGE_RATE,
@@ -625,7 +643,7 @@ export async function openEgg(account, eggId) {
     let pr = hashInt(`${account.id}#${key}#gift-rarity`) % 1000;
     let rarity = 'common';
     for (const r of RARITIES) { if (pr < GIFT_ODDS[r]) { rarity = r; break; } pr -= GIFT_ODDS[r]; }
-    const shuffled = pool.filter((it) => !owned.has(it.id)).sort((a, b) => hashInt(`${key}#${a.id}`) - hashInt(`${key}#${b.id}`));
+    const shuffled = pool.filter((it) => !owned.has(it.id) && (!it.fameRarity || it.fameRarity === it.rarity)).sort((a, b) => hashInt(`${key}#${a.id}`) - hashInt(`${key}#${b.id}`));
     // gewürfelte Seltenheit, sonst die nächstniedrigere, die es noch gibt
     for (let i = RARITIES.indexOf(rarity); i >= 0 && !gift; i--) gift = shuffled.find((it) => it.rarity === RARITIES[i]) || null;
     if (!gift) reward = R(0, 0, 1);
@@ -780,6 +798,7 @@ async function discoverPool(userId, year, week) {
   for (const tr of data.tracks || []) {
     variant(`disc#${tr.id}`, 'cd', { key: tr.id, artist: tr.artist, album: tr.name, album_id: tr.id, image: tr.image || null }, CD_PRICE, CD_PRESENCE);
   }
+  await attachFame(items);
   return {
     records: items.filter((x) => x.kind === 'record'),
     cds: items.filter((x) => x.kind === 'cd'),

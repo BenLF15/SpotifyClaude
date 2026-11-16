@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-16a',
+    date: '2026-11-16',
+    items: [
+      {
+        icon: '🏆', go: 'records',
+        t: ['Seltenheit nach Bekanntheit', 'Rarity by fame', 'Rareté selon la notoriété', 'Rareza según la fama', 'Rarità in base alla notorietà', 'Sällsynthet efter kändhet', 'Sjældenhed efter kendthed'],
+        d: ['Welthits und Erfolgsalben sind jetzt legendär oder mythisch, Geheimtipps gewöhnlich.', 'Global hits and blockbuster albums are now legendary or mythic, hidden gems common.', 'Tubes mondiaux et albums à succès sont légendaires ou mythiques, les pépites communes.', 'Éxitos mundiales y superventas son legendarios o míticos; las joyas escondidas, comunes.', 'Hit mondiali e album di successo sono leggendari o mitici, le chicche comuni.', 'Världshits och storsäljare är legendariska eller mytiska, dolda pärlor vanliga.', 'Verdenshits og storsællere er legendariske eller mytiske, skjulte perler almindelige.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-15e',
     date: '2026-11-15',
     items: [

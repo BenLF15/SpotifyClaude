@@ -189,6 +189,20 @@ ALTER TABLE tracks ADD COLUMN IF NOT EXISTS cover_checked_at timestamptz;
 ALTER TABLE record_collection DROP CONSTRAINT IF EXISTS record_collection_rarity_check;
 ALTER TABLE record_collection ADD CONSTRAINT record_collection_rarity_check CHECK (rarity IN ('common', 'rare', 'epic', 'legendary', 'mythic'));
 
+-- ---------------------------------------------------------------- Bekanntheit (bestimmt die Seltenheit im Laden)
+ALTER TABLE tracks ADD COLUMN IF NOT EXISTS popularity integer;
+CREATE TABLE IF NOT EXISTS fame (
+  key         text PRIMARY KEY,           -- record|künstler|album bzw. cd|künstler|titel (normalisiert)
+  kind        text NOT NULL,
+  artist      text NOT NULL,
+  title       text NOT NULL,
+  score       integer,                    -- 0–100, NULL = nirgends gefunden
+  fans        bigint,                     -- Deezer-Fans des Albums
+  rank        integer,                    -- Deezer-Rank (0–1.000.000)
+  pop         integer,                    -- Spotify-Popularität
+  checked_at  timestamptz NOT NULL DEFAULT now()
+);
+
 -- ---------------------------------------------------------------- Eigene Profilbilder (Base64-Text → Backup als JSON problemlos)
 CREATE TABLE IF NOT EXISTS account_avatars (
   account_id  bigint PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,

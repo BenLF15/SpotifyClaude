@@ -1,4 +1,5 @@
 // Datenabgleich: Recently Played, tägliche Top-Snapshots, Anreicherung (Cover, Genres).
+import { fameJob } from './fame.js';
 import { externalAlbumCovers, refreshCollectionImages } from './covers.js';
 import { config } from './config.js';
 import { query, withTransaction } from './db.js';
@@ -41,18 +42,18 @@ export async function upsertTracks(db, tracks) {
   if (!list.length) return;
   await upsertArtists(db, list.flatMap((t) => t.artists || []));
   await db.query(
-    `INSERT INTO tracks (id, name, artist_ids, artist_names, album_id, album_name, album_image, duration_ms, enriched_at)
+    `INSERT INTO tracks (id, name, artist_ids, artist_names, album_id, album_name, album_image, duration_ms, popularity, enriched_at)
      SELECT v.id, v.name,
             ARRAY(SELECT jsonb_array_elements_text(v.aids::jsonb)),
             ARRAY(SELECT jsonb_array_elements_text(v.anames::jsonb)),
-            v.album_id, v.album_name, v.album_image, v.duration_ms, now()
-       FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::int[])
-            AS v(id, name, aids, anames, album_id, album_name, album_image, duration_ms)
+            v.album_id, v.album_name, v.album_image, v.duration_ms, v.popularity, now()
+       FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::int[], $9::int[])
+            AS v(id, name, aids, anames, album_id, album_name, album_image, duration_ms, popularity)
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name, artist_ids = EXCLUDED.artist_ids, artist_names = EXCLUDED.artist_names,
        album_id = EXCLUDED.album_id, album_name = EXCLUDED.album_name,
        album_image = COALESCE(EXCLUDED.album_image, tracks.album_image),
-       duration_ms = EXCLUDED.duration_ms, enriched_at = now(), updated_at = now()`,
+       duration_ms = EXCLUDED.duration_ms, popularity = COALESCE(EXCLUDED.popularity, tracks.popularity), enriched_at = now(), updated_at = now()`,
     [
       list.map((t) => t.id),
       list.map((t) => t.name),
@@ -62,6 +63,7 @@ export async function upsertTracks(db, tracks) {
       list.map((t) => t.album?.name || null),
       list.map((t) => bestImage(t.album?.images)),
       list.map((t) => t.duration_ms ?? null),
+      list.map((t) => (Number.isInteger(t.popularity) ? t.popularity : null)),
     ],
   );
 }
@@ -285,6 +287,7 @@ export function enrichMetadata(userId, { limit = config.enrichLimit } = {}) {
     // Was oEmbed nicht liefert: Albumcover bei Deezer/iTunes suchen (ein Abruf pro Album)
     try { covers += await externalAlbumCovers(); covers += await shareAlbumCovers(); } catch (err) { console.warn('[enrich] Ersatz-Cover:', err.message); }
     await refreshCollectionImages().catch(() => {});
+    try { const f = await fameJob(); if (f.measured) console.log(`[fame] ${f.measured} gemessen, ${f.open} offen`); } catch (err) { console.warn('[fame]', err.message); }
     let apiNote = null;
     if (Date.now() < apiBlock.until) {
       apiNote = `Spotify-API gesperrt bis ${new Date(apiBlock.until).toISOString()}`;
