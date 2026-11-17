@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17i',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🏝️', go: null,
+        t: ['Schwebende Leiste', 'Floating tab bar', 'Barre flottante', 'Barra flotante', 'Barra fluttuante', 'Svävande meny', 'Svævende menu'],
+        d: ['Die Leiste unten schwebt jetzt als runde Insel über dem Inhalt.', 'The bottom bar now floats as a rounded island above the content.', 'La barre du bas flotte désormais comme un îlot arrondi au-dessus du contenu.', 'La barra inferior flota ahora como una isla redondeada sobre el contenido.', 'La barra in basso ora fluttua come un’isola arrotondata sopra il contenuto.', 'Menyn längst ner svävar nu som en rundad ö ovanför innehållet.', 'Menuen nederst svæver nu som en afrundet ø over indholdet.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17h',
     date: '2026-11-17',
     items: [
