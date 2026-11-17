@@ -3167,3 +3167,178 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; heig
 .cabinet .cab-item .rec, .cabinet.mini .cab-item .rec { transform: perspective(700px) rotateY(42deg); }
 .cdrack .cab-item .cd, .cdrack.mini .cab-item .cd { transform: perspective(600px) rotateY(42deg); }
 .cabinet.mini, .cdrack.mini { background: none; border: 0; box-shadow: none; padding: 0; }
+
+/* ==================================================================================================
+   Design 3: einladend & hell – warmes Licht, Holz, Pflanzen, Hängelampen; folgt dem Farbschema
+   (hell: lichtdurchfluteter Concept-Store · dunkel: gemütlicher Abend-Laden statt Schwarz)
+   ================================================================================================== */
+.store, .cabinet, .cdrack {
+  --st-wall1: #24332f; --st-wall2: #1b2724; --st-floor1: #5a3e2b; --st-floor2: #4b3324; --st-wood1: #d3a06a; --st-wood2: #a9733f;
+  --st-warm: 255, 196, 120; --st-ink: #fff; --st-line: rgba(255, 255, 255, 0.22); --st-panel: rgba(18, 26, 24, 0.62); --st-base: #2c3b37; --st-base2: #22302c;
+  --st-door: #2a7a55; --st-door2: #1f5f42; --st-facade: #2b3a36; --st-vig: rgba(0, 0, 0, 0.32);
+}
+:root[data-theme='light'] :is(.store, .cabinet, .cdrack), :root[data-theme='spring'] :is(.store, .cabinet, .cdrack), :root[data-theme='summer'] :is(.store, .cabinet, .cdrack) {
+  --st-wall1: #faf6ee; --st-wall2: #efe7d9; --st-floor1: #e4c7a0; --st-floor2: #d6b68b; --st-wood1: #e2bb8b; --st-wood2: #c49464;
+  --st-warm: 255, 206, 130; --st-ink: #1d2420; --st-line: rgba(29, 36, 32, 0.16); --st-panel: rgba(255, 255, 255, 0.82); --st-base: #ffffff; --st-base2: #ece6dc;
+  --st-door: #2f9a67; --st-door2: #23784f; --st-facade: #f1ebe0; --st-vig: rgba(80, 60, 30, 0.10);
+}
+
+/* ---------- Laden */
+.store-room { background: var(--st-wall2); }
+.sr-wall {
+  background:
+    radial-gradient(22% 46% at 20% 2%, rgba(var(--st-warm), 0.34), transparent 70%),
+    radial-gradient(22% 46% at 80% 2%, rgba(var(--st-warm), 0.34), transparent 70%),
+    radial-gradient(30% 50% at 50% 0%, rgba(var(--accent-rgb), 0.10), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.035) 0 2px, transparent 2px 30px),
+    linear-gradient(180deg, var(--st-wall1), var(--st-wall2));
+}
+.sr-wall::after { height: 9px; background: linear-gradient(var(--st-wood1), var(--st-wood2)); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18); }
+/* Schild: grüne Pille im Spotify-Stil statt Neon */
+.sr-neon { padding: 0.18em 0.8em 0.22em; border-radius: 999px; background: rgb(var(--accent-rgb)); color: #06140b; text-shadow: none; animation: sign-glow 4s ease-in-out infinite;
+  font-size: clamp(0.85rem, 2.8vw, 1.35rem); letter-spacing: 0; box-shadow: 0 10px 24px -10px rgba(var(--accent-rgb), 0.9), inset 0 -3px 0 rgba(0, 0, 0, 0.14), inset 0 2px 0 rgba(255, 255, 255, 0.35); }
+.sr-neon b { color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18); }
+@keyframes sign-glow { 50% { box-shadow: 0 12px 34px -8px rgba(var(--accent-rgb), 1), inset 0 -3px 0 rgba(0, 0, 0, 0.14), inset 0 2px 0 rgba(255, 255, 255, 0.35); } }
+/* Hängelampen mit warmem Lichtkegel, leicht pendelnd */
+.sr-lamps { position: absolute; inset: 0; pointer-events: none; }
+.sr-lamps i { position: absolute; top: 0; width: 7%; min-width: 26px; height: 22%; transform-origin: 50% 0; animation: lamp-sway 6s ease-in-out infinite; }
+.sr-lamps i:nth-child(1) { left: 16.5%; } .sr-lamps i:nth-child(2) { left: 46.5%; height: 7%; animation-delay: -2s; } .sr-lamps i:nth-child(3) { left: 76.5%; animation-delay: -4s; }
+.sr-lamps i::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 30%; width: 1.5px; background: rgba(0, 0, 0, 0.45); }
+.sr-lamps i::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; min-height: 12px; border-radius: 999px 999px 4px 4px;
+  background: linear-gradient(180deg, #2b2f2d, #1a1d1c); box-shadow: 0 6px 0 -2px rgba(var(--st-warm), 0.95), 0 10px 24px 4px rgba(var(--st-warm), 0.55); }
+.sr-lamps i:nth-child(2) { opacity: 0; }
+@keyframes lamp-sway { 50% { transform: rotate(2deg); } }
+/* Pflanzen neben der Studio-Tür */
+.sr-plant { position: absolute; bottom: 0; width: 9%; min-width: 34px; z-index: 1; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.2)); }
+.sr-plant svg { width: 100%; height: auto; display: block; transform-origin: 50% 100%; animation: plant-sway 7s ease-in-out infinite; }
+.sr-plant.l { left: 31.5%; } .sr-plant.r { right: 31.5%; } .sr-plant.r svg { animation-delay: -3s; transform: scaleX(-1); }
+@keyframes plant-sway { 50% { rotate: 1.5deg; } }
+/* Wandregale aus hellem Holz */
+.sr-shelf::after { height: 6px; bottom: 2px; border-radius: 2px; background: linear-gradient(var(--st-wood1), var(--st-wood2)); box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.25); }
+.sr-shelf i { background: linear-gradient(90deg, hsl(calc(var(--h, 0) * 1deg), 62%, 62%), hsl(calc(var(--h, 0) * 1deg), 58%, 48%)); }
+/* Studio-Tür: grün lackiert mit Bullauge */
+.sr-studio-door { border-radius: 14px 14px 0 0; background: linear-gradient(90deg, var(--st-door2), var(--st-door) 45%, var(--st-door2));
+  box-shadow: 0 0 0 5px var(--st-wood2), 0 0 0 6px rgba(0, 0, 0, 0.12), 0 18px 30px -12px rgba(0, 0, 0, 0.35); }
+.sr-window { left: 26%; right: 26%; top: 13%; height: auto; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff4d6, rgba(var(--st-warm), 0.9) 45%, #c47a2c);
+  box-shadow: inset 0 0 0 4px #e8c35a, inset 0 0 0 5px rgba(0, 0, 0, 0.2), 0 0 18px rgba(var(--st-warm), 0.6); }
+.sr-knob { width: 7px; height: 22px; right: 12%; border-radius: 4px; background: linear-gradient(#f3d27a, #b8892f); }
+.sr-onair { background: #e63946; color: #fff; box-shadow: 0 0 12px rgba(230, 57, 70, 0.7); }
+/* Boden: Holzdielen mit rundem Teppich */
+.sr-floor { filter: none; box-shadow: inset 0 30px 40px -10px rgba(0, 0, 0, 0.22);
+  background: repeating-linear-gradient(90deg, var(--st-floor1) 0 58px, var(--st-floor2) 58px 60px), var(--st-floor1); }
+.sr-floor::before { content: ''; position: absolute; left: 36%; right: 36%; top: 6%; height: 64%; border-radius: 50%;
+  background: repeating-radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.55) 0 10px, rgba(var(--accent-rgb), 0.32) 10px 20px); box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0.22); }
+.sr-light { background:
+  radial-gradient(26% 44% at 19.5% 38%, rgba(var(--st-warm), 0.20), transparent 72%),
+  radial-gradient(26% 44% at 79.5% 38%, rgba(var(--st-warm), 0.20), transparent 72%),
+  radial-gradient(120% 90% at 50% 50%, transparent 60%, var(--st-vig)); }
+/* Tische: Holzplatte auf hellem Sockel */
+.sr-top { border-radius: 14px; background: linear-gradient(180deg, var(--st-wood1), var(--st-wood2));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), 0 8px 0 var(--st-base2), 0 24px 30px -6px rgba(0, 0, 0, 0.35); }
+.sr-legs::before { background: linear-gradient(180deg, var(--st-base), var(--st-base2)); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 10px 18px -8px rgba(0, 0, 0, 0.3); }
+.sr-crate { background: linear-gradient(180deg, transparent 50%, var(--st-wood2) 50%, #8a5a2e); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3); }
+.sr-table:hover, .sr-table:focus-visible { filter: drop-shadow(0 10px 18px rgba(var(--st-warm), 0.55)); }
+.sr-table .sr-label, .sr-studio .sr-label { background: var(--st-panel); color: var(--st-ink); box-shadow: 0 0 0 1px var(--st-line), 0 8px 18px -8px rgba(0, 0, 0, 0.35); }
+/* Eingang: helle Ladenfront mit gestreifter Markise, Pflanzen und Glas-Schiebetüren */
+.sd-frame { border-color: var(--st-wood2); border-radius: 14px 14px 0 0;
+  box-shadow: 0 0 0 220vmax var(--st-facade), 0 0 0 4px rgba(0, 0, 0, 0.08), inset 0 0 40px rgba(var(--st-warm), 0.35); }
+.sd-frame::before { background: var(--st-wood2); box-shadow: none; height: 6px; }
+.sd-awning { position: absolute; z-index: 3; left: -16%; right: -16%; top: -17%; height: 15%; border-radius: 10px 10px 0 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, rgb(var(--accent-rgb)) 0 12.5%, #fff 12.5% 25%); box-shadow: 0 10px 18px -8px rgba(0, 0, 0, 0.35);
+  -webkit-mask: radial-gradient(circle at 50% 100%, transparent 5.8%, #000 6%) 0 0 / 12.5% 100% repeat-x, linear-gradient(#000, #000) 0 0 / 100% 78% no-repeat;
+  mask: radial-gradient(circle at 50% 100%, transparent 5.8%, #000 6%) 0 0 / 12.5% 100% repeat-x, linear-gradient(#000, #000) 0 0 / 100% 78% no-repeat; }
+.sd-panel { background: linear-gradient(160deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.10)); border: 4px solid var(--st-wood2); }
+.sd-glass { background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), transparent 40%, rgba(255, 255, 255, 0.15)); }
+.sd-open { background: #fff; color: #0c7a39; border: 0; text-shadow: none; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
+.sd-sign { z-index: 4; padding: 0.2em 0.9em; border-radius: 999px; background: rgb(var(--accent-rgb)); color: #06140b; text-shadow: none; box-shadow: 0 10px 24px -10px rgba(var(--accent-rgb), 0.9); }
+.sd-plant { position: absolute; bottom: 0; width: min(16%, 110px); z-index: 2; filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.2)); }
+.sd-plant svg { width: 100%; height: auto; display: block; }
+.sd-plant.l { left: 6%; } .sd-plant.r { right: 6%; } .sd-plant.r svg { transform: scaleX(-1); }
+.store-room.opening .sd-plant { opacity: 0; transition: opacity 0.6s ease 1s; }
+.store-room.opening .sd-awning, .store-room.opening .sd-sign { opacity: 0; transition: opacity 0.6s ease 1s; }
+/* Tischansicht: Holztisch im warmen Licht */
+.store-table { background: radial-gradient(60% 40% at 50% 0%, rgba(var(--st-warm), 0.30), transparent 70%), linear-gradient(180deg, var(--st-wall1), var(--st-wall2)); }
+.stb-head { color: var(--st-ink); }
+.stb-head .btn { color: var(--st-ink); border-color: var(--st-line); background: var(--st-panel); }
+.stb-items { border-radius: 20px; background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.04) 0 2px, transparent 2px 70px), linear-gradient(180deg, var(--st-wood1), var(--st-wood2));
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), inset 0 -8px 0 rgba(0, 0, 0, 0.12), 0 20px 34px -16px rgba(0, 0, 0, 0.45); }
+/* Studio: gemütlicher Aufnahmeraum mit warmem Licht (bleibt dunkel wie ein echtes Studio, aber nicht schwarz) */
+.store-studio { background: radial-gradient(60% 45% at 50% 0%, rgba(var(--st-warm), 0.26), transparent 70%), radial-gradient(60% 50% at 50% 120%, rgba(var(--accent-rgb), 0.16), transparent 70%), linear-gradient(180deg, #2a3a35, #1d2926); }
+.stu-station { background: linear-gradient(160deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.04)); border-color: rgba(255, 255, 255, 0.14); }
+
+/* ---------- Regale in der Sammlung: Holzböden statt Leuchtkante, warmes Licht */
+.cabinet, .cdrack { background: radial-gradient(80% 50% at 50% 0%, rgba(var(--st-warm), 0.14), transparent 70%), linear-gradient(180deg, var(--surface-2), var(--surface)); }
+.cabinet-inner, .cdrack-inner {
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(0, 0, 0, 0.14) 0, transparent 10px, transparent calc(var(--row) - 10px),
+      var(--st-wood1) calc(var(--row) - 10px), var(--st-wood1) calc(var(--row) - 5px),
+      var(--st-wood2) calc(var(--row) - 5px), var(--st-wood2) var(--row)),
+    repeating-linear-gradient(180deg, transparent 0, transparent calc(var(--row) - 50px), rgba(var(--st-warm), 0.10) calc(var(--row) - 10px), transparent var(--row));
+  background-size: 100% var(--row), 100% var(--row);
+}
+.cabinet.mini .cabinet-inner, .cdrack.mini .cdrack-inner { border-radius: 12px; }
+
+/* ---------- Festliche Grafiken (SVG statt Emojis) */
+svg.fa { width: 1em; height: 1em; display: inline-block; vertical-align: -0.14em; overflow: visible; }
+.fest-deco svg.fa { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25)); }
+.fest-badge { font-size: 22px; right: -11px; top: -9px; }
+.fest-hat { font-size: 34px; left: 56px; top: -2px; rotate: 14deg; }
+.fest-crown { font-size: 34px; top: -24px; margin-left: -17px; }
+.fest-center { font-size: 1.8rem; }
+.fest-cell { font-size: 15px; }
+.fest-canvas, .fx-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 61; }
+/* Gruß-Banner: großes Motiv in Glas-Kreis, schwebende Motive im Hintergrund, Glanz-Lauf */
+.fest-ribbon { padding: 16px 48px 16px 16px; isolation: isolate; }
+.fest-ribbon::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.28) 50%, transparent 65%) -200% 0 / 200% 100% no-repeat; animation: ribbon-shine 5s ease-in-out 1s infinite; }
+@keyframes ribbon-shine { 0%, 60% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.fest-ribbon-icon { flex: none; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-size: 36px !important;
+  background: rgba(255, 255, 255, 0.22); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 8px 18px -8px rgba(0, 0, 0, 0.4); }
+.fest-ribbon-bg { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 1 !important; }
+.fest-ribbon-bg i { position: absolute; font-size: 44px; opacity: 0.22; top: calc(8% + var(--i) * 9%); right: calc(4% + var(--i) * 12%); rotate: calc(var(--i) * 17deg - 20deg); animation: fest-float 4s ease-in-out calc(var(--i) * -1s) infinite; }
+.fest-ribbon-bg i:nth-child(2n) { font-size: 30px; top: 52%; }
+/* Walkthrough-Kopf: Motive steigen auf, weicher Lichtkreis dahinter */
+.tour-hero { gap: 10px; }
+.tour-hero span { font-size: 46px; display: inline-flex; }
+.tour-hero span:nth-child(odd) { font-size: 58px; }
+.tour-glow { position: absolute; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.45), transparent 65%); animation: tour-glow 4s ease-in-out infinite; }
+@keyframes tour-glow { 50% { transform: scale(1.15); opacity: 0.7; } }
+.tour-hero span { position: relative; }
+/* Laden-Deko */
+.sdc-corner { font-size: clamp(1.7rem, 5.4vw, 2.9rem); bottom: 37%; gap: 0; filter: drop-shadow(0 8px 8px rgba(0, 0, 0, 0.25)); }
+.sdc-corner span { display: inline-flex; }
+.sdc-corner span + span { margin-left: -0.18em; font-size: 0.78em; }
+.sdc-table { font-size: clamp(1.2rem, 3.6vw, 1.9rem); filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25)); }
+.sdc-door { font-size: clamp(1.6rem, 4.6vw, 2.6rem); top: 27%; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35)); }
+.sd-wreath { font-size: clamp(2.4rem, 7vw, 3.6rem); top: 20%; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35)); }
+.g-flowers i { font-size: 1.3rem; }
+.sdc-garland { background: radial-gradient(120% 140% at 50% -60%, transparent 62%, rgba(60, 50, 40, 0.55) 63%, rgba(60, 50, 40, 0.55) 64.5%, transparent 65.5%) top / 50% 100% repeat-x; }
+/* fallende Teilchen: SVG-Schneeflocken, flatterndes Konfetti, Blütenblätter */
+.sdc-fall i { font-size: calc(var(--s) * 0.9rem); }
+.m-snow i { color: inherit; text-shadow: none; filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9)); }
+.m-snow i.k1 { font-size: calc(var(--s) * 0.6rem); opacity: 0.7; }
+.m-confetti i { width: 0.5em; height: 0.8em; border-radius: 2px; background: var(--c); animation-name: deco-fall, conf-flip; animation-duration: var(--t), 1.1s; animation-timing-function: linear, linear; animation-delay: var(--d), 0s; animation-iteration-count: infinite; }
+.m-confetti i.k1 { border-radius: 50%; width: 0.55em; height: 0.55em; }
+.m-petals i { width: 0.75em; height: 1em; border-radius: 80% 0 80% 0; background: linear-gradient(135deg, #fff, var(--c)); opacity: 0.95; }
+.m-petals i.k2 { background: linear-gradient(135deg, #b8f0a8, #59c26b); }
+@keyframes conf-flip { 50% { scale: 1 0.2; } }
+.store-room .sdc-fall.m-confetti i { animation-name: deco-fall-room, conf-flip; }
+/* Festliches Schild im Laden */
+html[data-fest='christmas'] .sr-neon { background: linear-gradient(90deg, #d62839, #1f9d55); color: #fff; }
+html[data-fest='newyear'] .sr-neon { background: linear-gradient(90deg, #f5c542, #fff1b8, #f5c542); color: #2b2008; } html[data-fest='newyear'] .sr-neon b { color: #2b2008; text-shadow: none; }
+html[data-fest='easter'] .sr-neon { background: linear-gradient(90deg, #ffb3d1, #fff3a6, #b8f0c8); color: #3a2440; } html[data-fest='easter'] .sr-neon b { color: #3a2440; text-shadow: none; }
+html[data-fest='midsummer'] .sr-neon { background: linear-gradient(90deg, #ffd23f, #8fdc6f); color: #1d3a12; } html[data-fest='midsummer'] .sr-neon b { color: #fff; }
+html[data-fest='carnival'] .sr-neon { background: linear-gradient(90deg, #7b5cff, #ff4fa3, #ffd23f); color: #fff; animation: neon-hue 5s linear infinite; }
+html[data-fest='birthday'] .sr-neon { background: linear-gradient(90deg, #ff4f8b, #ffb347, #3ec5ff); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .sr-lamps i, .sr-plant svg, .sr-neon, .fest-ribbon::after, .fest-ribbon-bg i, .tour-glow { animation: none !important; } }
+/* Feinschliff Design 3 */
+.sr-plant svg.fa, .sd-plant svg.fa { width: 100%; height: auto; aspect-ratio: 1; vertical-align: bottom; }
+.sr-floor::before { background: radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.30) 0 58%, rgba(var(--accent-rgb), 0.5) 58% 62%, rgba(var(--accent-rgb), 0.30) 62% 100%); box-shadow: 0 0 0 5px rgba(var(--accent-rgb), 0.45); }
+.sr-legs::before { left: 20%; right: 20%; height: 34%; border-radius: 0 0 10px 10px;
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.08) 0 2px, transparent 2px 22%), linear-gradient(180deg, var(--st-wood2), #8a5a2e); }
+.cabinet:not(.mini), .cdrack:not(.mini) { background: radial-gradient(70% 60% at 50% 0%, rgba(var(--st-warm), 0.22), transparent 70%), linear-gradient(180deg, var(--st-wall1), var(--st-wall2)); border-color: var(--st-line); }
+.cabinet-inner, .cdrack-inner { background-image:
+    repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.07) 0, transparent 8px, transparent calc(var(--row) - 10px),
+      var(--st-wood1) calc(var(--row) - 10px), var(--st-wood1) calc(var(--row) - 5px), var(--st-wood2) calc(var(--row) - 5px), var(--st-wood2) var(--row)),
+    repeating-linear-gradient(180deg, transparent 0, transparent calc(var(--row) - 50px), rgba(var(--st-warm), 0.12) calc(var(--row) - 10px), transparent var(--row)); }
+html[data-fest] .sr-neon, html[data-fest] .sr-neon b { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15); }

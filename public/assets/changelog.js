@@ -7,6 +7,22 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17d',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🪴', go: 'records',
+        t: ['Laden zum Wohlfühlen', 'A shop to feel at home', 'Une boutique accueillante', 'Una tienda acogedora', 'Un negozio accogliente', 'En butik att trivas i', 'En butik at hygge sig i'],
+        d: ['Heller und wärmer: Holz, Hängelampen, Pflanzen und eine gestreifte Markise am Eingang.', 'Brighter and warmer: wood, pendant lamps, plants and a striped awning at the entrance.', 'Plus clair et chaleureux : bois, suspensions, plantes et un store rayé à l’entrée.', 'Más luminosa y cálida: madera, lámparas colgantes, plantas y un toldo a rayas en la entrada.', 'Più luminoso e caldo: legno, lampade a sospensione, piante e una tenda a righe all’ingresso.', 'Ljusare och varmare: trä, taklampor, växter och en randig markis vid entrén.', 'Lysere og varmere: træ, pendellamper, planter og en stribet markise ved indgangen.'],
+      },
+      {
+        icon: '✨', go: null,
+        t: ['Neue Fest-Grafiken', 'New festive artwork', 'Nouveaux décors de fête', 'Nuevos gráficos festivos', 'Nuova grafica festiva', 'Ny festgrafik', 'Ny festgrafik'],
+        d: ['Eigene Motive statt Emojis – mit echtem Schneefall, Feuerwerk, Konfetti-Kanonen, Blüten und Ballons.', 'Custom artwork instead of emojis – with real snowfall, fireworks, confetti cannons, petals and balloons.', 'Des motifs maison au lieu d’emojis – neige, feux d’artifice, canons à confettis, pétales et ballons.', 'Motivos propios en lugar de emojis: nieve, fuegos artificiales, cañones de confeti, pétalos y globos.', 'Motivi propri al posto delle emoji – neve, fuochi d’artificio, cannoni di coriandoli, petali e palloncini.', 'Egna motiv i stället för emojis – snöfall, fyrverkerier, konfettikanoner, kronblad och ballonger.', 'Egne motiver i stedet for emojis – snefald, fyrværkeri, konfettikanoner, blomsterblade og balloner.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17c',
     date: '2026-11-17',
     items: [

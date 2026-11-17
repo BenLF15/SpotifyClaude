@@ -1402,14 +1402,16 @@
 
   // ================================================================ Festliche Effekte
   // Fasching, Ostern, Midsommar, Weihnachten, Neujahr und Geburtstag – mit kleinen Animationen je Tab.
+  // deco = Emoji nur noch für reine Textstellen; sichtbare Deko nutzt eigene SVG-Motive (assets/festart.js)
   const FEST = {
-    carnival: { deco: '🎭', hat: '🎭', emojis: ['🎭', '🎉', '🎊', '🥳', '🎈'], motion: 'burst', confetti: true },
-    easter: { deco: '🐣', hat: '🐰', emojis: ['🥚', '🐣', '🐰', '🌷', '🥚'], motion: 'fall' },
-    midsummer: { deco: '🌼', hat: '🌸', emojis: ['🌼', '🌸', '🍓', '🌿', '🌼'], motion: 'sway' },
-    christmas: { deco: '🎄', hat: '⭐', emojis: ['❄️', '🎄', '⭐', '🎁', '❄️'], motion: 'snow' },
-    newyear: { deco: '🎆', hat: '🎩', emojis: ['🎆', '✨', '🥂', '🎇', '✨'], motion: 'burst', confetti: true },
-    birthday: { deco: '🎂', hat: '🥳', emojis: ['🎈', '🎂', '🎉', '🎁', '🎈'], motion: 'rise', confetti: true },
+    carnival: { deco: '🎭', art: 'mask', hat: 'partyhat', set: ['mask', 'horn', 'popper', 'sparkle', 'mask'] },
+    easter: { deco: '🐣', art: 'egg', hat: 'bunny', set: ['egg', 'chick', 'bunny', 'tulip', 'egg2'] },
+    midsummer: { deco: '🌼', art: 'daisy', hat: 'flowercrown', set: ['daisy', 'strawberry', 'sun', 'leaf', 'daisy'] },
+    christmas: { deco: '🎄', art: 'tree', hat: 'santa', set: ['snowflake', 'tree', 'star', 'gift', 'bauble'] },
+    newyear: { deco: '🎆', art: 'firework', hat: 'tophat', set: ['firework', 'sparkle', 'champagne', 'clock', 'sparkle'] },
+    birthday: { deco: '🎂', art: 'cake', hat: 'partyhat', set: ['balloons', 'cake', 'gift', 'partyhat', 'balloon'] },
   };
+  const fa = (name, cls) => (window.FestArt ? window.FestArt.svg(name, cls) : '');
 
   // Ostersonntag (gregorianisch, anonymer Algorithmus)
   function easterSunday(y) {
@@ -1489,12 +1491,12 @@
     if (!ev) return;
     const f = FEST[ev];
     const wrap = $('.brand-logo-wrap');
-    if (wrap && !$('.fest-deco', wrap)) wrap.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-badge" aria-hidden="true">${f.deco}</span>`);
+    if (wrap && !$('.fest-deco', wrap)) wrap.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-badge" aria-hidden="true">${fa(f.art)}</span>`);
     $$('[data-fest-title]').forEach((h, i) => {
-      if (!$('.fest-deco', h)) h.insertAdjacentHTML('beforeend', ` <span class="fest-deco fest-title" aria-hidden="true">${f.emojis[(i + 1) % f.emojis.length]}</span>`);
+      if (!$('.fest-deco', h)) h.insertAdjacentHTML('beforeend', ` <span class="fest-deco fest-title" aria-hidden="true">${fa(f.set[(i + 1) % f.set.length])}</span>`);
     });
     const av = $('#profile-avatar');
-    if (av && !$('.fest-deco', av.parentElement)) av.insertAdjacentHTML('afterend', `<span class="fest-deco fest-hat" aria-hidden="true">${f.hat}</span>`);
+    if (av && !$('.fest-deco', av.parentElement)) av.insertAdjacentHTML('afterend', `<span class="fest-deco fest-hat" aria-hidden="true">${fa(f.hat)}</span>`);
     renderRibbon();
   }
 
@@ -1506,7 +1508,9 @@
     if (!ev || store.get(dismissKey)) { el.hidden = true; return; }
     const today = state.dashboard?.timeline?.daily?.at(-1)?.minutes || 0;
     el.className = `fest-ribbon fest-${ev}`;
-    el.innerHTML = `<span class="fest-ribbon-icon" aria-hidden="true">${FEST[ev].deco}</span>
+    const f = FEST[ev];
+    el.innerHTML = `<span class="fest-ribbon-bg" aria-hidden="true">${f.set.slice(0, 4).map((n, i) => `<i style="--i:${i}">${fa(n)}</i>`).join('')}</span>
+      <span class="fest-ribbon-icon" aria-hidden="true">${fa(f.art)}</span>
       <div><strong>${esc(t(`greet.${ev}`, { name: state.account?.username || '' }))}</strong>
       ${today ? `<span>${esc(t('greet.sub', { n: t('n.minutes', { n: fmt(today) }) }))}</span>` : ''}</div>
       <button type="button" class="fest-close" data-fest-dismiss="${dismissKey}" aria-label="${esc(t('fest.dismiss'))}">✕</button>`;
@@ -1520,18 +1524,18 @@
     const f = FEST[ev];
     if (panel === 'top') {
       const p1 = $('#podium .p1 .pimg-wrap');
-      if (p1 && !$('.fest-deco', p1)) p1.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-crown" aria-hidden="true">${f.hat}</span>`);
+      if (p1 && !$('.fest-deco', p1)) p1.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-crown" aria-hidden="true">${fa(f.hat)}</span>`);
     } else if (panel === 'genres') {
       const c = $('#donut-center');
-      if (c && c.innerHTML && !$('.fest-deco', c)) c.insertAdjacentHTML('afterbegin', `<span class="fest-deco fest-center" aria-hidden="true">${f.deco}</span>`);
+      if (c && c.innerHTML && !$('.fest-deco', c)) c.insertAdjacentHTML('afterbegin', `<span class="fest-deco fest-center" aria-hidden="true">${fa(f.art)}</span>`);
     } else if (panel === 'times') {
       const cell = $('#heatmap .heat-cell.peak');
-      if (cell && !$('.fest-deco', cell)) cell.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-cell" aria-hidden="true">${f.emojis[1]}</span>`);
+      if (cell && !$('.fest-deco', cell)) cell.insertAdjacentHTML('beforeend', `<span class="fest-deco fest-cell" aria-hidden="true">${fa(f.set[1])}</span>`);
     } else if (panel === 'history') {
       $$('.day-card').forEach((card) => {
         const evDay = activeEvent(parseDay(card.dataset.day));
         const title = $('.day-title', card);
-        if (evDay && title && !$('.fest-deco', title)) title.insertAdjacentHTML('beforeend', ` <span class="fest-deco fest-title" aria-hidden="true">${FEST[evDay].deco}</span>`);
+        if (evDay && title && !$('.fest-deco', title)) title.insertAdjacentHTML('beforeend', ` <span class="fest-deco fest-title" aria-hidden="true">${fa(FEST[evDay].art)}</span>`);
       });
     }
   }
@@ -1545,28 +1549,8 @@
     const key = `fest-burst-${ev}-${panel}`;
     try { if (!force && sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* egal */ }
     lastBurst = Date.now();
-    const f = FEST[ev];
-    const layer = $('#fx-layer');
-    const count = window.innerWidth < 600 ? 14 : 22;
-    const confettiColors = ['#ff5d8f', '#ffd23f', '#3ec5ff', '#7ae582', '#b892ff', '#ff8c42'];
-    const rnd = (a, b) => a + Math.random() * (b - a);
-    for (let i = 0; i < count; i++) {
-      const p = document.createElement('span');
-      const isConf = f.confetti && i % 3 === 0;
-      p.className = `fx-p fx-${f.motion}${isConf ? ' fx-conf' : ''}`;
-      if (isConf) p.style.background = confettiColors[i % confettiColors.length];
-      else p.textContent = f.emojis[i % f.emojis.length];
-      p.style.setProperty('--x', `${rnd(4, 96)}vw`);
-      p.style.setProperty('--dx', `${rnd(-18, 18)}vw`);
-      p.style.setProperty('--dy', `${rnd(-45, -15)}vh`);
-      p.style.setProperty('--rot', `${rnd(-260, 260)}deg`);
-      p.style.setProperty('--dur', `${rnd(2.2, 3.6)}s`);
-      p.style.setProperty('--delay', `${rnd(0, 0.7)}s`);
-      p.style.setProperty('--size', `${rnd(18, 32)}px`);
-      p.addEventListener('animationend', () => p.remove());
-      setTimeout(() => p.remove(), 5500); // Sicherheitsnetz
-      layer.appendChild(p);
-    }
+    // Canvas-Animation: Schnee, Feuerwerk, Konfetti-Kanonen, Blütenblätter oder Ballons
+    window.FestArt?.play(ev);
   }
 
   function updateFestive({ burst: doBurst = false } = {}) {
@@ -1699,13 +1683,13 @@
     const last = i === total - 1;
     let hero; let title; let body;
     if (i === 0) {
-      hero = ['🎉', '🎄', '🐣', '🎂'];
+      hero = ['popper', 'tree', 'egg', 'cake', 'balloons'];
       title = t('tour.introTitle');
       body = `<p>${esc(t('tour.introText'))}</p>`;
     } else if (ev) {
       const f = FEST[ev];
-      hero = f.emojis;
-      title = `${f.deco} ${t(`fest.${ev}`)}`;
+      hero = f.set;
+      title = t(`fest.${ev}`);
       const nd = nextDateOf(ev);
       const noBd = ev === 'birthday' && !state.account?.birthday;
       body = `<p class="tour-when">${esc(t(`tour.when.${ev}`))}</p>
@@ -1714,7 +1698,7 @@
         ${noBd ? `<p class="tour-date">${esc(t('tour.noBirthday'))}</p>
           <button type="button" class="btn btn-ghost btn-xs" data-tour="birthday">🎂 ${esc(t('tour.addBirthday'))}</button>` : ''}`;
     } else {
-      hero = ['✨', '🎶', '✨'];
+      hero = ['sparkle', 'note', 'sparkle'];
       title = t('tour.outroTitle');
       body = `<p>${esc(t('tour.outroText'))}</p>`;
     }
@@ -1723,7 +1707,7 @@
     $('#tour-body').innerHTML = `
       <button type="button" class="tour-close" data-tour="close" aria-label="${esc(t('tour.close'))}">✕</button>
       <div class="tour-hero fest-${ev || 'intro'}" aria-hidden="true">
-        ${hero.map((e, k) => `<span style="--k:${k}">${e}</span>`).join('')}
+        <i class="tour-glow"></i>${hero.map((e, k) => `<span style="--k:${k}">${fa(e)}</span>`).join('')}
       </div>
       <div class="tour-content" key="${i}">
         <p class="tour-step">${esc(t('tour.step', { i: i + 1, n: total }))}</p>
@@ -3885,12 +3869,12 @@
   // Girlande unter der Decke, Deko in den Ecken, auf den Tischen und an der Studio-Tür, dazu fallende/steigende
   // Teilchen und ein passend gefärbtes Neon-Schild. Nur wenn „Festliche Effekte“ an ist und gerade ein Fest läuft.
   const STORE_DECO = {
-    christmas: { garland: 'lights', colors: ['#ff3b3b', '#ffd23f', '#3bd16f', '#3fa9ff', '#ff7ad9'], left: ['🎄', '🎁', '🎁'], right: ['⛄', '🎁'], table: '🎅', door: '🎄', fall: ['❄', '❅', '❆'], mode: 'snow' },
-    newyear: { garland: 'streamers', colors: ['#ffd700', '#e6e6e6', '#ffb347', '#c0c0c0'], left: ['🍾', '🥂'], right: ['🎆', '🕛'], table: '🎉', door: '✨', fall: ['✦', '✧', '•'], mode: 'confetti' },
-    easter: { garland: 'flags', colors: ['#ffc6e0', '#fff3a6', '#c6f2d6', '#c9dcff', '#e6ccff'], left: ['🐰', '🌷'], right: ['🧺', '🥚'], table: '🥚', door: '🐣', fall: ['🌸', '🌼'], mode: 'petals' },
-    carnival: { garland: 'flags', colors: ['#ff3b6b', '#ffd23f', '#3bd1c4', '#7b5cff', '#3fa9ff', '#ff8a3b'], left: ['🎭', '🎉'], right: ['🎺', '🎊'], table: '🎭', door: '🎊', fall: ['▪', '●', '▲'], mode: 'confetti' },
-    midsummer: { garland: 'flowers', colors: ['#ffffff', '#ffe066', '#ff9ac9', '#8fdc6f'], left: ['🌻', '🌿'], right: ['🍓', '🌼'], table: '🌸', door: '🌿', fall: ['🌸', '🌼', '🍃'], mode: 'petals' },
-    birthday: { garland: 'flags', colors: ['#ff6b9e', '#ffd23f', '#5ce1e6', '#9b7bff', '#7be08a'], left: ['🎈', '🎈', '🎂'], right: ['🎁', '🎈'], table: '🎂', door: '🎈', fall: ['▪', '●', '▲'], mode: 'confetti', banner: true },
+    christmas: { garland: 'lights', colors: ['#ff3b3b', '#ffd23f', '#3bd16f', '#3fa9ff', '#ff7ad9'], left: ['tree', 'gift', 'gift'], right: ['gift', 'candy'], table: 'bauble', door: 'wreath', mode: 'snow' },
+    newyear: { garland: 'streamers', colors: ['#ffd700', '#e6e6e6', '#ffb347', '#c0c0c0'], left: ['champagne', 'sparkle'], right: ['clock', 'firework'], table: 'sparkle', door: 'firework', mode: 'confetti' },
+    easter: { garland: 'flags', colors: ['#ffc6e0', '#fff3a6', '#c6f2d6', '#c9dcff', '#e6ccff'], left: ['bunny', 'tulip'], right: ['egg2', 'chick', 'egg'], table: 'egg', door: 'chick', mode: 'petals' },
+    carnival: { garland: 'flags', colors: ['#ff3b6b', '#ffd23f', '#3bd1c4', '#7b5cff', '#3fa9ff', '#ff8a3b'], left: ['mask', 'popper'], right: ['horn', 'mask'], table: 'mask', door: 'popper', mode: 'confetti' },
+    midsummer: { garland: 'flowers', colors: ['#ffffff', '#ffe066', '#ff9ac9', '#8fdc6f'], left: ['sun', 'leaf'], right: ['strawberry', 'daisy'], table: 'daisy', door: 'flowercrown', mode: 'petals' },
+    birthday: { garland: 'flags', colors: ['#ff6b9e', '#ffd23f', '#5ce1e6', '#9b7bff', '#7be08a'], left: ['balloons', 'gift'], right: ['cake', 'balloon'], table: 'partyhat', door: 'balloons', mode: 'confetti', banner: true },
   };
 
   function storeDecoHTML(where = 'room') {
@@ -3900,24 +3884,24 @@
     const n = where === 'room' ? 15 : 11;
     const garland = `<div class="sdc-garland g-${c.garland}" aria-hidden="true">${Array.from({ length: n }, (_, i) => {
       const col = c.colors[i % c.colors.length];
-      if (c.garland === 'flowers') return `<i style="--i:${i}">${['🌼', '🌸', '🌿'][i % 3]}</i>`;
+      if (c.garland === 'flowers') return `<i style="--i:${i}">${fa(['daisy', 'tulip', 'leaf'][i % 3])}</i>`;
       return `<i style="--c:${col};--i:${i}"></i>`;
     }).join('')}</div>`;
     const parts = Array.from({ length: where === 'room' ? 18 : 10 }, (_, i) => {
       const x = (i * 37) % 100;
-      const sym = c.fall[i % c.fall.length];
       const col = c.colors[i % c.colors.length];
-      return `<i style="--x:${x}%;--d:${(i * 0.63) % 6}s;--t:${5 + (i % 5)}s;--c:${col};--s:${0.7 + (i % 4) * 0.18}">${sym}</i>`;
+      const inner = c.mode === 'snow' ? fa('snowflake') : '';
+      return `<i class="k${i % 3}" style="--x:${x}%;--d:${(i * 0.63) % 6}s;--t:${5 + (i % 5)}s;--c:${col};--s:${0.7 + (i % 4) * 0.18}">${inner}</i>`;
     }).join('');
     const fx = `<div class="sdc-fall m-${c.mode}" aria-hidden="true">${parts}</div>`;
     if (where !== 'room') return `<div class="sdc sdc-${ev} in-${where}">${garland}${fx}</div>`;
     const banner = c.banner ? `<div class="sdc-banner" aria-hidden="true">${esc(t('greet.birthday', { name: state.account?.username || '' }))}</div>` : '';
     return `<div class="sdc sdc-${ev}" aria-hidden="true">
         ${garland}${banner}
-        <div class="sdc-corner l">${c.left.map((e, i) => `<span style="--i:${i}">${e}</span>`).join('')}</div>
-        <div class="sdc-corner r">${c.right.map((e, i) => `<span style="--i:${i}">${e}</span>`).join('')}</div>
-        <span class="sdc-table t-cds">${c.table}</span><span class="sdc-table t-recs">${c.table}</span>
-        <span class="sdc-door">${c.door}</span>
+        <div class="sdc-corner l">${c.left.map((e, i) => `<span style="--i:${i}">${fa(e)}</span>`).join('')}</div>
+        <div class="sdc-corner r">${c.right.map((e, i) => `<span style="--i:${i}">${fa(e)}</span>`).join('')}</div>
+        <span class="sdc-table t-cds">${fa(c.table)}</span><span class="sdc-table t-recs">${fa(c.table)}</span>
+        <span class="sdc-door">${fa(c.door)}</span>
         ${fx}
       </div>`;
   }
@@ -3936,7 +3920,9 @@
       <div class="store-room${st.entered ? ' entered' : ''}" data-view="${st.view}">
         <div class="store-cam">
           <div class="sr-wall">
+            <div class="sr-lamps" aria-hidden="true"><i></i><i></i><i></i></div>
             <div class="sr-neon" aria-hidden="true">Spotlfy <b>Records</b></div>
+            <span class="sr-plant l" aria-hidden="true">${fa('plant')}</span><span class="sr-plant r" aria-hidden="true">${fa('plant')}</span>
             <div class="sr-shelf l" aria-hidden="true">${'<i></i>'.repeat(9)}</div>
             <div class="sr-shelf r" aria-hidden="true">${'<i></i>'.repeat(9)}</div>
             <button type="button" class="sr-studio" data-store-go="studio" aria-label="${esc(t('store.studio'))}">
@@ -3957,9 +3943,10 @@
           ${storeDecoHTML('room')}
         </div>
         ${st.entered ? '' : `<div class="store-door" aria-hidden="true">
-          <div class="sd-frame"><div class="sd-panel l"><span class="sd-glass"><span class="sd-open">OPEN</span></span><span class="sd-handle"></span></div>
+          <span class="sd-plant l">${fa('plant')}</span><span class="sd-plant r">${fa('plant')}</span>
+          <div class="sd-frame"><span class="sd-awning"></span><div class="sd-panel l"><span class="sd-glass"><span class="sd-open">OPEN</span></span><span class="sd-handle"></span></div>
           <div class="sd-panel r"><span class="sd-glass"></span><span class="sd-handle"></span></div></div>
-          <div class="sd-sign">Spotlfy Records</div><span class="sd-bell">🔔</span>${festive.key && STORE_DECO[festive.key] ? `<span class="sd-wreath">${STORE_DECO[festive.key].door}</span>` : ''}</div>`}
+          <div class="sd-sign">Spotlfy Records</div><span class="sd-bell">🔔</span>${festive.key && STORE_DECO[festive.key] ? `<span class="sd-wreath">${fa(STORE_DECO[festive.key].door)}</span>` : ''}</div>`}
       </div>`;
     let table = '';
     if (st.view === 'studio') table = studioHTML(d);
