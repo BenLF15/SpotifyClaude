@@ -645,6 +645,19 @@
   // ein UND aus; Hinweise gleiten weg statt zu verschwinden.
   const canVT = typeof document.startViewTransition === 'function';
   function smoothSwap(update, dir) {
+    // Bereichswechsel: kein Foto der ganzen Seite (teuer auf dem Handy) – der neue Inhalt gleitet nur leicht
+    // herein; das läuft komplett auf der Grafikkarte (transform + opacity).
+    if (dir !== 'fade') {
+      update();
+      if (reduceMotion || document.hidden) return;
+      const el = $('.container');
+      if (!el?.animate) return;
+      const dx = dir === 'fwd' ? 22 : dir === 'back' ? -22 : 0;
+      el.getAnimations?.().forEach((a) => a.cancel());
+      el.animate([{ opacity: 0.001, transform: `translate3d(${dx}px, ${dx ? 0 : 8}px, 0)` }, { opacity: 1, transform: 'none' }],
+        { duration: 280, easing: 'cubic-bezier(0.22, 0.8, 0.24, 1)' });
+      return;
+    }
     if (!canVT || reduceMotion || document.hidden) { update(); return; }
     document.documentElement.dataset.vtDir = dir || 'none';
     try {
@@ -758,6 +771,17 @@
     } finally {
       loadBar.done();
     }
+  }
+
+  // ================================================================ Flüssigkeit: Animationen nur, wo man hinsieht
+  // Karten außerhalb des Bildschirms halten ihre Dauer-Animationen an (Glanz, Wackeln, drehende Platten …).
+  function bindOffscreenPause() {
+    if (!('IntersectionObserver' in window)) return;
+    const io = new IntersectionObserver((list) => list.forEach((e) => e.target.classList.toggle('anim-off', !e.isIntersecting)), { rootMargin: '120px 0px' });
+    const seen = new WeakSet();
+    const scan = () => $$('.card, .cabinet, .cdrack, .store').forEach((el) => { if (!seen.has(el)) { seen.add(el); io.observe(el); } });
+    scan();
+    new MutationObserver(() => { clearTimeout(scan.t); scan.t = setTimeout(scan, 200); }).observe(document.body, { childList: true, subtree: true });
   }
 
   // ================================================================ Runterziehen zum Aktualisieren
@@ -4985,6 +5009,7 @@
     renderThemeSettings();
     renderLangPicker();
     bindPullToRefresh();
+    bindOffscreenPause();
     const justConnected = handleQueryFlags();
     refreshAll();
     // Nach dem Verbinden läuft der erste Sync im Hintergrund – kurz danach neu laden.

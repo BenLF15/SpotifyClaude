@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17j',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '⚡', go: null,
+        t: ['Flüssiger', 'Smoother', 'Plus fluide', 'Más fluida', 'Più fluida', 'Smidigare', 'Mere flydende'],
+        d: ['Bereichswechsel und Glanz-Effekte laufen jetzt deutlich ruckelfreier, auch auf älteren Handys.', 'Switching sections and shine effects now run much more smoothly, even on older phones.', 'Changer de section et les effets brillants sont bien plus fluides, même sur d’anciens téléphones.', 'Cambiar de sección y los efectos de brillo van mucho más fluidos, incluso en móviles antiguos.', 'Il cambio sezione e gli effetti lucidi sono molto più fluidi, anche su telefoni meno recenti.', 'Byte av del och glanseffekter går nu mycket smidigare, även på äldre mobiler.', 'Skift af sektion og glanseffekter kører nu meget mere flydende, også på ældre telefoner.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17i',
     date: '2026-11-17',
     items: [

@@ -3399,3 +3399,17 @@ html, body { overscroll-behavior-y: contain; }
   .toast { bottom: calc(var(--bn-h) + var(--safe-bottom) + var(--bn-gap) + 12px); }
   .note-toast { bottom: calc(var(--bn-h) + var(--safe-bottom) + var(--bn-gap) + 10px); }
 }
+
+/* ================================================================== Flüssiger: Glanz per transform statt Hintergrund-Verschiebung
+   (transform/opacity laufen auf der Grafikkarte – Hintergrund-Animationen zwingen jedes Bild zum Neuzeichnen) */
+.rec-shimmer, .rec.r-epic .rec-shimmer { background-size: 100% 100%; background-position: 0 0; animation-name: shim-move; will-change: transform; }
+.rec-shimmer { background-image: linear-gradient(110deg, transparent 32%, var(--sh, rgba(255, 255, 255, 0.55)) 50%, transparent 68%); }
+.rec.r-epic .rec-shimmer { background-image: linear-gradient(110deg, transparent 22%, rgba(255, 93, 143, 0.5) 36%, rgba(255, 210, 63, 0.55) 46%, rgba(62, 197, 255, 0.55) 56%, rgba(184, 146, 255, 0.5) 66%, transparent 80%); }
+@keyframes shim-move { 0% { transform: translateX(-110%); } 55%, 100% { transform: translateX(110%); } }
+.note::after { background-size: 100% 100%; background-position: 0 0; animation-name: note-shim; }
+@keyframes note-shim { 0%, 45% { transform: translateX(-120%); } 75%, 100% { transform: translateX(120%); } }
+/* pulsierender Punkt: skaliert statt Schatten zu animieren */
+.daily-chip.open::after { box-shadow: none; animation: ping2 1.8s ease-out infinite; }
+@keyframes ping2 { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.45); opacity: 0.55; } 100% { transform: scale(1); opacity: 1; } }
+/* Karten außerhalb des Bildschirms: Dauer-Animationen anhalten */
+.anim-off, .anim-off *, .anim-off *::before, .anim-off *::after { animation-play-state: paused !important; }
