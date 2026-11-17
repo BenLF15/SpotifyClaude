@@ -959,7 +959,10 @@
 
   function renderTimeline() {
     const d = state.dashboard;
-    if (!d) return;
+    // Bei „Heute“ gibt es nur einen Tag – das Diagramm erscheint erst ab 7 Tagen
+    const card = $('#timeline-card');
+    if (card) card.hidden = state.range === 'today';
+    if (!d || state.range === 'today') return;
     const weekly = state.timelineMode === 'weekly';
     const days = RANGE_DAYS[state.range] || 365;
     const rows = weekly ? d.timeline.weekly : d.timeline.daily.slice(-days);
