@@ -190,7 +190,12 @@
     if (kind === 'newyear') { for (let i = 0; i < (small ? 6 : 9); i++) at(i * 420 + rnd(0, 200), rocket); }
     else if (kind === 'christmas') { for (let i = 0; i < 90 * k; i++) flake(); }
     else if (kind === 'easter' || kind === 'midsummer') { for (let i = 0; i < 54 * k; i++) petal(); }
-    else if (kind === 'birthday') { for (let i = 0; i < 14 * k; i++) balloon(); at(250, () => cannon(true)); at(500, () => cannon(false)); }
+    else if (kind === 'birthday') {
+      for (let i = 0; i < 14 * k; i++) balloon();
+      // Konfetti-Regen von oben (statt seitlicher Kanonen)
+      const shower = (m) => { for (let i = 0; i < m; i++) { confetti(rnd(0, W), rnd(-80, -10), rnd(-1.5, 1.5), rnd(0.5, 2.5)); P[P.length - 1].g = 0.09; } };
+      at(150, () => shower(Math.round(60 * k))); at(900, () => shower(Math.round(40 * k)));
+    }
     else { at(0, () => cannon(true)); at(180, () => cannon(false)); at(1100, () => { cannon(true); cannon(false); }); }
 
     const start = performance.now(); let raf = 0; let last = start;

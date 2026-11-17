@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17o',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🎊', go: null,
+        t: ['Ruhigere Fest-Effekte', 'Calmer festive effects', 'Effets festifs plus doux', 'Efectos festivos más tranquilos', 'Effetti festivi più tranquilli', 'Lugnare festeffekter', 'Roligere festeffekter'],
+        d: ['Statt Animation bei jeder Seite rieselt oben dezent Konfetti, Schnee oder Blüten – am Geburtstag gibt es beim Öffnen Ballons.', 'Instead of an animation on every page, confetti, snow or petals now drift gently at the top – on your birthday, balloons greet you.', 'Au lieu d’une animation à chaque page, confettis, neige ou pétales tombent doucement en haut – ballons à votre anniversaire.', 'En lugar de una animación en cada página, arriba caen suavemente confeti, nieve o pétalos; en tu cumpleaños, globos.', 'Invece di un’animazione a ogni pagina, in alto cadono dolcemente coriandoli, neve o petali – al compleanno, palloncini.', 'I stället för animation på varje sida faller nu konfetti, snö eller kronblad diskret överst – på födelsedagen ballonger.', 'I stedet for animation på hver side falder konfetti, sne eller blade nu stille øverst – på fødselsdagen balloner.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17n',
     date: '2026-11-17',
     items: [

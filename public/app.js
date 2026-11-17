@@ -1743,15 +1743,39 @@
 
   let lastBurst = 0;
   // Kurze Partikel-Animation beim ersten Besuch eines Tabs (verschwindet wieder)
+  // Große Animation nur noch einmal: am Geburtstag beim Öffnen der App auf der Startseite (Konfetti von oben +
+  // aufsteigende Luftballons, die wieder verschwinden). Sonst läuft oben nur der dezente Dauer-Effekt (renderFestRain).
   function burst(panel, force = false) {
     const ev = festive.key;
-    if (!ev || reduceMotion) return;
-    if (Date.now() - lastBurst < 1200) return; // nicht doppelt auslösen
-    const key = `fest-burst-${ev}-${panel}`;
+    if (ev !== 'birthday' || reduceMotion || panel !== 'overview') return;
+    if (Date.now() - lastBurst < 1200) return;
+    const key = `fest-burst-${ev}`;
     try { if (!force && sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch { /* egal */ }
     lastBurst = Date.now();
-    // Canvas-Animation: Schnee, Feuerwerk, Konfetti-Kanonen, Blütenblätter oder Ballons
-    window.FestArt?.play(ev);
+    window.FestArt?.play('birthday', { duration: 5200 });
+  }
+
+  // Dezenter Dauer-Effekt ganz oben: Konfetti, Schnee, Glitzer oder Blüten fallen ein paar Millimeter und verblassen
+  const FEST_RAIN = {
+    carnival: { kind: 'conf', colors: ['#ff4fa3', '#ffd23f', '#3bd1c4', '#7b5cff', '#3fa9ff', '#ff8a3b'] },
+    birthday: { kind: 'conf', colors: ['#ff4f8b', '#ffd23f', '#3ec5ff', '#9b7bff', '#7be08a', '#ff9f43'] },
+    christmas: { kind: 'snow', colors: ['#ffffff'] },
+    newyear: { kind: 'spark', colors: ['#ffd23f', '#fff1b8', '#ffffff', '#ffb347'] },
+    easter: { kind: 'petal', colors: ['#ffb3d1', '#fff3a6', '#b8f0c8', '#c9dcff', '#e6ccff'] },
+    midsummer: { kind: 'petal', colors: ['#ffffff', '#ffe066', '#ff9ac9', '#8fdc6f'] },
+  };
+  function renderFestRain(ev) {
+    let el = $('#fest-rain');
+    const c = ev && FEST_RAIN[ev];
+    if (!c || reduceMotion) { el?.remove(); return; }
+    if (el && el.dataset.ev === ev) return;
+    if (!el) { el = document.createElement('div'); el.id = 'fest-rain'; el.setAttribute('aria-hidden', 'true'); document.body.appendChild(el); }
+    el.dataset.ev = ev;
+    el.className = `fest-rain fr-${c.kind}`;
+    const n = window.innerWidth < 600 ? 16 : 28;
+    const h = (i, k) => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };
+    el.innerHTML = Array.from({ length: n }, (_, i) => `<i style="--x:${(((i + h(i, 1)) / n) * 100).toFixed(1)}%;--c:${c.colors[i % c.colors.length]};`
+      + `--t:${(2.4 + h(i, 2) * 2.2).toFixed(2)}s;--d:${(-h(i, 3) * 4.5).toFixed(2)}s;--s:${(0.7 + h(i, 4) * 0.6).toFixed(2)};--r:${Math.round(-180 + h(i, 5) * 360)}deg;--dx:${Math.round(-10 + h(i, 6) * 20)}px"></i>`).join('');
   }
 
   // Liquid Glass + Fest: kleine Motive schweben langsam im Hintergrund hinter dem Glas (nur transform/opacity)
@@ -1800,6 +1824,7 @@
       festive.key = ev;
       document.documentElement.dataset.fest = ev || '';
       renderGlassFx(ev);
+      renderFestRain(ev);
       if (state.panel === 'records' && rec.tab === 'shop') { rec.store.entered = true; renderRecords(); }
       if (ev) {
         decorateStatic();

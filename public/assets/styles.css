@@ -3469,3 +3469,18 @@ html, body { overscroll-behavior-y: contain; }
 @keyframes gfx-twinkle { 0%, 100% { transform: scale(0.35) rotate(0deg); opacity: 0; } 45% { transform: scale(1) rotate(25deg); opacity: var(--o); } 60% { transform: scale(0.9) rotate(35deg); opacity: var(--o); } }
 @media (prefers-reduced-motion: reduce) { .glass-fx i { animation: none; } .gfx-fall i, .gfx-sway i, .gfx-rise i { top: var(--y); } }
 .glass-fx.paused i { animation-play-state: paused; }
+
+/* ================================================================== Feste: dezenter Dauer-Effekt am oberen Rand
+   Teilchen fallen nur ein paar Millimeter und verblassen dann (Maske) – nur transform/opacity. */
+.fest-rain { position: fixed; z-index: 42; left: 0; right: 0; top: var(--safe-top, 0px); height: 64px; pointer-events: none; overflow: hidden; contain: strict;
+  -webkit-mask-image: linear-gradient(#000 0%, #000 25%, transparent 100%); mask-image: linear-gradient(#000 0%, #000 25%, transparent 100%); }
+.fest-rain i { position: absolute; top: -12px; left: var(--x); width: 7px; height: 10px; border-radius: 2px; background: var(--c); opacity: 0.9;
+  will-change: transform; animation: fr-fall var(--t) linear var(--d) infinite; }
+@keyframes fr-fall { from { transform: translate3d(0, 0, 0) rotate(0deg) scale(var(--s)); } to { transform: translate3d(var(--dx), 84px, 0) rotate(var(--r)) scale(var(--s)); } }
+.fr-conf i:nth-child(3n) { border-radius: 50%; width: 7px; height: 7px; }
+.fr-conf i:nth-child(4n) { width: 4px; height: 12px; }
+.fr-snow i { width: 6px; height: 6px; border-radius: 50%; background: radial-gradient(circle, #fff 30%, rgba(255, 255, 255, 0.2) 70%, transparent 72%); box-shadow: 0 0 4px rgba(255, 255, 255, 0.8); }
+:root[data-theme='light'] .fr-snow i, :root[data-theme='spring'] .fr-snow i, :root[data-theme='summer'] .fr-snow i { background: radial-gradient(circle, #a9cdf0 30%, rgba(169, 205, 240, 0.3) 70%, transparent 72%); box-shadow: none; }
+.fr-spark i { width: 8px; height: 8px; border-radius: 0; background: var(--c); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+.fr-petal i { width: 8px; height: 11px; border-radius: 80% 0 80% 0; background: linear-gradient(135deg, #fff, var(--c)); }
+@media (prefers-reduced-motion: reduce) { .fest-rain { display: none; } }
