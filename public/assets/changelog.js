@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17n',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🫧', go: 'glass',
+        t: ['Liquid Glass flüssiger', 'Smoother Liquid Glass', 'Liquid Glass plus fluide', 'Liquid Glass más fluido', 'Liquid Glass più fluido', 'Smidigare Liquid Glass', 'Mere flydende Liquid Glass'],
+        d: ['Liquid Glass läuft deutlich flüssiger – und an Festtagen schweben passende Motive hinter dem Glas.', 'Liquid Glass runs much more smoothly – and on holidays matching motifs float behind the glass.', 'Liquid Glass est bien plus fluide – et les jours de fête, des motifs flottent derrière le verre.', 'Liquid Glass va mucho más fluido y en días festivos flotan motivos tras el cristal.', 'Liquid Glass è molto più fluido – e nei giorni di festa motivi a tema fluttuano dietro il vetro.', 'Liquid Glass går mycket smidigare – och på högtider svävar passande motiv bakom glaset.', 'Liquid Glass kører meget mere flydende – og på festdage svæver passende motiver bag glasset.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17m',
     date: '2026-11-17',
     items: [

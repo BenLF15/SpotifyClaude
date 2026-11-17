@@ -3445,3 +3445,27 @@ html, body { overscroll-behavior-y: contain; }
 :root[data-glass='1'] .topbar.tb-scrolled::before { background: linear-gradient(160deg, var(--glass-strong), var(--glass)); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
 .topbar.tb-hidden { transform: translateY(-100%); }
 @media (prefers-reduced-motion: reduce) { .topbar { transition: none; } }
+
+/* ================================================================== Liquid Glass flüssiger
+   Echte Unschärfe nur noch dort, wo Glas über scrollendem Inhalt schwebt (Leiste unten, Kopfleiste, Fenster,
+   Hinweise). Karten liegen nur über dem ohnehin weichen Farbhintergrund – dort sieht man keinen Unterschied,
+   spart aber pro Bild eine Unschärfe-Berechnung je Karte. */
+:root[data-glass='1'] :is(.card, .insight, .segmented, .chip-btn, .btn:not(.btn-primary), .switch) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Liquid Glass + Fest: Motive schweben langsam hinter dem Glas */
+.glass-fx { display: none; position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; contain: strict; }
+:root[data-glass='1'][data-fest]:not([data-fest='']) .glass-fx { display: block; }
+.glass-fx i { position: absolute; left: var(--x); top: var(--y); font-size: var(--s); line-height: 0; opacity: var(--o); will-change: transform;
+  animation: gfx-float var(--t) ease-in-out var(--d) infinite; }
+.glass-fx svg.fa { filter: none; }
+.gfx-fall i { top: -12%; animation-name: gfx-fall; animation-timing-function: linear; }
+.gfx-rise i { top: 100%; animation-name: gfx-rise; animation-timing-function: linear; }
+.gfx-sway i { top: -12%; animation-name: gfx-sway; animation-timing-function: linear; }
+.gfx-twinkle i { animation-name: gfx-twinkle; animation-duration: calc(var(--t) * 0.35); }
+@keyframes gfx-fall { from { transform: translate3d(0, 0, 0) rotate(0deg); } to { transform: translate3d(var(--dx), 125vh, 0) rotate(var(--r)); } }
+@keyframes gfx-rise { from { transform: translate3d(0, 10vh, 0) rotate(-6deg); } 50% { transform: translate3d(calc(var(--dx) * 0.5), -55vh, 0) rotate(6deg); } to { transform: translate3d(var(--dx), -125vh, 0) rotate(-4deg); } }
+@keyframes gfx-sway { 0% { transform: translate3d(0, 0, 0) rotate(0deg); } 25% { transform: translate3d(4vw, 30vh, 0) rotate(40deg); } 50% { transform: translate3d(-3vw, 62vh, 0) rotate(-30deg); } 75% { transform: translate3d(3vw, 92vh, 0) rotate(25deg); } 100% { transform: translate3d(var(--dx), 125vh, 0) rotate(var(--r)); } }
+@keyframes gfx-float { 0%, 100% { transform: translate3d(0, 0, 0) rotate(-8deg); } 50% { transform: translate3d(var(--dx), -5vh, 0) rotate(8deg); } }
+@keyframes gfx-twinkle { 0%, 100% { transform: scale(0.35) rotate(0deg); opacity: 0; } 45% { transform: scale(1) rotate(25deg); opacity: var(--o); } 60% { transform: scale(0.9) rotate(35deg); opacity: var(--o); } }
+@media (prefers-reduced-motion: reduce) { .glass-fx i { animation: none; } .gfx-fall i, .gfx-sway i, .gfx-rise i { top: var(--y); } }
+.glass-fx.paused i { animation-play-state: paused; }

@@ -149,7 +149,7 @@
     cv.setAttribute('aria-hidden', 'true');
     document.body.appendChild(cv);
     const ctx = cv.getContext('2d');
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     let W = 0; let H = 0;
     const size = () => { W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
     size();
@@ -163,13 +163,13 @@
     const confetti = (x, y, vx, vy) => P.push({ t: 'conf', x, y, vx, vy, w: rnd(6, 11), h: rnd(9, 16), c: pick(pal), rot: rnd(0, 6.3), vr: rnd(-0.25, 0.25), ph: rnd(0, 6.3), vph: rnd(0.12, 0.3), shape: Math.random() < 0.25 ? 'circle' : Math.random() < 0.2 ? 'ribbon' : 'rect', life: 1, g: 0.32, drag: 0.985 });
     const cannon = (fromLeft) => {
       const x = fromLeft ? -10 : W + 10; const y = H * 0.82;
-      for (let i = 0; i < 70 * k; i++) {
+      for (let i = 0; i < 52 * k; i++) {
         const a = (fromLeft ? rnd(-78, -38) : rnd(-142, -102)) * (Math.PI / 180); const s = rnd(11, 22) * (small ? 0.85 : 1);
         confetti(x, y, Math.cos(a) * s, Math.sin(a) * s);
       }
     };
     const explode = (x, y, hue) => {
-      const n = (small ? 56 : 90); const c1 = hue; const c2 = pick(pal);
+      const n = (small ? 44 : 76); const c1 = hue; const c2 = pick(pal);
       const ringShot = Math.random() < 0.35;
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + rnd(-0.05, 0.05); const s = ringShot ? rnd(5.4, 6) : rnd(1.5, 6.5);
@@ -188,8 +188,8 @@
     // ---- Ablauf je Fest
     const at = (ms, f) => timers.push(setTimeout(f, ms));
     if (kind === 'newyear') { for (let i = 0; i < (small ? 6 : 9); i++) at(i * 420 + rnd(0, 200), rocket); }
-    else if (kind === 'christmas') { for (let i = 0; i < 120 * k; i++) flake(); }
-    else if (kind === 'easter' || kind === 'midsummer') { for (let i = 0; i < 70 * k; i++) petal(); }
+    else if (kind === 'christmas') { for (let i = 0; i < 90 * k; i++) flake(); }
+    else if (kind === 'easter' || kind === 'midsummer') { for (let i = 0; i < 54 * k; i++) petal(); }
     else if (kind === 'birthday') { for (let i = 0; i < 14 * k; i++) balloon(); at(250, () => cannon(true)); at(500, () => cannon(false)); }
     else { at(0, () => cannon(true)); at(180, () => cannon(false)); at(1100, () => { cannon(true); cannon(false); }); }
 

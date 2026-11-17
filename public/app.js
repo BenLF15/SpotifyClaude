@@ -1754,12 +1754,52 @@
     window.FestArt?.play(ev);
   }
 
+  // Liquid Glass + Fest: kleine Motive schweben langsam im Hintergrund hinter dem Glas (nur transform/opacity)
+  const GLASS_FX = {
+    christmas: { mode: 'fall', art: ['snowflake', 'snowflake', 'star', 'snowflake', 'bauble'] },
+    newyear: { mode: 'twinkle', art: ['sparkle', 'firework', 'sparkle', 'champagne', 'sparkle'] },
+    easter: { mode: 'float', art: ['egg', 'egg2', 'tulip', 'chick', 'egg'] },
+    carnival: { mode: 'fall', art: ['mask', 'popper', 'horn', 'sparkle', 'mask'] },
+    midsummer: { mode: 'sway', art: ['daisy', 'leaf', 'daisy', 'strawberry', 'sun'] },
+    birthday: { mode: 'rise', art: ['balloon', 'balloons', 'balloon', 'gift', 'balloon'] },
+  };
+  function renderGlassFx(ev) {
+    let el = $('#glass-fx');
+    const c = ev && GLASS_FX[ev];
+    if (!c) { el?.remove(); return; }
+    if (el && el.dataset.ev === ev) return;
+    if (!el) { el = document.createElement('div'); el.id = 'glass-fx'; el.className = 'glass-fx'; el.setAttribute('aria-hidden', 'true'); document.body.prepend(el); }
+    el.dataset.ev = ev;
+    el.className = `glass-fx gfx-${c.mode}`;
+    const n = window.innerWidth < 600 ? 9 : 14;
+    const h = (i, k) => { const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); }; // feste Pseudo-Zufallszahlen
+    el.innerHTML = Array.from({ length: n }, (_, i) => {
+      const art = c.art[i % c.art.length];
+      const s = 26 + Math.round(h(i, 1) * 30);
+      return `<i style="--x:${(((i + h(i, 2) * 0.8) / n) * 92 + 2).toFixed(1)}%;--y:${(h(i, 3) * 90).toFixed(1)}%;--s:${s}px;--o:${(0.6 + h(i, 4) * 0.35).toFixed(2)};`
+        + `--t:${(16 + h(i, 5) * 18).toFixed(1)}s;--d:${(-h(i, 6) * 30).toFixed(1)}s;--dx:${(-6 + h(i, 7) * 12).toFixed(1)}vw;--r:${Math.round(-200 + h(i, 8) * 400)}deg">${fa(art)}</i>`;
+    }).join('');
+  }
+
+  // Während des Scrollens halten die Hintergrund-Motive kurz an (das Glas der Leisten muss dann nichts Bewegtes verwischen)
+  (function pauseGlassFxOnScroll() {
+    let t = 0;
+    window.addEventListener('scroll', () => {
+      const el = document.getElementById('glass-fx');
+      if (!el || !document.documentElement.dataset.glass) return;
+      if (!el.classList.contains('paused')) el.classList.add('paused');
+      clearTimeout(t);
+      t = setTimeout(() => el.classList.remove('paused'), 220);
+    }, { passive: true });
+  })();
+
   function updateFestive({ burst: doBurst = false } = {}) {
     const ev = festOn() ? activeEvent(T.effectiveDate()) : null;
     if (ev !== festive.key) {
       clearFestive();
       festive.key = ev;
       document.documentElement.dataset.fest = ev || '';
+      renderGlassFx(ev);
       if (state.panel === 'records' && rec.tab === 'shop') { rec.store.entered = true; renderRecords(); }
       if (ev) {
         decorateStatic();
