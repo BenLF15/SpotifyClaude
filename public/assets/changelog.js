@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17l',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '↕️', go: null,
+        t: ['Mehr Platz beim Scrollen', 'More room while scrolling', 'Plus d’espace en défilant', 'Más espacio al desplazarte', 'Più spazio scorrendo', 'Mer plats när du scrollar', 'Mere plads når du scroller'],
+        d: ['Die Kopfleiste verschwindet beim Runterscrollen und kommt beim Hochscrollen sofort zurück.', 'The header hides when you scroll down and comes right back when you scroll up.', 'L’en-tête se cache en descendant et revient dès que vous remontez.', 'La cabecera se oculta al bajar y vuelve en cuanto subes.', 'L’intestazione si nasconde scorrendo in giù e torna subito scorrendo in su.', 'Sidhuvudet döljs när du scrollar ner och kommer direkt tillbaka när du scrollar upp.', 'Toppen skjules, når du scroller ned, og kommer straks tilbage, når du scroller op.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17k',
     date: '2026-11-17',
     items: [

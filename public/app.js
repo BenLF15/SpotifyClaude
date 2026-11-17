@@ -785,6 +785,29 @@
     new MutationObserver(() => { clearTimeout(scan.t); scan.t = setTimeout(scan, 200); }).observe(document.body, { childList: true, subtree: true });
   }
 
+  // ================================================================ Kopfleiste: beim Runterscrollen weg, beim Hochscrollen zurück
+  function bindAutoHideTopbar() {
+    const bar = $('.topbar');
+    if (!bar) return;
+    let lastY = window.scrollY; let acc = 0; let ticking = false;
+    const set = (hide) => { if (bar.classList.contains('tb-hidden') !== hide) bar.classList.toggle('tb-hidden', hide); };
+    const update = () => {
+      ticking = false;
+      const y = Math.max(0, window.scrollY);
+      const dy = y - lastY; lastY = y;
+      bar.classList.toggle('tb-scrolled', y > 4);
+      if (y <= bar.offsetHeight) { set(false); acc = 0; return; }   // ganz oben: immer sichtbar
+      if (document.querySelector('dialog[open]')) return;
+      // kleine Zitterbewegungen ignorieren: erst ab ein paar Pixeln in eine Richtung reagieren
+      acc = Math.sign(dy) === Math.sign(acc) ? acc + dy : dy;
+      if (acc > 14) set(true);
+      else if (acc < -8) set(false);
+    };
+    window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+    // Fokus in der Kopfleiste (Tastatur) → einblenden
+    bar.addEventListener('focusin', () => set(false));
+  }
+
   // ================================================================ Runterziehen zum Aktualisieren
   // Eigene Version statt des Browser-Kreises: eine Schallplatte gleitet herunter und dreht sich mit dem Finger;
   // ab der Schwelle leuchtet das Label, beim Loslassen dreht sie sich, bis alles neu geladen ist.
@@ -5036,6 +5059,7 @@
     renderLangPicker();
     bindPullToRefresh();
     bindOffscreenPause();
+    bindAutoHideTopbar();
     const justConnected = handleQueryFlags();
     refreshAll();
     // Nach dem Verbinden läuft der erste Sync im Hintergrund – kurz danach neu laden.

@@ -3435,3 +3435,13 @@ html, body { overscroll-behavior-y: contain; }
 .wr-entry-play svg { width: 16px; height: 16px; fill: currentColor; }
 .wr-entry-main:hover .wr-entry-art { transform: scale(1.05); transition: transform 0.25s var(--ease-spring, ease); }
 @media (prefers-reduced-motion: reduce) { .wr-entry::after, .wr-entry-art i { animation: none; } }
+
+/* ================================================================== Kopfleiste: haftet oben, versteckt sich beim Runterscrollen */
+.topbar { position: sticky; top: 0; z-index: 39; transition: transform 0.32s cubic-bezier(0.22, 0.8, 0.24, 1); will-change: transform; }
+/* Hintergrund über die volle Breite (die Leiste selbst ist auf 1240 px begrenzt) */
+.topbar::before { content: ''; position: absolute; z-index: -1; top: 0; bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%);
+  background: var(--bg); opacity: 0; transition: opacity 0.25s, box-shadow 0.25s; }
+.topbar.tb-scrolled::before { opacity: 1; box-shadow: 0 8px 20px -14px rgba(0, 0, 0, 0.5); }
+:root[data-glass='1'] .topbar.tb-scrolled::before { background: linear-gradient(160deg, var(--glass-strong), var(--glass)); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.topbar.tb-hidden { transform: translateY(-100%); }
+@media (prefers-reduced-motion: reduce) { .topbar { transition: none; } }
