@@ -3008,3 +3008,29 @@ html[data-fest='carnival'] .sr-neon { animation: neon-flicker 6s infinite, neon-
 
 
 .rp-pill.none .rp-retry { font-size: 0.8rem; }
+
+/* ================================================================== Unter-Reiter (Statistik, Verlauf) */
+.subtabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 2px; margin-bottom: -2px; }
+.subtabs::-webkit-scrollbar { display: none; }
+.subtab { flex: none; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2);
+  font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: color 0.3s var(--ease-soft, ease), background 0.3s var(--ease-soft, ease), border-color 0.3s; }
+.subtab:hover { color: var(--text); border-color: var(--border-strong); }
+.subtab[aria-selected='true'] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+:root[data-glass='1'] .subtab:not([aria-selected='true']) { background: linear-gradient(160deg, var(--glass-strong), var(--glass)); border-color: var(--glass-edge); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.subtabs { view-transition-name: subtabs; }
+/* Leiste unten: 5 Bereiche, kein „Mehr“ */
+@media (max-width: 720px) { .bottom-nav button[data-bn='collection'] svg { stroke-width: 1.7; } }
+
+/* ================================================================== Regal: Stücke leicht versetzt, platzsparend
+   Jede Platte/CD überlappt die vorige ein Stück – Cover bleibt erkennbar, das Regal bleibt kompakt. */
+.cabinet-inner { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); padding-right: 44px; }
+.cabinet.mini .cabinet-inner { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); }
+.cabinet .cab-item { justify-self: start; z-index: 1; }
+.cabinet .cab-item:nth-child(2n) { margin-bottom: 18px; }
+.cdrack-inner { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); padding-right: 30px; }
+.cdrack.mini .cdrack-inner { grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); }
+.cdrack .cab-item { justify-self: start; z-index: 1; }
+.cdrack .cab-item:nth-child(2n) { margin-bottom: 4px; }
+.cabinet .cab-item:hover, .cabinet .cab-item:focus-visible, .cdrack .cab-item:hover, .cdrack .cab-item:focus-visible { z-index: 5; }
+.cabinet .cab-item .rec { box-shadow: -6px 0 10px -6px rgba(0, 0, 0, 0.55); }
+.cdrack .cab-item .cd-case { box-shadow: -5px 0 8px -5px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.35); }

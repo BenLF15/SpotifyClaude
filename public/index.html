@@ -16,12 +16,12 @@
   <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32" />
   <title>Spotlfy</title>
-  <script src="/assets/theme.js?v=20261116e"></script>
-  <script src="/assets/i18n.js?v=20261116e"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20261116e" />
-  <script src="/assets/changelog.js?v=20261116e" defer></script>
+  <script src="/assets/theme.js?v=20261117a"></script>
+  <script src="/assets/i18n.js?v=20261117a"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20261117a" />
+  <script src="/assets/changelog.js?v=20261117a" defer></script>
   <script src="/vendor/chart.umd.min.js" defer></script>
-  <script src="/app.js?v=20261116e" defer></script>
+  <script src="/app.js?v=20261117a" defer></script>
 </head>
 <body>
   <div class="statusbar-bg" aria-hidden="true"></div>
@@ -46,30 +46,22 @@
 
   <!-- Handy: Leiste unten (Daumen-erreichbar); Desktop/Tablet nutzen die Tab-Leiste oben -->
   <nav class="bottom-nav" id="bottom-nav" data-i18n-attr="aria-label:nav.main">
-    <button type="button" data-bn="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span data-i18n="nav.overview">Übersicht</span></button>
-    <button type="button" data-bn="top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span data-i18n="nav.top">Top-Listen</span></button>
+    <button type="button" data-bn="start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span data-i18n="nav.start">Start</span></button>
+    <button type="button" data-bn="stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span data-i18n="nav.stats">Statistik</span></button>
     <button type="button" data-bn="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span data-i18n="nav.history">Verlauf</span></button>
+    <button type="button" data-bn="collection"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3a9 9 0 0 1 9 9"/></svg><span data-i18n="nav.collection">Sammlung</span></button>
     <button type="button" data-bn="friends"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M16.5 14.6c2.6.2 4.4 1.9 5 4.9"/></svg><span data-i18n="nav.friends">Freunde</span></button>
-    <button type="button" data-bn="more" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span class="bn-more-label" data-i18n="nav.more">Mehr</span></button>
   </nav>
-  <dialog id="more-sheet" class="dialog more-sheet" aria-labelledby="more-title">
-    <div class="ms-grip" aria-hidden="true"></div>
-    <h2 id="more-title" class="sr-only" data-i18n="nav.more">Mehr</h2>
-    <div class="ms-grid" id="more-grid"></div>
-  </dialog>
 
   <!-- Ebene 1: Bereiche -->
   <nav class="subnav">
     <div class="tabs" id="panel-tabs" role="tablist">
-      <button role="tab" data-panel="overview" data-i18n="nav.overview">Übersicht</button>
-      <button role="tab" data-panel="top" data-i18n="nav.top">Top-Listen</button>
-      <button role="tab" data-panel="times" data-i18n="nav.times">Hörzeiten</button>
-      <button role="tab" data-panel="genres" data-i18n="nav.genres">Genres</button>
-      <button role="tab" data-panel="trends" data-i18n="nav.trends">Entwicklung</button>
-      <button role="tab" data-panel="history" data-i18n="nav.history">Verlauf</button>
-      <button role="tab" data-panel="wrapped" data-i18n="nav.wrapped">Rückblick</button>
-      <button role="tab" data-panel="friends" data-i18n="nav.friends">Freunde</button>
-      <button role="tab" data-panel="admin" id="admin-tab" hidden data-i18n="nav.admin">Admin</button>
+      <button role="tab" data-group="start" data-panel="overview" data-i18n="nav.start">Start</button>
+      <button role="tab" data-group="stats" data-panel="top" data-i18n="nav.stats">Statistik</button>
+      <button role="tab" data-group="history" data-panel="history" data-i18n="nav.history">Verlauf</button>
+      <button role="tab" data-group="collection" data-panel="records" data-i18n="nav.collection">Sammlung</button>
+      <button role="tab" data-group="friends" data-panel="friends" data-i18n="nav.friends">Freunde</button>
+      <span id="admin-tab" hidden></span>
     </div>
   </nav>
 
@@ -113,6 +105,7 @@
       <!-- Aktuell läuft -->
       <div class="now-playing" id="now-playing" hidden></div>
       <!-- Ebene 2: Zeitraum (gilt für Übersicht, Top-Listen, Hörzeiten, Genres) -->
+      <div class="subtabs" id="subtabs" role="tablist" hidden></div>
       <div class="range-bar" id="range-bar">
         <div class="segmented small" id="range-control" role="tablist" data-i18n-attr="aria-label:aria.range">
           <button role="tab" data-range="7d" data-i18n="range.7d"></button>
@@ -320,7 +313,7 @@
         <div class="profile-who">
           <h2 id="profile-name"></h2>
           <p class="muted small" id="profile-sub"></p>
-          <div class="avatar-actions"><button type="button" class="link-btn" id="avatar-change" data-i18n="avatar.change"></button><button type="button" class="link-btn danger" id="avatar-remove" hidden data-i18n="avatar.remove"></button></div>
+          <div class="avatar-actions"><button type="button" class="link-btn" id="admin-link" hidden>🛠️ <span data-i18n="nav.admin">Admin</span></button><button type="button" class="link-btn" id="avatar-change" data-i18n="avatar.change"></button><button type="button" class="link-btn danger" id="avatar-remove" hidden data-i18n="avatar.remove"></button></div>
         </div>
       </section>
 

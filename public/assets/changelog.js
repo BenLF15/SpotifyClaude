@@ -7,6 +7,22 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17a',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🧭', go: null,
+        t: ['Aufgeräumte Navigation', 'Tidier navigation', 'Navigation simplifiée', 'Navegación más clara', 'Navigazione più ordinata', 'Tydligare navigering', 'Enklere navigation'],
+        d: ['Nur noch 5 Bereiche: Start, Statistik, Verlauf, Sammlung, Freunde – Unterpunkte als Reiter.', 'Just 5 sections: Home, Stats, History, Collection, Friends – sub-pages as tabs.', 'Plus que 5 sections : Accueil, Statistiques, Historique, Collection, Amis.', 'Solo 5 secciones: Inicio, Estadísticas, Historial, Colección, Amigos.', 'Solo 5 sezioni: Home, Statistiche, Cronologia, Collezione, Amici.', 'Bara 5 delar: Start, Statistik, Historik, Samling, Vänner.', 'Kun 5 sektioner: Start, Statistik, Historik, Samling, Venner.'],
+      },
+      {
+        icon: '📚', go: 'records',
+        t: ['Kompakteres Regal', 'More compact shelves', 'Étagères plus compactes', 'Estanterías más compactas', 'Scaffali più compatti', 'Kompaktare hyllor', 'Mere kompakte reoler'],
+        d: ['Platten und CDs stehen leicht versetzt hintereinander und brauchen weniger Platz.', 'Records and CDs stand slightly staggered and take up less space.', 'Vinyles et CD légèrement décalés prennent moins de place.', 'Discos y CD ligeramente escalonados ocupan menos espacio.', 'Dischi e CD leggermente sfalsati occupano meno spazio.', 'Skivor och cd står lätt förskjutna och tar mindre plats.', 'Plader og cd’er står let forskudt og fylder mindre.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-16c',
     date: '2026-11-16',
     items: [

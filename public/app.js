@@ -305,6 +305,7 @@
     // Profil-Button oben rechts: eigenes Bild, sonst Spotify-Bild, sonst Initiale
     paintAvatars();
     $('#admin-tab').hidden = !s.account.is_admin;
+    const al = $('#admin-link'); if (al) al.hidden = !s.account.is_admin;
     renderProfile(s);
     updateFestive();
     maybeShowTour();
@@ -1841,62 +1842,59 @@
     zone.addEventListener('drop', (e) => handle(e.dataTransfer.files));
   }
 
-  // ================================================================ Leiste unten (Handy)
-  const BN_MAIN = ['overview', 'top', 'history', 'friends'];
-  const BN_MORE = [
-    ['times', '⏰', 'nav.times'], ['genres', '🎼', 'nav.genres'], ['trends', '📈', 'nav.trends'],
-    ['wrapped', '🎁', 'nav.wrapped'], ['records', '💿', 'rec.title'], ['profile', '👤', 'nav.profile'], ['admin', '🛠️', 'nav.admin'],
-  ];
+  // ================================================================ Navigation: 5 Hauptbereiche mit Unter-Reitern
+  const GROUPS = {
+    start: ['overview'],
+    stats: ['top', 'genres', 'times', 'trends'],
+    history: ['history', 'wrapped'],
+    collection: ['records'],
+    friends: ['friends'],
+  };
+  const SUB_LABEL = { top: 'nav.top', genres: 'nav.genres', times: 'nav.times', trends: 'nav.trends', history: 'nav.history', wrapped: 'nav.wrapped' };
+  const groupOf = (panel) => Object.keys(GROUPS).find((g) => GROUPS[g].includes(panel)) || null;
+  const lastInGroup = (g) => { const v = session.get(`grp-${g}`); return GROUPS[g].includes(v) ? v : GROUPS[g][0]; };
+  const PANEL_ORDER = Object.values(GROUPS).flat().concat(['profile', 'admin']);
+
+  function paintSubtabs() {
+    const el = $('#subtabs');
+    if (!el) return;
+    const g = groupOf(state.panel);
+    const list = g ? GROUPS[g] : [];
+    if (list.length < 2 || !state.spotify) { el.hidden = true; el.innerHTML = ''; return; }
+    session.set(`grp-${g}`, state.panel);
+    el.hidden = false;
+    el.innerHTML = list.map((pn) => `<button type="button" role="tab" class="subtab" data-sub="${pn}" aria-selected="${pn === state.panel}">${esc(t(SUB_LABEL[pn]))}</button>`).join('');
+  }
+
   function paintBottomNav() {
     const nav = $('#bottom-nav');
     if (!nav) return;
-    const inMore = !BN_MAIN.includes(state.panel);
+    const g = groupOf(state.panel);
     $$('[data-bn]', nav).forEach((b) => {
-      const on = b.dataset.bn === state.panel || (b.dataset.bn === 'more' && inMore);
+      const on = b.dataset.bn === g;
       b.classList.toggle('on', on);
       b.setAttribute('aria-current', on ? 'page' : 'false');
     });
-    // „Mehr“ zeigt den gerade geöffneten Bereich an
-    const more = BN_MORE.find(([k]) => k === state.panel);
-    $('.bn-more-label', nav).textContent = inMore && more ? t(more[2]) : t('nav.more');
     const fb = $('#panel-tabs [data-panel="friends"]')?.dataset.badge || '';
     $('[data-bn="friends"]', nav).dataset.badge = fb;
   }
-  function openMoreSheet() {
-    const items = BN_MORE.filter(([k]) => k !== 'admin' || state.account?.is_admin);
-    $('#more-grid').innerHTML = items.map(([k, ico, key], i) => `<button type="button" class="ms-item${k === state.panel ? ' on' : ''}" data-ms="${k}" style="--i:${i}"><span>${ico}</span><b>${esc(t(key))}</b></button>`).join('');
-    $('#more-sheet').showModal();
+
+  function goGroup(g) {
+    if (g === 'collection') { openRecordsTab(rec.tab || 'collection'); return; }
+    showPanel(lastInGroup(g));
   }
+
   function bindBottomNav() {
     const nav = $('#bottom-nav');
-    if (!nav) return;
-    nav.addEventListener('click', (e) => {
+    nav?.addEventListener('click', (e) => {
       const b = e.target.closest('[data-bn]');
       if (!b) return;
-      if (b.dataset.bn === 'more') { openMoreSheet(); return; }
-      if (b.dataset.bn === state.panel) { window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); return; } // nochmal tippen = nach oben
-      showPanel(b.dataset.bn);
+      if (b.dataset.bn === groupOf(state.panel)) { window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); return; } // nochmal tippen = nach oben
+      goGroup(b.dataset.bn);
     });
-    const sheet = $('#more-sheet');
-    sheet.addEventListener('click', (e) => {
-      const it = e.target.closest('[data-ms]');
-      if (it) {
-        sheet.close();
-        const k = it.dataset.ms;
-        if (k === 'records') openRecordsTab('collection'); else showPanel(k);
-        return;
-      }
-      if (e.target === sheet) sheet.close();
-    });
-    // Nach unten wischen schließt das Blatt
-    let y0 = null;
-    sheet.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; }, { passive: true });
-    sheet.addEventListener('touchmove', (e) => { if (y0 != null) { const dy = Math.max(0, e.touches[0].clientY - y0); sheet.style.transform = dy ? `translateY(${dy}px)` : ''; } }, { passive: true });
-    sheet.addEventListener('touchend', (e) => {
-      const dy = (e.changedTouches[0]?.clientY ?? y0) - (y0 ?? 0);
-      sheet.style.transform = '';
-      y0 = null;
-      if (dy > 80) sheet.close();
+    $('#subtabs')?.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-sub]');
+      if (b && b.dataset.sub !== state.panel) showPanel(b.dataset.sub);
     });
     // Tastatur offen → Leiste ausblenden (sonst schiebt sie sich auf dem Handy über die Tastatur)
     document.addEventListener('focusin', (e) => { if (e.target.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), textarea, select')) document.body.classList.add('kb-open'); });
@@ -1910,7 +1908,8 @@
     ink.className = 'tab-ink';
     tabs.prepend(ink);
     const place = (animate) => {
-      const btn = $(`button[data-panel="${state.panel}"]`, tabs);
+      const g = groupOf(state.panel);
+      const btn = $$('button[data-group]', tabs).find((b) => b.dataset.group === g) || null;
       $$('button', tabs).forEach((b) => b.setAttribute('aria-selected', String(b === btn)));
       if (!btn || btn.hidden) { ink.style.width = '0'; return; }
       ink.style.transition = animate ? '' : 'none';
@@ -1920,8 +1919,10 @@
       tabs.scrollTo({ left, behavior: animate && !reduceMotion ? 'smooth' : 'auto' });
     };
     tabs.addEventListener('click', (e) => {
-      const b = e.target.closest('button[data-panel]');
-      if (b) showPanel(b.dataset.panel);
+      const b = e.target.closest('button[data-group]');
+      if (!b) return;
+      if (b.dataset.group === groupOf(state.panel)) return;
+      goGroup(b.dataset.group);
     });
     window.addEventListener('resize', () => place(false));
     tabs.place = place;
@@ -1941,6 +1942,7 @@
     $$('#view-stats .panel').forEach((p) => { p.hidden = p.dataset.panel !== state.panel; });
     $('#range-bar').hidden = !RANGE_PANELS.has(state.panel);
     $('#panel-tabs').place?.(true);
+    paintSubtabs();
     paintBottomNav();
     // Segment-Pills in gerade sichtbar gewordenen Bereichen ausrichten
     requestAnimationFrame(() => $$('.segmented').forEach((s) => s.realign?.()));
@@ -1951,7 +1953,7 @@
     const changed = panel !== state.panel;
     if (changed && !showPanel.inVT) {
       // Richtung wie die Tab-Reihenfolge: weiter rechts → gleitet von rechts herein
-      const tabs = [...$$('#panel-tabs [data-panel]')].map((b) => b.dataset.panel).concat(['records', 'profile']);
+      const tabs = PANEL_ORDER;
       const a = tabs.indexOf(state.panel); const b = tabs.indexOf(panel);
       const dir = a < 0 || b < 0 ? 'fade' : b > a ? 'fwd' : 'back';
       smoothSwap(() => { showPanel.inVT = true; try { showPanel(panel); } finally { showPanel.inVT = false; } }, dir);
@@ -3416,9 +3418,9 @@
       const cdl = r.collection.filter((x) => x.kind === 'cd');
       body.innerHTML = `
         <p class="muted small rec-stats">${esc(t('rec.countBoth', { n: fmt(recs.length), m: fmt(cdl.length) }))}${recs.length ? ` · ${collectionStats(r.collection)}` : ''}</p>
-        ${cabinetHTML(recs, { rows: Math.max(2, Math.ceil(recs.length / 6)), readonly: true })}
+        ${cabinetHTML(recs, { rows: Math.max(1, Math.ceil(recs.length / 12)), readonly: true })}
         <p class="rack-label">💿 ${esc(t('cmp.cdRackOf', { name: r.friend.username }))}</p>
-        ${cdRackHTML(cdl, { rows: Math.max(1, Math.ceil(cdl.length / 10)), readonly: true })}`;
+        ${cdRackHTML(cdl, { rows: Math.max(1, Math.ceil(cdl.length / 18)), readonly: true })}`;
       const btn = $(`[data-friend-coll="${id}"]`);
       if (btn) btn.hidden = true;
     } catch (err) {
@@ -3968,6 +3970,9 @@
   // Kamera fährt zum Tisch (bzw. zurück in den Raum)
   function storeGo(where) {
     const room = $('.store-room');
+    stopRecordSong();
+    $('.store-lift')?.remove();
+    $$('.stb-item.lifted').forEach((x) => x.classList.remove('lifted'));
     if (where === 'studio') {
       if (room && !reduceMotion) { $('.sr-studio')?.classList.add('opening'); room.classList.add('zoom-studio'); }
       if (!rec.studio.session) loadSession();
@@ -4297,12 +4302,12 @@
       body = `<section class="card">
         <header class="card-head"><div><h2>${esc(t('rec.cabinet'))}</h2><p class="muted small rec-stats">${records(d).length ? collectionStats(records(d)) : esc(t('rec.subEmpty'))}</p></div>
           <div class="chips">${['all', ...RARITIES].map((r) => `<button type="button" class="chip-btn" data-rec-filter="${r}" aria-pressed="${rec.filter === r}">${esc(r === 'all' ? t('rec.all') : t(`rec.r.${r}`))}</button>`).join('')}</div></header>
-        ${cabinetHTML(list, { rows: Math.max(3, Math.ceil(list.length / 6)) })}
+        ${cabinetHTML(list, { rows: Math.max(2, Math.ceil(list.length / 12)) })}
         ${d.collection.length ? '' : `<div class="rec-cta"><button type="button" class="btn btn-primary" data-rec-tab="shop">🛍️ ${esc(t('rec.toShop'))}</button></div>`}
       </section>
       <section class="card">
         <header class="card-head"><div><h2>💿 ${esc(t('rec.cdRack'))}</h2><p class="muted small rec-stats">${cds(d).length ? collectionStats(cds(d)) : esc(t('rec.cdEmpty'))}</p></div></header>
-        ${cdRackHTML(cdList, { rows: Math.max(2, Math.ceil(cdList.length / 10)) })}
+        ${cdRackHTML(cdList, { rows: Math.max(1, Math.ceil(cdList.length / 18)) })}
         ${cds(d).length ? '' : `<div class="rec-cta"><button type="button" class="btn btn-ghost" data-shop-page="cd">💿 ${esc(t('rec.toCdShop'))}</button></div>`}
       </section>`;
     } else if (rec.tab === 'shop') {
@@ -4354,7 +4359,6 @@
     }
     el.innerHTML = `
       <section class="card rec-head">
-        <button type="button" class="link-btn rec-back" data-goto="overview">← ${esc(t('nav.overview'))}</button>
         <div class="rec-head-main">
           <div><h2>💿 ${esc(t('rec.title'))}</h2><p class="muted small">${esc(d.collection.length ? t('rec.countBoth', { n: fmt(records(d).length), m: fmt(cds(d).length) }) : t('rec.subEmpty'))}</p></div>
           ${balanceHTML(d.balance, true)}
@@ -4428,13 +4432,15 @@
     kind: r.kind === 'cd' ? 'cd' : 'record', artist: r.artist || '', album: r.album || '', ...(r.album_id ? { album_id: r.album_id } : {}),
   }).toString();
 
+  // Lautstärke-Rampe pro Audio-Element; ein gestopptes Element wird nie wieder lauter
   function recFade(a, to, ms, done) {
-    clearInterval(recPlayer.fadeT);
+    if (to > 0 && a._stopped) return;
+    clearInterval(a._fadeT);
     const from = a.volume; const t0 = performance.now();
-    recPlayer.fadeT = setInterval(() => {
+    a._fadeT = setInterval(() => {
       const k = Math.min(1, (performance.now() - t0) / ms);
       try { a.volume = Math.max(0, Math.min(1, from + (to - from) * k)); } catch { /* iOS */ }
-      if (k >= 1) { clearInterval(recPlayer.fadeT); done?.(); }
+      if (k >= 1) { clearInterval(a._fadeT); done?.(); }
     }, 30);
   }
 
@@ -4467,7 +4473,8 @@
       a.addEventListener('playing', () => { $('.rp-pill')?.classList.remove('loading', 'paused'); });
       a.addEventListener('error', () => { if (recPlayer.el === a) recNone(); });
       const pr = a.play();
-      pr?.then?.(() => recFade(a, 0.8, 900)).catch(() => {
+      pr?.then?.(() => { if (a._stopped) { a.pause(); return; } recFade(a, 0.8, 900); }).catch(() => {
+        if (a._stopped) return;
         // Autoplay gesperrt → Tippen auf die Anzeige startet
         const p = $('.rp-pill'); if (p) { p.classList.add('paused'); p.dataset.rpPlay = '1'; }
       });
@@ -4495,9 +4502,14 @@
     const a = recPlayer.el;
     recPlayer.key = null;
     recPlayer.el = null;
-    if (!a) return;
-    const end = () => { a.pause(); a.removeAttribute('src'); a.load(); };
-    if (immediate || reduceMotion) { clearInterval(recPlayer.fadeT); end(); } else recFade(a, 0, 450, end);
+    if (!a || a._stopped) return;
+    a._stopped = true;
+    let ended = false;
+    const end = () => { if (ended) return; ended = true; clearInterval(a._fadeT); a.pause(); a.removeAttribute('src'); a.load(); };
+    // noch am Laden oder kein weiches Ausblenden gewünscht → sofort aus; sonst kurz ausblenden (mit Sicherheitsnetz)
+    if (immediate || reduceMotion || a.paused || a.readyState < 3) { end(); return; }
+    recFade(a, 0, 400, end);
+    setTimeout(end, 600);
   }
 
   function bindRecPlayer() {
@@ -4524,6 +4536,8 @@
     $('#record-dialog').addEventListener('close', () => { if (!$('.store-lift')) stopRecordSong(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) stopRecordSong(true); });
     window.addEventListener('pagehide', () => stopRecordSong(true));
+    document.addEventListener('freeze', () => stopRecordSong(true));
+    window.addEventListener('beforeunload', () => stopRecordSong(true));
   }
 
   function openRecord(r, { owned = true, isNew = false, friendName = null } = {}) {
@@ -4701,6 +4715,7 @@
       const rt = e.target.closest('[data-rec-tab]');
       if (rt) {
         studioStopAudio();
+        stopRecordSong(true);
         if (rt.dataset.recTab === 'shop' && rec.tab !== 'shop') { rec.store = { view: 'room', entered: false }; rec.studio.mode = null; } // Tür geht wieder auf
         rec.tab = rt.dataset.recTab; renderRecords(); return;
       }
@@ -4845,6 +4860,7 @@
     bindNews();
     bindAvatar();
     bindBottomNav();
+    $('#admin-link')?.addEventListener('click', () => showPanel('admin'));
     bindRecPlayer();
     bindStudio();
     document.addEventListener('visibilitychange', () => { if (document.hidden) studioStopAudio(); });
