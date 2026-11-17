@@ -3845,7 +3845,7 @@
     const m = cds(d).length;
     $('#records-sub').textContent = n || m ? t('rec.countBoth', { n: fmt(n), m: fmt(m) }) : t('rec.subEmpty');
     $('#note-balance-mini').innerHTML = balanceHTML(d.balance);
-    $('#cabinet-mini').innerHTML = cabinetHTML(records(d).slice(0, 16), { rows: 2, mini: true })
+    $('#cabinet-mini').innerHTML = cabinetHTML(records(d).slice(0, 18), { rows: 1, mini: true })
       + `<p class="rack-label">💿 ${esc(t('rec.cdRack'))}</p>${cdRackHTML(cds(d).slice(0, 24), { rows: 1, mini: true })}`;
     const q = d.daily?.quiz;
     const so = d.daily?.sotd;
@@ -4330,7 +4330,7 @@
       body = `<section class="card">
         <header class="card-head"><div><h2>${esc(t('rec.cabinet'))}</h2><p class="muted small rec-stats">${records(d).length ? collectionStats(records(d)) : esc(t('rec.subEmpty'))}</p></div>
           <div class="chips">${['all', ...RARITIES].map((r) => `<button type="button" class="chip-btn" data-rec-filter="${r}" aria-pressed="${rec.filter === r}">${esc(r === 'all' ? t('rec.all') : t(`rec.r.${r}`))}</button>`).join('')}</div></header>
-        ${cabinetHTML(list, { rows: Math.max(2, Math.ceil(list.length / 12)) })}
+        ${cabinetHTML(list, { rows: Math.max(1, Math.ceil(list.length / 16)) })}
         ${d.collection.length ? '' : `<div class="rec-cta"><button type="button" class="btn btn-primary" data-rec-tab="shop">🛍️ ${esc(t('rec.toShop'))}</button></div>`}
       </section>
       <section class="card">

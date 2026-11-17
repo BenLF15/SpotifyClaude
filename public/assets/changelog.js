@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17c',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🎨', go: 'records',
+        t: ['Neues Design für Laden & Regale', 'New look for shop & shelves', 'Nouveau look boutique & étagères', 'Nuevo diseño de tienda y estantes', 'Nuovo look per negozio e scaffali', 'Ny design för butik & hyllor', 'Nyt design til butik & reoler'],
+        d: ['Modern im Spotify-Stil: Leuchtböden, Glastüren, Podeste – Platten und CDs stehen wie im echten Regal.', 'Modern Spotify style: glowing shelves, glass doors, podiums – records and CDs stand like on a real shelf.', 'Style Spotify moderne : étagères lumineuses, portes vitrées, podiums – vinyles et CD comme sur une vraie étagère.', 'Estilo Spotify moderno: estantes luminosos, puertas de cristal, podios; discos y CD como en una estantería real.', 'Stile Spotify moderno: mensole luminose, porte in vetro, podi – dischi e CD come su uno scaffale vero.', 'Modern Spotify-stil: lysande hyllor, glasdörrar, podier – skivor och cd står som i en riktig hylla.', 'Moderne Spotify-stil: lysende hylder, glasdøre, podier – plader og cd’er står som på en rigtig reol.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17b',
     date: '2026-11-17',
     items: [
