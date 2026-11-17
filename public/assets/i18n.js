@@ -36,6 +36,7 @@
     'connect.hint': ['Im Testbetrieb erlaubt Spotify nur freigeschaltete Konten. Klappt es nicht, bitte den Betreiber, dein Spotify-Konto freizuschalten.', 'In development mode Spotify only allows approved accounts. If it doesn’t work, ask the operator to approve your Spotify account.', 'En mode développement, Spotify n’autorise que les comptes approuvés. Sinon, demande à l’administrateur d’autoriser ton compte.', 'En modo de desarrollo, Spotify solo permite cuentas autorizadas. Si no funciona, pide al administrador que autorice tu cuenta.', 'In modalità sviluppo Spotify consente solo account approvati. Se non funziona, chiedi al gestore di abilitare il tuo account.', 'I utvecklingsläge tillåter Spotify bara godkända konton. Fungerar det inte, be operatören att godkänna ditt konto.', 'I udviklingstilstand tillader Spotify kun godkendte konti. Virker det ikke, så bed operatøren om at godkende din konto.'],
 
     // ------------------------------------------------------------ Zeitraum
+    'range.today': ['Heute', 'Today', 'Auj.', 'Hoy', 'Oggi', 'Idag', 'I dag'],
     'range.7d': ['7 T', '7 d', '7 j', '7 d', '7 g', '7 d', '7 d'],
     'range.30d': ['30 T', '30 d', '30 j', '30 d', '30 g', '30 d', '30 d'],
     'range.90d': ['90 T', '90 d', '90 j', '90 d', '90 g', '90 d', '90 d'],
@@ -651,6 +652,7 @@
     // ---------------------------------------------------------------- Neue Bereiche (Nov. 2026)
     'nav.wrapped': ['Rückblick', 'Wrapped', 'Rétrospective', 'Resumen', 'Riepilogo', 'Årskrönika', 'Årets musik'],
     'nav.friends': ['Freunde', 'Friends', 'Amis', 'Amigos', 'Amici', 'Vänner', 'Venner'],
+    'period.today': ['Heute', 'Today', 'Aujourd’hui', 'Hoy', 'Oggi', 'Idag', 'I dag'],
     'period.7d': ['Letzte 7 Tage', 'Last 7 days', '7 derniers jours', 'Últimos 7 días', 'Ultimi 7 giorni', 'Senaste 7 dagarna', 'Seneste 7 dage'],
     'period.30d': ['Letzte 30 Tage', 'Last 30 days', '30 derniers jours', 'Últimos 30 días', 'Ultimi 30 giorni', 'Senaste 30 dagarna', 'Seneste 30 dage'],
     'period.90d': ['Letzte 90 Tage', 'Last 90 days', '90 derniers jours', 'Últimos 90 días', 'Ultimi 90 giorni', 'Senaste 90 dagarna', 'Seneste 90 dage'],

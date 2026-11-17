@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17g',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '📅', go: 'overview',
+        t: ['Neu: Heute', 'New: Today', 'Nouveau : Aujourd’hui', 'Nuevo: Hoy', 'Novità: Oggi', 'Nytt: Idag', 'Nyt: I dag'],
+        d: ['Die Übersicht startet jetzt mit dem heutigen Tag – ab Mitternacht, verglichen mit gestern.', 'The overview now starts with today – since midnight, compared with yesterday.', 'L’aperçu commence par aujourd’hui – depuis minuit, comparé à hier.', 'El resumen empieza ahora con hoy: desde medianoche, comparado con ayer.', 'La panoramica parte da oggi – dalla mezzanotte, confrontata con ieri.', 'Översikten börjar nu med idag – från midnatt, jämfört med igår.', 'Overblikket starter nu med i dag – fra midnat, sammenlignet med i går.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17f',
     date: '2026-11-17',
     items: [

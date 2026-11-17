@@ -4,7 +4,7 @@ import { refreshCollectionImages } from './covers.js';
 import { config } from './config.js';
 import { query, withTransaction } from './db.js';
 import { bestImage, missingScopes, spotifyGet, spotifyPost } from './spotify.js';
-import { ARTIST_LOOKUP, genres as genreStats, overview, topArtists, topTracks } from './stats.js';
+import { ARTIST_LOOKUP, SINCE, genres as genreStats, overview, topArtists, topTracks } from './stats.js';
 import { todayLocal } from './sync.js';
 import { UserError } from './users.js';
 
@@ -475,13 +475,13 @@ async function tasteOf(userId, days) {
               round(sum(pl.ms_played) / 60000.0)::int AS minutes
          FROM plays pl JOIN tracks t ON t.id = pl.track_id
         WHERE pl.user_id = $1 AND t.album_name IS NOT NULL
-          AND ($2::int = 0 OR pl.played_at >= now() - make_interval(days => $2::int))
+          AND ($2::int = 0 OR pl.played_at >= ${SINCE('$3', '$2')})
         GROUP BY lower(t.artist_names[1]), lower(t.album_name) ORDER BY sum(pl.ms_played) DESC LIMIT 5`,
-      [userId, days],
+      [userId, days, config.timezone],
     ),
     query(
       `SELECT extract(hour FROM pl.played_at AT TIME ZONE $3)::int AS hour, round(sum(pl.ms_played) / 60000.0)::int AS minutes
-         FROM plays pl WHERE pl.user_id = $1 AND ($2::int = 0 OR pl.played_at >= now() - make_interval(days => $2::int))
+         FROM plays pl WHERE pl.user_id = $1 AND ($2::int = 0 OR pl.played_at >= ${SINCE('$3', '$2')})
         GROUP BY 1 ORDER BY sum(pl.ms_played) DESC LIMIT 5`,
       [userId, days, config.timezone],
     ),

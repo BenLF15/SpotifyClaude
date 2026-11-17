@@ -36,13 +36,13 @@
 
   // alte, früher gespeicherte Auswahlen aufräumen
   ['range', 'timelineMode', 'rankKind', 'rankRange'].forEach((k) => { try { localStorage.removeItem(k); } catch { /* egal */ } });
-  const UI_DEFAULTS = { range: '7d', timelineMode: 'daily', trendMode: 'minutes', rankKind: 'artists', rankRange: 'short_term' };
+  const UI_DEFAULTS = { range: 'today', timelineMode: 'daily', trendMode: 'minutes', rankKind: 'artists', rankRange: 'short_term' };
   const PANELS = ['overview', 'top', 'times', 'genres', 'trends', 'history', 'wrapped', 'friends', 'records', 'admin', 'profile'];
   const RANGE_PANELS = new Set(['overview', 'top', 'times', 'genres']);
 
   const state = {
     // Auswahlen (Zeitraum, Modus …) werden nicht gespeichert: Start und jeder Bereichswechsel beginnen am Anfang
-    range: '7d',
+    range: 'today',
     timelineMode: 'daily',
     trendMode: 'minutes',
     rankKind: 'artists',
@@ -111,7 +111,7 @@
   const DAYS_LONG = Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(LOCALE, { weekday: 'long' }).format(new Date(2024, 0, 1 + i)));
   const hh = (h) => String(h).padStart(2, '0');
   const hourRange = (h) => t('time.range', { a: hh(h), b: hh((h + 1) % 24) });
-  const RANGE_DAYS = { '7d': 7, '30d': 30, '90d': 90, '365d': 365 };
+  const RANGE_DAYS = { today: 1, '7d': 7, '30d': 30, '90d': 90, '365d': 365 };
   const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
   function initials(name) {
@@ -2276,7 +2276,7 @@
     const iv = setInterval(() => { if (!document.querySelector('dialog[open]')) { clearInterval(iv); setTimeout(fn, 400); } }, 800);
   }
 
-  const PERIODS = ['7d', '30d', '90d', '365d', 'all'];
+  const PERIODS = ['today', '7d', '30d', '90d', '365d', 'all'];
   const periodName = (r) => t(`period.${r}`);
   const compactFmt = new Intl.NumberFormat(LOCALE, { notation: 'compact', maximumFractionDigits: 1 });
 

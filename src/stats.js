@@ -2,7 +2,10 @@
 import { config } from './config.js';
 import { query } from './db.js';
 
-export const RANGE_DAYS = { '7d': 7, '30d': 30, '90d': 90, '365d': 365, all: 0 };
+// Zeiträume in Kalendertagen (inkl. heute, ab lokaler Mitternacht): today = nur heute, 7d = heute + 6 Tage davor …
+export const RANGE_DAYS = { today: 1, '7d': 7, '30d': 30, '90d': 90, '365d': 365, all: 0 };
+/** SQL: Beginn des Zeitraums – lokale Mitternacht vor (d - 1) Tagen. tz/d sind Platzhalter wie '$1'. */
+export const SINCE = (tz, d) => `((((now() AT TIME ZONE ${tz})::date - (${d}::int - 1))::timestamp) AT TIME ZONE ${tz})`;
 
 // Plays im gewählten Zeitraum, mit lokaler Zeit (lt) und primärem Künstler.
 const PLAYS_CTE = `
@@ -12,7 +15,7 @@ const PLAYS_CTE = `
            t.artist_names[1] AS artist, t.artist_ids[1] AS artist_id
       FROM plays pl JOIN tracks t ON t.id = pl.track_id
      WHERE pl.user_id = $3
-       AND ($2::int = 0 OR pl.played_at >= now() - make_interval(days => $2::int))
+       AND ($2::int = 0 OR pl.played_at >= ${SINCE('$1', '$2')})
   )`;
 
 // Bild/Genres eines Künstlers: zuerst über die ID, sonst über den Namen (Import-Daten).
@@ -40,9 +43,9 @@ export async function overview(userId, days) {
       ? query(
           `SELECT COALESCE(sum(ms_played), 0) AS ms, count(*) AS plays FROM plays
             WHERE user_id = $2
-              AND played_at >= now() - make_interval(days => $1::int * 2)
-              AND played_at <  now() - make_interval(days => $1::int)`,
-          [days, userId],
+              AND played_at >= ${SINCE('$3', '($1::int * 2)')}
+              AND played_at <  ${SINCE('$3', '$1')}`,
+          [days, userId, tz],
         )
       : Promise.resolve({ rows: [null] }),
     query('SELECT min(played_at) AS first, max(played_at) AS last, count(*) AS total FROM plays WHERE user_id = $1', [userId]),
@@ -52,8 +55,8 @@ export async function overview(userId, days) {
          SELECT lower(t.artist_names[1]) AS a, min(pl.played_at) AS first
            FROM plays pl JOIN tracks t ON t.id = pl.track_id
           WHERE pl.user_id = $1 GROUP BY 1
-       ) x WHERE $2::int > 0 AND first >= now() - make_interval(days => $2::int)`,
-      [userId, days],
+       ) x WHERE $2::int > 0 AND first >= ${SINCE('$3', '$2')}`,
+      [userId, days, tz],
     ),
   ]);
   const c = cur.rows[0];
