@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17b',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '↩️', go: null,
+        t: ['Immer frisch am Anfang', 'Always back to the start', 'Toujours au début', 'Siempre desde el principio', 'Sempre dall’inizio', 'Alltid från början', 'Altid fra start'],
+        d: ['Beim Wechsel zwischen Bereichen und beim Öffnen der App steht alles wieder auf Anfang (z. B. 7 T).', 'Switching sections or opening the app resets everything to the start (e.g. 7 d).', 'Changer de section ou ouvrir l’app remet tout au début (ex. 7 j).', 'Al cambiar de sección o abrir la app todo vuelve al inicio (p. ej. 7 d).', 'Cambiando sezione o aprendo l’app tutto torna all’inizio (es. 7 g).', 'Byter du del eller öppnar appen börjar allt från början (t.ex. 7 d).', 'Skifter du sektion eller åbner appen, starter alt forfra (fx 7 d).'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17a',
     date: '2026-11-17',
     items: [

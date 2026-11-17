@@ -34,15 +34,19 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* egal */ } },
   };
 
+  // alte, früher gespeicherte Auswahlen aufräumen
+  ['range', 'timelineMode', 'rankKind', 'rankRange'].forEach((k) => { try { localStorage.removeItem(k); } catch { /* egal */ } });
+  const UI_DEFAULTS = { range: '7d', timelineMode: 'daily', trendMode: 'minutes', rankKind: 'artists', rankRange: 'short_term' };
   const PANELS = ['overview', 'top', 'times', 'genres', 'trends', 'history', 'wrapped', 'friends', 'records', 'admin', 'profile'];
   const RANGE_PANELS = new Set(['overview', 'top', 'times', 'genres']);
 
   const state = {
-    range: store.get('range', '30d'),
-    timelineMode: store.get('timelineMode', 'daily'),
+    // Auswahlen (Zeitraum, Modus …) werden nicht gespeichert: Start und jeder Bereichswechsel beginnen am Anfang
+    range: '7d',
+    timelineMode: 'daily',
     trendMode: 'minutes',
-    rankKind: store.get('rankKind', 'artists'),
-    rankRange: store.get('rankRange', 'short_term'),
+    rankKind: 'artists',
+    rankRange: 'short_term',
     // Tab nur für die laufende Sitzung merken: nach dem Schließen startet die App immer in der Übersicht
     panel: (() => { const v = session.get('panel'); return PANELS.includes(v) ? v : 'overview'; })(),
     dashboard: null,
@@ -169,6 +173,7 @@
     };
     window.addEventListener('resize', realign);
     root.realign = realign;
+    root.setValue = (v, animate = false) => { const b = buttons.find((x) => x.dataset[attr] === v); if (b) select(b, animate); };
   }
 
   // ================================================================ Chart.js
@@ -1852,7 +1857,6 @@
   };
   const SUB_LABEL = { top: 'nav.top', genres: 'nav.genres', times: 'nav.times', trends: 'nav.trends', history: 'nav.history', wrapped: 'nav.wrapped' };
   const groupOf = (panel) => Object.keys(GROUPS).find((g) => GROUPS[g].includes(panel)) || null;
-  const lastInGroup = (g) => { const v = session.get(`grp-${g}`); return GROUPS[g].includes(v) ? v : GROUPS[g][0]; };
   const PANEL_ORDER = Object.values(GROUPS).flat().concat(['profile', 'admin']);
 
   function paintSubtabs() {
@@ -1861,7 +1865,6 @@
     const g = groupOf(state.panel);
     const list = g ? GROUPS[g] : [];
     if (list.length < 2 || !state.spotify) { el.hidden = true; el.innerHTML = ''; return; }
-    session.set(`grp-${g}`, state.panel);
     el.hidden = false;
     el.innerHTML = list.map((pn) => `<button type="button" role="tab" class="subtab" data-sub="${pn}" aria-selected="${pn === state.panel}">${esc(t(SUB_LABEL[pn]))}</button>`).join('');
   }
@@ -1880,8 +1883,8 @@
   }
 
   function goGroup(g) {
-    if (g === 'collection') { openRecordsTab(rec.tab || 'collection'); return; }
-    showPanel(lastInGroup(g));
+    if (g === 'collection') { openRecordsTab('collection'); return; }
+    showPanel(GROUPS[g][0]);
   }
 
   function bindBottomNav() {
@@ -1948,6 +1951,29 @@
     requestAnimationFrame(() => $$('.segmented').forEach((s) => s.realign?.()));
   }
 
+  // Bereich verlassen → alle Leisten und Auswahlen zurück auf den Anfang (nichts wird zwischengespeichert)
+  function resetUi() {
+    const changed = {};
+    for (const [k, v] of Object.entries(UI_DEFAULTS)) if (state[k] !== v) { state[k] = v; changed[k] = true; }
+    $('#range-control')?.setValue?.(UI_DEFAULTS.range);
+    $('#timeline-mode')?.setValue?.(UI_DEFAULTS.timelineMode);
+    $('#trend-mode')?.setValue?.(UI_DEFAULTS.trendMode);
+    $('#rank-kind')?.setValue?.(UI_DEFAULTS.rankKind);
+    $('#rank-range')?.setValue?.(UI_DEFAULTS.rankRange);
+    if (changed.range && state.spotify) loadDashboard();
+    if (changed.rankKind || changed.rankRange) state.ranking = null;
+    try {
+      Object.assign(rec, { tab: 'collection', filter: 'all', shopPage: null });
+      rec.store = { view: 'room', entered: false };
+      rec.studio.mode = null;
+      Object.assign(fr, { compareRange: '90d', t5: 0 });
+      if (wr.data && wr.data.year !== defaultWrappedYear()) wr.data = null;
+      history.open.clear();
+      const si = $('#search-input');
+      if (si && si.value) { si.value = ''; runSearch(); }
+    } catch { /* Teile noch nicht initialisiert */ }
+  }
+
   function showPanel(panel) {
     if (!PANELS.includes(panel)) return;
     const changed = panel !== state.panel;
@@ -1960,8 +1986,10 @@
       return;
     }
     try { if (changed && panel !== 'records' && rec.store) { rec.store = { view: 'room', entered: false }; rec.studio.mode = null; studioStopAudio(); stopRecordSong(true); document.querySelector('.store-lift')?.remove(); } } catch { /* Laden noch nicht initialisiert */ }
+    const leftGroup = changed && groupOf(panel) !== groupOf(state.panel);
     state.panel = panel;
     session.set('panel', panel);
+    if (leftGroup) resetUi();
     applyView();
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     if (changed) window.scrollTo({ top: 0, behavior: 'auto' });
@@ -4770,11 +4798,11 @@
     I.apply();
     setupChartDefaults();
     setupTabs();
-    segmented($('#range-control'), 'range', state.range, (v) => { state.range = v; store.set('range', v); loadDashboard(); });
-    segmented($('#timeline-mode'), 'mode', state.timelineMode, (v) => { state.timelineMode = v; store.set('timelineMode', v); renderTimeline(); });
+    segmented($('#range-control'), 'range', state.range, (v) => { state.range = v; loadDashboard(); });
+    segmented($('#timeline-mode'), 'mode', state.timelineMode, (v) => { state.timelineMode = v; renderTimeline(); });
     segmented($('#trend-mode'), 'mode', state.trendMode, (v) => { state.trendMode = v; renderTrends(); });
-    segmented($('#rank-kind'), 'kind', state.rankKind, (v) => { state.rankKind = v; store.set('rankKind', v); loadRanking(); });
-    segmented($('#rank-range'), 'range', state.rankRange, (v) => { state.rankRange = v; store.set('rankRange', v); loadRanking(); });
+    segmented($('#rank-kind'), 'kind', state.rankKind, (v) => { state.rankKind = v; loadRanking(); });
+    segmented($('#rank-range'), 'range', state.rankRange, (v) => { state.rankRange = v; loadRanking(); });
     $('#sync-btn').addEventListener('click', runSync);
     $('#profile-btn').addEventListener('click', () => showPanel(state.panel === 'profile' ? 'overview' : 'profile'));
     bindHeatTooltip();
