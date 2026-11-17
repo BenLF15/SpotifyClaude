@@ -785,6 +785,96 @@
     new MutationObserver(() => { clearTimeout(scan.t); scan.t = setTimeout(scan, 200); }).observe(document.body, { childList: true, subtree: true });
   }
 
+  // ================================================================ Zurück-Taste (Handy/Browser): Schritt für Schritt
+  // Jeder Schritt (Bereich, Unter-Reiter, Laden → Tisch/Studio) ist ein Eintrag im Browser-Verlauf; offene
+  // Fenster und angehobene Platten ebenfalls. Zurück stellt den vorherigen Stand wieder her bzw. schließt das
+  // Fenster. Der unterste Eintrag ist immer die Startseite – erst das nächste Zurück verlässt die App.
+  const nav = { ready: false, restoring: false, ignore: 0 };
+  const navSnap = () => {
+    const s = { panel: state.panel };
+    if (state.panel === 'records') {
+      s.tab = rec.tab || 'collection';
+      if (s.tab === 'shop') { s.view = rec.store?.view || 'room'; if (s.view === 'studio' && rec.studio?.mode) s.studio = rec.studio.mode; }
+    }
+    return s;
+  };
+  const navKey = (s) => (s ? [s.panel, s.tab || '', s.view || '', s.studio || ''].join('|') : '');
+  const overlayOpen = (o) => (o === 'lift' ? Boolean($('.store-lift')) : Boolean(document.getElementById(o)?.open));
+
+  // nach jeder Änderung aufrufen: legt bei neuem Stand einen Verlaufseintrag an
+  function navSync() {
+    if (!nav.ready) return;
+    const cur = window.history.state;
+    const s = navSnap();
+    if (cur?.overlay && !overlayOpen(cur.overlay)) {
+      // Fenster ist ohne Zurück zugegangen (z. B. Wechsel im Laden) → Eintrag ersetzen
+      window.history.replaceState({ ...cur, overlay: null, s }, '');
+      return;
+    }
+    if (cur?.overlay) return;
+    if (navKey(s) === navKey(cur?.s)) return;
+    if (nav.restoring) { window.history.replaceState({ ...cur, s }, ''); return; }
+    // In-App-Zurück (z. B. „Zurück in den Laden“) entspricht dem vorherigen Eintrag → im Verlauf zurückgehen
+    if (cur?.prev && navKey(s) === navKey(cur.prev) && cur.n > 0) { nav.ignore += 1; window.history.back(); return; }
+    window.history.pushState({ n: (cur?.n || 0) + 1, s, prev: cur?.s || null }, '');
+  }
+
+  function navOverlayOpened(id) {
+    if (!nav.ready) return;
+    const cur = window.history.state;
+    if (cur?.overlay === id) return;
+    window.history.pushState({ n: (cur?.n || 0) + 1, s: navSnap(), prev: cur?.s || null, overlay: id }, '');
+  }
+  function navOverlayClosed(id, viaBack) {
+    if (!nav.ready || viaBack) return;
+    if (window.history.state?.overlay === id) { nav.ignore += 1; window.history.back(); }
+  }
+
+  function navRestore(s) {
+    if (!s) return;
+    nav.restoring = true;
+    try {
+      if (s.panel !== 'records') {
+        if (s.panel !== state.panel) showPanel(s.panel);
+      } else {
+        studioStopAudio?.();
+        stopRecordSong?.(true);
+        $('.store-lift')?.remove();
+        rec.tab = s.tab || 'collection';
+        if (rec.tab === 'shop') {
+          rec.store = { view: s.view || 'room', entered: true };
+          rec.studio.mode = s.view === 'studio' ? (s.studio || null) : null;
+        }
+        if (state.panel !== 'records') showPanel('records'); else { renderRecords(); window.scrollTo({ top: 0, behavior: 'auto' }); }
+      }
+    } finally { nav.restoring = false; }
+  }
+
+  function bindBackButton() {
+    window.history.replaceState({ n: 0, s: { panel: 'overview' }, prev: null }, '');
+    nav.ready = true;
+    if (state.panel !== 'overview') navSync();
+    // Fenster (Dialoge) bekommen einen eigenen Eintrag – Zurück schließt sie
+    const P = HTMLDialogElement.prototype;
+    const showModal = P.showModal;
+    P.showModal = function () { const r = showModal.call(this); if (this.id) navOverlayOpened(this.id); return r; };
+    document.addEventListener('close', (e) => {
+      const d = e.target;
+      if (!(d instanceof HTMLDialogElement) || !d.id) return;
+      const viaBack = d._navBack; d._navBack = false;
+      navOverlayClosed(d.id, viaBack);
+    }, true);
+    window.addEventListener('popstate', (e) => {
+      if (nav.ignore > 0) { nav.ignore -= 1; return; }
+      // 1) Offenes Fenster / angehobene Platte schließen
+      const dlg = [...document.querySelectorAll('dialog[open]')].pop();
+      if (dlg) { dlg._navBack = true; dlg.close(); return; }
+      if ($('.store-lift')) { storePut(true); return; }
+      // 2) vorherigen Stand wiederherstellen (unterster Eintrag = Startseite)
+      navRestore(e.state?.s || { panel: 'overview' });
+    });
+  }
+
   // ================================================================ Kopfleiste: beim Runterscrollen weg, beim Hochscrollen zurück
   function bindAutoHideTopbar() {
     const bar = $('.topbar');
@@ -2085,11 +2175,13 @@
     state.panel = panel;
     session.set('panel', panel);
     if (leftGroup) resetUi();
+    if (showPanel.afterReset) { const f = showPanel.afterReset; showPanel.afterReset = null; f(); }
     applyView();
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     if (changed) window.scrollTo({ top: 0, behavior: 'auto' });
     if (state.spotify || panel === 'admin' || panel === 'profile') renderPanel(state.panel);
     burst(panel);
+    navSync();
   }
 
   // Ladeleiste oben am Bildschirm (für Aktualisieren und Zeitraumwechsel)
@@ -4186,6 +4278,7 @@
       </div>`;
     document.body.appendChild(ov);
     slot.classList.add('lifted');
+    navOverlayOpened('lift');
     playRecordSong(it, $('.sl-info', ov));
     const card = $('.sl-card', ov);
     const art = $('.sl-art', ov);
@@ -4207,10 +4300,11 @@
   }
 
   // Zurücklegen: fliegt zurück an ihren Platz im Stapel
-  async function storePut() {
+  async function storePut(viaBack = false) {
     const ov = $('.store-lift');
     if (!ov || ov.dataset.closing) return;
     ov.dataset.closing = '1';
+    navOverlayClosed('lift', viaBack === true);
     stopRecordSong();
     const id = $('[data-store-buy], [data-store-detail]', ov)?.dataset.storeBuy || $('[data-store-detail]', ov)?.dataset.storeDetail;
     const slot = id ? $(`[data-store-item="${CSS.escape(id)}"]`) : null;
@@ -4541,12 +4635,18 @@
     const ct = $('[data-rec-tab="collection"]', el);
     if (ct && fresh && rec.tab !== 'collection') ct.insertAdjacentHTML('beforeend', ` <span class="tab-dot">${fresh}</span>`);
     decoratePanel('records');
+    navSync();
   }
 
   function openRecordsTab(tab) {
-    rec.tab = tab;
-    if (state.panel !== 'records') showPanel('records');
-    else renderRecords();
+    // erst den Bereich wechseln (setzt alles auf Anfang), dann den gewünschten Unter-Reiter öffnen
+    if (state.panel !== 'records') {
+      showPanel.afterReset = () => { rec.tab = tab; if (tab === 'shop') rec.store = { view: 'room', entered: false }; };
+      showPanel('records');
+    } else {
+      rec.tab = tab;
+      renderRecords();
+    }
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
@@ -4874,9 +4974,8 @@
       if (tb) { $('#note-toast').hidden = true; openRecordsTab(tb.dataset.recordsTab); return; }
       const sp = e.target.closest('[data-shop-page]');
       if (sp) {
-        rec.shopPage = sp.dataset.shopPage; rec.tab = 'shop';
-        rec.store = { view: sp.dataset.shopPage === 'cd' ? 'cds' : 'records', entered: true };
-        if (state.panel !== 'records') showPanel('records'); else renderRecords();
+        const apply = () => { rec.shopPage = sp.dataset.shopPage; rec.tab = 'shop'; rec.store = { view: sp.dataset.shopPage === 'cd' ? 'cds' : 'records', entered: true }; };
+        if (state.panel !== 'records') { showPanel.afterReset = apply; showPanel('records'); } else { apply(); renderRecords(); }
         return;
       }
       const fs = e.target.closest('#free-shop-switch');
@@ -5061,6 +5160,7 @@
     bindOffscreenPause();
     bindAutoHideTopbar();
     const justConnected = handleQueryFlags();
+    bindBackButton();
     refreshAll();
     // Nach dem Verbinden läuft der erste Sync im Hintergrund – kurz danach neu laden.
     if (justConnected) setTimeout(refreshAll, 6000);

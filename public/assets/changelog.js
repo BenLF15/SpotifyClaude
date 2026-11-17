@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17m',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '↩️', go: null,
+        t: ['Zurück-Taste Schritt für Schritt', 'Back button, step by step', 'Retour pas à pas', 'Atrás paso a paso', 'Indietro passo dopo passo', 'Bakåt steg för steg', 'Tilbage trin for trin'],
+        d: ['Die Zurück-Taste führt jetzt Schritt für Schritt zurück – zuletzt zur Startseite, erst dann aus der App.', 'The back button now goes back step by step – finally to Home, only then out of the app.', 'Le bouton retour revient pas à pas – puis à l’accueil, et seulement ensuite hors de l’app.', 'El botón atrás retrocede paso a paso: al final al inicio y solo después sale de la app.', 'Il tasto indietro torna passo dopo passo – infine alla home, solo dopo esce dall’app.', 'Bakåtknappen går nu tillbaka steg för steg – sist till Start, först sedan ut ur appen.', 'Tilbage-knappen går nu tilbage trin for trin – til sidst til Start, først derefter ud af appen.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17l',
     date: '2026-11-17',
     items: [
