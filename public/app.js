@@ -744,6 +744,7 @@
     const view = $('#view-stats');
     if (!state.dashboard) showDashboardSkeleton(); else view.classList.add('is-refreshing');
     const seq = ++dashSeq;
+    loadBar.start();
     try {
       const d = await api(`/api/dashboard?range=${state.range}`);
       if (seq !== dashSeq) return; // schneller Zeitraumwechsel: nur die letzte Antwort zählt
@@ -754,7 +755,66 @@
     } catch (err) {
       view.classList.remove('is-loading', 'is-refreshing');
       if (err.message !== 'unauthorized' && err.code !== 'NOT_CONNECTED') toast(t('toast.loadFailed', { e: errMsg(err) }), true);
+    } finally {
+      loadBar.done();
     }
+  }
+
+  // ================================================================ Runterziehen zum Aktualisieren
+  // Eigene Version statt des Browser-Kreises: eine Schallplatte gleitet herunter und dreht sich mit dem Finger;
+  // ab der Schwelle leuchtet das Label, beim Loslassen dreht sie sich, bis alles neu geladen ist.
+  function bindPullToRefresh() {
+    const el = $('#ptr');
+    if (!el || !('ontouchstart' in window)) return;
+    const MAX = 130; const TH = 78;
+    let y0 = null; let x0 = 0; let dist = 0; let busy = false; let active = false;
+    const blocked = (target) => {
+      if (busy || window.scrollY > 0 || document.querySelector('dialog[open], .story.open, .store-lift')) return true;
+      for (let n = target; n && n !== document.body; n = n.parentElement) {
+        if (n.scrollTop > 0) return true;
+        if (n.matches?.('input, textarea, select, [contenteditable], .story')) return true;
+      }
+      return false;
+    };
+    const paint = () => {
+      const p = Math.min(1, dist / TH);
+      el.style.setProperty('--y', `${dist}px`);
+      el.style.setProperty('--p', p.toFixed(3));
+      el.style.setProperty('--r', `${dist * 3}deg`);
+      el.classList.toggle('armed', dist >= TH);
+    };
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1 || blocked(e.target)) { y0 = null; return; }
+      y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dist = 0; active = false;
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+      if (y0 == null) return;
+      const dy = e.touches[0].clientY - y0;
+      const dx = Math.abs(e.touches[0].clientX - x0);
+      if (!active) {
+        if (dy < 8 || dx > dy || window.scrollY > 0) { if (dy < 0 || dx > 12) y0 = null; return; }
+        active = true; el.classList.add('pulling'); el.classList.remove('back', 'spin');
+      }
+      const was = dist >= TH;
+      dist = Math.min(MAX, (dy - 8) * 0.55);
+      if (!was && dist >= TH) navigator.vibrate?.(8);
+      paint();
+    }, { passive: true });
+    const end = async () => {
+      if (y0 == null) return;
+      y0 = null;
+      if (!active) return;
+      active = false;
+      el.classList.remove('pulling');
+      if (dist < TH) { dist = 0; el.classList.add('back'); paint(); return; }
+      busy = true; dist = 64; paint(); el.classList.add('spin');
+      try { await refreshAll(); } finally {
+        el.classList.add('back'); el.classList.remove('spin', 'armed'); dist = 0; paint();
+        setTimeout(() => { busy = false; }, 400);
+      }
+    };
+    document.addEventListener('touchend', end, { passive: true });
+    document.addEventListener('touchcancel', end, { passive: true });
   }
   async function loadTrends() {
     $('#trend-chart').parentElement.classList.add('loading');
@@ -1981,7 +2041,26 @@
     burst(panel);
   }
 
+  // Ladeleiste oben am Bildschirm (für Aktualisieren und Zeitraumwechsel)
+  const loadBar = {
+    n: 0,
+    start() { this.n += 1; const el = $('#load-bar'); if (el) { clearTimeout(this.t); el.classList.remove('done'); el.classList.add('on'); } },
+    done() {
+      this.n = Math.max(0, this.n - 1);
+      if (this.n) return;
+      const el = $('#load-bar');
+      if (!el) return;
+      el.classList.add('done');
+      this.t = setTimeout(() => el.classList.remove('on', 'done'), 450);
+    },
+  };
+
   async function refreshAll() {
+    loadBar.start();
+    try { await refreshAllInner(); } finally { loadBar.done(); }
+  }
+
+  async function refreshAllInner() {
     await loadStatus().catch((err) => {
       if (err.message !== 'unauthorized') toast(t('toast.loadFailed', { e: errMsg(err) }), true);
     });
@@ -4902,6 +4981,7 @@
     $('#season-reset').addEventListener('click', () => { T.setSeasonDate(null); renderThemeSettings(); updateFestive(); });
     renderThemeSettings();
     renderLangPicker();
+    bindPullToRefresh();
     const justConnected = handleQueryFlags();
     refreshAll();
     // Nach dem Verbinden läuft der erste Sync im Hintergrund – kurz danach neu laden.

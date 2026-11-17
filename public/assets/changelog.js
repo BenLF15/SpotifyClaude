@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17h',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '💿', go: null,
+        t: ['Runterziehen mit Schallplatte', 'Pull down with a record', 'Tirer avec un vinyle', 'Desliza con un vinilo', 'Trascina con un vinile', 'Dra ned med en skiva', 'Træk ned med en plade'],
+        d: ['Beim Runterziehen dreht sich jetzt eine Schallplatte mit – dazu eine neue, leuchtende Ladeleiste oben.', 'Pulling down now spins a record along with your finger – plus a new glowing loading bar at the top.', 'En tirant vers le bas, un vinyle tourne avec votre doigt – et une nouvelle barre de chargement lumineuse en haut.', 'Al deslizar hacia abajo gira un vinilo con tu dedo, y arriba hay una nueva barra de carga luminosa.', 'Trascinando in giù gira un vinile insieme al dito – e in alto c’è una nuova barra di caricamento luminosa.', 'När du drar nedåt snurrar en skiva med fingret – plus en ny lysande laddningslist överst.', 'Når du trækker ned, drejer en plade med fingeren – plus en ny lysende indlæsningsbjælke øverst.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17g',
     date: '2026-11-17',
     items: [

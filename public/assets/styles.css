@@ -3342,3 +3342,36 @@ html[data-fest='birthday'] .sr-neon { background: linear-gradient(90deg, #ff4f8b
       var(--st-wood1) calc(var(--row) - 10px), var(--st-wood1) calc(var(--row) - 5px), var(--st-wood2) calc(var(--row) - 5px), var(--st-wood2) var(--row)),
     repeating-linear-gradient(180deg, transparent 0, transparent calc(var(--row) - 50px), rgba(var(--st-warm), 0.12) calc(var(--row) - 10px), transparent var(--row)); }
 html[data-fest] .sr-neon, html[data-fest] .sr-neon b { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15); }
+
+/* ================================================================== Runterziehen zum Aktualisieren & Ladeleiste */
+/* Browser-eigenes Aktualisieren (grauer Kreis) aus – stattdessen die eigene Schallplatte */
+html, body { overscroll-behavior-y: contain; }
+.ptr { position: fixed; z-index: 70; left: 50%; top: calc(env(safe-area-inset-top, 0px) - 58px); width: 50px; height: 50px; margin-left: -25px; pointer-events: none;
+  transform: translateY(var(--y, 0px)); opacity: min(1, calc(var(--p, 0) * 1.6)); }
+.ptr.back { transition: transform 0.35s var(--ease-glide, ease), opacity 0.3s; }
+.ptr.spin { transition: transform 0.3s var(--ease-glide, ease); }
+.ptr-disc { position: relative; width: 100%; height: 100%; border-radius: 50%; transform: rotate(var(--r, 0deg)) scale(calc(0.6 + var(--p, 0) * 0.4));
+  background:
+    radial-gradient(circle, transparent 30%, rgba(255, 255, 255, 0.07) 31%, transparent 33%, rgba(255, 255, 255, 0.06) 40%, transparent 42%, rgba(255, 255, 255, 0.06) 50%, transparent 52%, rgba(255, 255, 255, 0.05) 60%, transparent 62%),
+    conic-gradient(from 20deg, rgba(255, 255, 255, 0.16), transparent 12%, transparent 45%, rgba(255, 255, 255, 0.12) 55%, transparent 68%), #121212;
+  box-shadow: 0 0 0 3px var(--surface), 0 8px 22px -6px rgba(0, 0, 0, 0.55), 0 0 calc(var(--p, 0) * 22px) rgba(var(--accent-rgb), calc(var(--p, 0) * 0.55)); }
+.ptr-label { position: absolute; inset: 31%; border-radius: 50%; background: conic-gradient(rgb(var(--accent-rgb)) calc(var(--p, 0) * 360deg), rgba(255, 255, 255, 0.18) 0);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25); transition: transform 0.25s var(--ease-spring, ease); }
+.ptr-label::after { content: ''; position: absolute; inset: 40%; border-radius: 50%; background: #121212; }
+.ptr.armed .ptr-label { transform: scale(1.18); background: rgb(var(--accent-rgb)); }
+.ptr.spin .ptr-disc { animation: ptr-spin 0.75s linear infinite; }
+.ptr.spin .ptr-label { background: rgb(var(--accent-rgb)); }
+@keyframes ptr-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+/* Ladeleiste oben: leuchtender Streifen in Akzentfarbe, der durchläuft; zum Schluss füllt er sich und blendet aus */
+.load-bar { position: fixed; z-index: 69; left: 0; right: 0; top: env(safe-area-inset-top, 0px); height: 3px; pointer-events: none; overflow: hidden; opacity: 0; transition: opacity 0.3s; }
+.load-bar.on { opacity: 1; }
+.load-bar::before { content: ''; position: absolute; inset: 0; background: rgba(var(--accent-rgb), 0.16); }
+.load-bar i { position: absolute; top: 0; bottom: 0; left: 0; width: 38%; border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0), rgb(var(--accent-rgb)) 70%, #fff); box-shadow: 0 0 10px rgb(var(--accent-rgb)), 0 0 4px #fff; transform: translateX(-100%); }
+.load-bar.on i { animation: load-run 1.15s cubic-bezier(0.45, 0, 0.25, 1) infinite; }
+.load-bar.done i { animation: load-fill 0.4s ease-out forwards; }
+@keyframes load-run { from { transform: translateX(-100%); } to { transform: translateX(270%); } }
+@keyframes load-fill { from { width: 38%; } to { width: 100%; transform: none; border-radius: 0; } }
+/* alte Ladeleiste unter den Zeiträumen ersetzt */
+#view-stats.is-refreshing .range-bar::after { display: none; }
+@media (prefers-reduced-motion: reduce) { .ptr.spin .ptr-disc, .load-bar.on i { animation-duration: 2.4s; } }
