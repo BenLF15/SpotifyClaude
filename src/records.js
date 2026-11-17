@@ -59,11 +59,11 @@ const PRICE = { common: ['bronze', 2, 4], rare: ['silver', 1, 2], epic: ['gold',
 const PRESENCE = { common: 100, rare: 100, epic: 100, legendary: 100, mythic: 100 };
 // Wöchentlich neu gewürfelte Seltenheit je Platz (Prozent)
 const RARITY_ODDS = { record: { common: 55, rare: 28, epic: 12, legendary: 4, mythic: 1 }, cd: { common: 58, rare: 27, epic: 11, legendary: 3, mythic: 1 } };
-const SHOP_SIZE = 16;
+const SHOP_SIZE = 15;
 // CD-Singles: günstiger als Schallplatten (legendär kostet Gold statt Platin)
 const CD_PRICE = { common: ['bronze', 1, 2], rare: ['silver', 1, 1], epic: ['gold', 1, 1], legendary: ['gold', 3, 3], mythic: ['platinum', 2, 2] };
 const CD_PRESENCE = { common: 100, rare: 100, epic: 100, legendary: 100, mythic: 100 };
-const CD_SHOP_SIZE = 30;
+const CD_SHOP_SIZE = 15;
 
 // ================================================================ Hilfen
 const hashInt = (s) => crypto.createHash('sha256').update(s).digest().readUInt32BE(0);
@@ -677,7 +677,7 @@ export async function openEgg(account, eggId) {
 
 // ================================================================ Höranstoß: Songs & Alben, die man noch nie gehört hat
 const DISCOVER_RECORDS = 4; // von SHOP_SIZE
-const DISCOVER_CDS = 8; // von CD_SHOP_SIZE
+const DISCOVER_CDS = 4; // von CD_SHOP_SIZE
 
 async function favouriteArtists(userId, limit) {
   const { rows } = await query(

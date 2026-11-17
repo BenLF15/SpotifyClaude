@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17e',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🛍️', go: 'records',
+        t: ['15 + 15 im Laden', '15 + 15 in the shop', '15 + 15 en boutique', '15 + 15 en la tienda', '15 + 15 nel negozio', '15 + 15 i butiken', '15 + 15 i butikken'],
+        d: ['Jeden Tag gibt es jetzt genau 15 Schallplatten und 15 CD-Singles.', 'Every day there are now exactly 15 records and 15 CD singles.', 'Chaque jour, exactement 15 vinyles et 15 singles CD.', 'Cada día hay ahora exactamente 15 vinilos y 15 sencillos en CD.', 'Ogni giorno ci sono ora esattamente 15 vinili e 15 singoli CD.', 'Varje dag finns nu exakt 15 vinylskivor och 15 cd-singlar.', 'Hver dag er der nu præcis 15 plader og 15 cd-singler.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17d',
     date: '2026-11-17',
     items: [
