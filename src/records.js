@@ -739,6 +739,7 @@ async function catalogDiscover(userId) {
 
 /** Wöchentlicher Höranstoß-Pool: aus dem Cache, sonst neu (Suche, ersatzweise eigener Katalog). */
 async function discoverPool(userId, year, week) {
+  if (!userId) return { records: [], cds: [] };
   const wk = `${year}-W${String(week).padStart(2, '0')}`;
   const { rows } = await query('SELECT items, ok, fetched_at FROM discover_cache WHERE user_id = $1 AND week = $2', [userId, wk]);
   let data = rows[0]?.items;
@@ -816,7 +817,105 @@ async function composeShop(account, year, week, pool, tpool, day = localDate()) 
     const rest = weeklyShop(base.filter((x) => !ids.has(x.id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, ''))), seed + (size === CD_SHOP_SIZE ? '#cd' : ''), size - extra.length);
     return [...extra, ...rest].sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || Number(Boolean(b.discover)) - Number(Boolean(a.discover)) || a.artist.localeCompare(b.artist));
   };
-  return { shopList: merge(pool, dRec, SHOP_SIZE), singleList: merge(tpool, dCd, CD_SHOP_SIZE) };
+  let shopList = merge(pool, dRec, SHOP_SIZE);
+  let singleList = merge(tpool, dCd, CD_SHOP_SIZE);
+  // Immer genau 15 + 15 – unabhängig davon, wie groß der eigene Hörverlauf ist
+  if (shopList.length < SHOP_SIZE || singleList.length < CD_SHOP_SIZE) {
+    const fill = await shopFill(account, day, shopList, singleList);
+    shopList = [...shopList, ...fill.records].slice(0, SHOP_SIZE);
+    singleList = [...singleList, ...fill.cds].slice(0, CD_SHOP_SIZE);
+  }
+  return { shopList, singleList };
+}
+
+// ---------------------------------------------------------------- Auffüllen aus dem Gesamtkatalog
+// Bekannte Klassiker als letzte Reserve (z. B. ganz neue Installation mit leerem Katalog)
+const CLASSIC_ALBUMS = [
+  ['Michael Jackson', 'Thriller'], ['Fleetwood Mac', 'Rumours'], ['Pink Floyd', 'The Dark Side of the Moon'], ['The Beatles', 'Abbey Road'],
+  ['Adele', '21'], ['Taylor Swift', '1989'], ['Daft Punk', 'Random Access Memories'], ['Nirvana', 'Nevermind'], ['Amy Winehouse', 'Back to Black'],
+  ['Kendrick Lamar', 'good kid, m.A.A.d city'], ['Billie Eilish', 'WHEN WE ALL FALL ASLEEP, WHERE DO WE GO?'], ['Queen', 'A Night at the Opera'],
+  ['Prince', 'Purple Rain'], ['Radiohead', 'OK Computer'], ['Lauryn Hill', 'The Miseducation of Lauryn Hill'], ['ABBA', 'Arrival'],
+  ['Dua Lipa', 'Future Nostalgia'], ['The Weeknd', 'After Hours'], ['Coldplay', 'A Rush of Blood to the Head'], ['Bob Marley & The Wailers', 'Legend'],
+  ['Beyoncé', 'Lemonade'], ['David Bowie', 'The Rise and Fall of Ziggy Stardust and the Spiders from Mars'], ['Harry Styles', "Harry's House"], ['Frank Ocean', 'Blonde'],
+];
+const CLASSIC_SONGS = [
+  ['Queen', 'Bohemian Rhapsody'], ['Michael Jackson', 'Billie Jean'], ['Whitney Houston', 'I Wanna Dance with Somebody'], ['a-ha', 'Take On Me'],
+  ['The Weeknd', 'Blinding Lights'], ['Nirvana', 'Smells Like Teen Spirit'], ['ABBA', 'Dancing Queen'], ['Toto', 'Africa'], ['Daft Punk', 'Get Lucky'],
+  ['Adele', 'Rolling in the Deep'], ['Ed Sheeran', 'Shape of You'], ['Harry Styles', 'As It Was'], ['Dua Lipa', 'Levitating'], ['Survivor', 'Eye of the Tiger'],
+  ['Eminem', 'Lose Yourself'], ['Oasis', 'Wonderwall'], ['Coldplay', 'Viva La Vida'], ['Pharrell Williams', 'Happy'], ['Journey', "Don't Stop Believin'"],
+  ['Mark Ronson', 'Uptown Funk'], ['Billie Eilish', 'bad guy'], ['Avicii', 'Wake Me Up'], ['Bruno Mars', 'Just the Way You Are'], ['Kate Bush', 'Running Up That Hill'],
+];
+
+function variantsOf(seedBase, kind, base, idKey) {
+  const prices = kind === 'cd' ? CD_PRICE : PRICE;
+  const presence = kind === 'cd' ? CD_PRESENCE : PRESENCE;
+  const out = [];
+  for (const rarity of RARITIES) {
+    const seed = `${seedBase}#${rarity}`;
+    if (hashInt(`${seed}#presence`) % 100 >= presence[rarity]) continue;
+    const [tier, lo, hi] = prices[rarity];
+    out.push({
+      ...base,
+      id: `${crypto.createHash('sha1').update(idKey).digest('hex').slice(0, 12)}-${kind === 'cd' ? 'cd-' : ''}${rarity}`,
+      kind, rarity,
+      week: (hashInt(`${seed}#week`) % 52) + 1,
+      hue: hashInt(`${seed}#hue`) % 360,
+      price: { tier, amount: lo + (hashInt(`${seed}#price`) % (hi - lo + 1)) },
+      tie: hashInt(`${seed}#tie`),
+    });
+  }
+  return out;
+}
+
+async function shopFill(account, day, shopList, singleList) {
+  const needRec = SHOP_SIZE - shopList.length;
+  const needCd = CD_SHOP_SIZE - singleList.length;
+  const saved = await query('SELECT items FROM shop_fill WHERE account_id = $1 AND day = $2', [account.id, day]);
+  const have = saved.rows[0]?.items;
+  if (have && have.records.length >= needRec && have.cds.length >= needCd) return have;
+  const seed = `${shopSeed(account, day)}#fill`;
+  const baseOf = (id) => id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, '');
+  const taken = new Set([...shopList, ...singleList].map((x) => baseOf(x.id)));
+  // Gesamtkatalog: alle Alben/Songs, die irgendein Nutzer gehört hat – pro Tag zufällig gemischt
+  const [albums, tracks] = await Promise.all([
+    query(
+      `SELECT lower(t.artist_names[1]) || '|' || lower(t.album_name) AS key, min(t.artist_names[1]) AS artist, min(t.album_name) AS album,
+              (array_agg(t.album_id) FILTER (WHERE t.album_id IS NOT NULL))[1] AS album_id,
+              (array_agg(t.album_image) FILTER (WHERE t.album_image IS NOT NULL))[1] AS image
+         FROM tracks t
+        WHERE t.album_name IS NOT NULL AND t.album_name <> '' AND t.artist_names[1] IS NOT NULL
+        GROUP BY 1 ORDER BY md5(lower(t.artist_names[1]) || '|' || lower(t.album_name) || $1) LIMIT 150`,
+      [seed],
+    ),
+    query(
+      `SELECT t.id, t.name, t.artist_names[1] AS artist, t.album_image AS image FROM tracks t
+        WHERE t.artist_names[1] IS NOT NULL ORDER BY md5(t.id || $1) LIMIT 150`,
+      [seed],
+    ),
+  ]);
+  const recPool = albums.rows.flatMap((a) => variantsOf(a.key, 'record', { artist: a.artist, album: a.album, album_id: a.album_id, image: a.image }, a.key));
+  const cdPool = tracks.rows.flatMap((tr) => variantsOf(`cd#${tr.id}`, 'cd', { artist: tr.artist, album: tr.name, album_id: tr.id, image: tr.image }, tr.id));
+  for (const [artist, album] of CLASSIC_ALBUMS) {
+    const key = `${artist.toLowerCase()}|${album.toLowerCase()}`;
+    recPool.push(...variantsOf(key, 'record', { artist, album, album_id: null, image: null }, key));
+  }
+  for (const [artist, title] of CLASSIC_SONGS) {
+    const key = `classic:${artist.toLowerCase()}|${title.toLowerCase()}`;
+    cdPool.push(...variantsOf(`cd#${key}`, 'cd', { artist, album: title, album_id: null, image: null }, key));
+  }
+  const free = (l) => l.filter((x) => !taken.has(baseOf(x.id)));
+  await attachFame([...recPool, ...cdPool]);
+  const pick = (pool, s, n) => (n > 0 ? weeklyShop(free(pool), s, n).map((x) => ({ ...x, fill: true })) : []);
+  const records = pick(recPool, `${seed}#rec`, Math.max(needRec, 0));
+  const recBases = new Set(records.map((x) => baseOf(x.id)));
+  const cds = pick(cdPool.filter((x) => !recBases.has(baseOf(x.id))), `${seed}#cd`, Math.max(needCd, 0));
+  const result = { records, cds };
+  await query(
+    `INSERT INTO shop_fill (account_id, day, items) VALUES ($1, $2, $3)
+     ON CONFLICT (account_id, day) DO UPDATE SET items = EXCLUDED.items`,
+    [account.id, day, JSON.stringify(result)],
+  );
+  return result;
 }
 
 // ================================================================ Studio: Platten veredeln

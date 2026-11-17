@@ -302,3 +302,12 @@ CREATE TABLE IF NOT EXISTS discover_cache (
   fetched_at  timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, week)
 );
+
+-- Tagesangebot auffüllen: falls der eigene Hörverlauf nicht für 15 Platten / 15 CDs reicht, werden Stücke aus dem
+-- gesamten Katalog (bzw. Klassiker) ergänzt. Die Auswahl wird pro Tag gespeichert, damit Anzeige und Kauf übereinstimmen.
+CREATE TABLE IF NOT EXISTS shop_fill (
+  account_id bigint NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  day        date   NOT NULL,
+  items      jsonb  NOT NULL,
+  PRIMARY KEY (account_id, day)
+);

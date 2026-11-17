@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17f',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🛒', go: 'records',
+        t: ['Immer volles Angebot', 'Always a full shop', 'Boutique toujours pleine', 'Tienda siempre llena', 'Negozio sempre pieno', 'Alltid full butik', 'Altid fuld butik'],
+        d: ['Auch mit kleinem Hörverlauf gibt es täglich 15 Platten und 15 CDs – ergänzt um bekannte Alben und Hits.', 'Even with a short listening history there are 15 records and 15 CDs every day – topped up with well-known albums and hits.', 'Même avec peu d’écoutes : 15 vinyles et 15 CD par jour, complétés par des albums et tubes connus.', 'Aunque escuches poco, hay 15 vinilos y 15 CD al día, completados con álbumes y éxitos conocidos.', 'Anche con pochi ascolti ci sono 15 vinili e 15 CD al giorno, completati da album e hit famosi.', 'Även med kort lyssningshistorik finns 15 skivor och 15 cd varje dag – kompletterat med kända album och hits.', 'Selv med kort lyttehistorik er der 15 plader og 15 cd’er hver dag – suppleret med kendte albums og hits.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17e',
     date: '2026-11-17',
     items: [
