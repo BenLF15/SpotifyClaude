@@ -317,6 +317,7 @@
     maybeShowNews();
     renderNotices();
     renderWrappedPromo();
+    renderWrappedEntry();
     startNowPlaying();
     return s;
   }
@@ -3322,6 +3323,30 @@
     el.hidden = false;
   }
 
+  // Feste Rückblick-Karte auf der Startseite (immer da; im Dez./Jan. übernimmt der große Hinweis oben)
+  function renderWrappedEntry() {
+    const el = $('#wr-entry');
+    if (!el) return;
+    if (!state.spotify || !$('#wrapped-promo').hidden) { el.hidden = true; return; }
+    const year = defaultWrappedYear();
+    el.innerHTML = `<button type="button" class="wr-entry-main" data-goto="wrapped">
+        <span class="wr-entry-art" aria-hidden="true"><i></i><i></i><i></i><b>${year}</b></span>
+        <span class="wr-entry-txt"><small>${esc(t('nav.wrapped'))}</small><strong>${esc(t('wrapped.title', { year }))}</strong><span>${esc(t('wrapped.promoText'))}</span></span>
+      </button>
+      <button type="button" class="btn btn-primary btn-sm wr-entry-play" data-wrapped-story>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg><span>${esc(t('wrapped.storyBtn'))}</span>
+      </button>`;
+    el.hidden = false;
+  }
+
+  // Story direkt von der Startseite starten (Rückblick des aktuellen Jahres laden, dann abspielen)
+  async function playWrappedStory() {
+    const year = defaultWrappedYear();
+    if (!wr.data || wr.data.year !== year) { wr.data = null; await loadWrapped(year); }
+    if (!wr.data || wr.data.empty) { showPanel('wrapped'); return; }
+    openStory();
+  }
+
   // ================================================================ Freunde & Vergleich
   const fr = { data: null, compareId: null, compareRange: '90d', compare: null };
   const avatarOf = (url, name) => (url
@@ -4909,10 +4934,11 @@
       const dar = e.target.closest('[data-detail-artist]');
       if (dar) { openDetail('artist', dar.dataset.detailArtist); return; }
       if (e.target.closest('[data-story-start]')) { openStory(); return; }
+      if (e.target.closest('[data-wrapped-story]')) { playWrappedStory(); return; }
       const wy = e.target.closest('[data-wrapped-year]');
       if (wy) { loadWrapped(Number(wy.dataset.wrappedYear)); return; }
       const pd = e.target.closest('[data-promo-dismiss]');
-      if (pd) { store.set(pd.dataset.promoDismiss, '1'); $('#wrapped-promo').hidden = true; return; }
+      if (pd) { store.set(pd.dataset.promoDismiss, '1'); $('#wrapped-promo').hidden = true; renderWrappedEntry(); return; }
       const cmp = e.target.closest('[data-compare]');
       if (cmp) {
         fr.compare = null;

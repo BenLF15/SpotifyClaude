@@ -820,6 +820,7 @@
     'wrapped.firstSong': ['Dein erster Song {year}', 'Your first song of {year}', 'Ton premier titre de {year}', 'Tu primera canción de {year}', 'Il tuo primo brano del {year}', 'Din första låt {year}', 'Din første sang i {year}'],
     'wrapped.promoTitle': ['Dein Rückblick {year} ist da 🎁', 'Your {year} wrap-up is here 🎁', 'Ta rétrospective {year} est là 🎁', 'Tu resumen de {year} ya está aquí 🎁', 'Il tuo riepilogo {year} è pronto 🎁', 'Din årskrönika {year} är här 🎁', 'Din årets musik {year} er klar 🎁'],
     'wrapped.promoText': ['Deine Top-Künstler, Songs und Rekorde als Story.', 'Your top artists, songs and records as a story.', 'Tes artistes, titres et records en story.', 'Tus artistas, canciones y récords como historia.', 'I tuoi artisti, brani e record in una storia.', 'Dina toppartister, låtar och rekord som story.', 'Dine topkunstnere, sange og rekorder som story.'],
+    'wrapped.storyBtn': ['Story', 'Story', 'Story', 'Historia', 'Storia', 'Story', 'Story'],
     'wrapped.open': ['Ansehen', 'View', 'Voir', 'Ver', 'Guarda', 'Visa', 'Se'],
     'story.introTitle': ['Dein {year} in Musik', 'Your {year} in music', 'Ton {year} en musique', 'Tu {year} en música', 'Il tuo {year} in musica', 'Ditt {year} i musik', 'Dit {year} i musik'],
     'story.minutesKicker': ['Du hast dieses Jahr', 'This year you listened to', 'Cette année, tu as écouté', 'Este año escuchaste', 'Quest’anno hai ascoltato', 'I år har du lyssnat', 'I år har du lyttet'],

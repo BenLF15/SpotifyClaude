@@ -7,6 +7,17 @@
    Nutzer sehen beim nächsten Öffnen einmalig ein Pop-up mit allen Einträgen, die sie noch nicht kennen. */
 window.SpotlfyNews = [
   {
+    id: '2026-11-17k',
+    date: '2026-11-17',
+    items: [
+      {
+        icon: '🎞️', go: 'overview',
+        t: ['Rückblick auf der Startseite', 'Wrapped on the home screen', 'Rétrospective sur l’accueil', 'Resumen en el inicio', 'Riepilogo nella home', 'Årskrönika på startsidan', 'Årets musik på forsiden'],
+        d: ['Dein Jahresrückblick ist jetzt auch direkt von Start aus erreichbar – mit Story-Knopf.', 'Your year in music is now also reachable right from Home – with a story button.', 'Ta rétrospective est aussi accessible depuis l’accueil – avec un bouton story.', 'Tu resumen anual también está en el inicio, con botón de historia.', 'Il tuo riepilogo annuale è ora raggiungibile anche dalla home – con pulsante storia.', 'Din årskrönika nås nu också direkt från Start – med story-knapp.', 'Dit år i musik kan nu også nås direkte fra Start – med story-knap.'],
+      },
+    ],
+  },
+  {
     id: '2026-11-17j',
     date: '2026-11-17',
     items: [
