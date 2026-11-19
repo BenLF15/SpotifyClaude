@@ -158,7 +158,7 @@ async function trackPool(userId) {
 }
 
 /** Angebot der Woche: Platten dieser Kalenderwoche, bei kleiner Sammlung ergänzt aus den nächstgelegenen Wochen. */
-function weeklyShop(pool, seed, size = SHOP_SIZE) {
+function weeklyShop(pool, seed, size = SHOP_SIZE, { raw = false } = {}) {
   // Jeden Tag für jeden Nutzer zufällig – die Seltenheit eines Stücks steht aber fest: sie folgt seiner
   // Bekanntheit (Deezer-Fans/-Rank, Spotify-Popularität). Pro Platz wird gewürfelt, welche Seltenheit
   // drankommt (RARITY_ODDS), dann ein passendes Album/Song gezogen. Noch nicht gemessene Stücke
@@ -193,6 +193,7 @@ function weeklyShop(pool, seed, size = SHOP_SIZE) {
     if (!b) break;
     picked.push(b.variants[rarity] || b.variants.common || Object.values(b.variants)[0]);
   }
+  if (raw) return picked;
   return picked.sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || a.artist.localeCompare(b.artist));
 }
 // Angebot wechselt jeden Tag (fest innerhalb des Tages, für jeden Nutzer anders)
@@ -370,7 +371,7 @@ export async function overviewFor(account) {
   ]);
   const free = Boolean(freeRow.rows[0]?.free_shop);
   const owned = new Set(collection.rows.map((r) => r.id));
-  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool, today);
+  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool, today, owned);
   const shop = shopList.map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
   const singles = singleList.map(({ tie, ...it }) => ({ ...it, owned: owned.has(it.id) }));
   return {
@@ -403,7 +404,7 @@ export async function buy(account, recordId) {
     query('SELECT free_shop FROM accounts WHERE id = $1', [account.id]),
   ]);
   const free = Boolean(freeRow.rows[0]?.free_shop);
-  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool, today);
+  const { shopList, singleList } = await composeShop(account, year, week, pool, tpool, today, await ownedIds(account.id));
   const item = [...shopList, ...singleList].find((it) => it.id === String(recordId));
   if (!item) throw new UserError('Diese Platte gibt es diese Woche nicht.', 404, 'recordNotInShop');
   const result = await withTransaction(async (db) => {
@@ -807,23 +808,38 @@ async function discoverPool(userId, year, week) {
 }
 
 /** Wochenangebot: gehörte Lieblinge plus ein paar ungehörte Höranstöße (je Album/Song höchstens einmal). */
-async function composeShop(account, year, week, pool, tpool, day = localDate()) {
+const baseId = (id) => String(id).replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, '');
+
+/** IDs (record_id) aller Stücke in der Sammlung. */
+async function ownedIds(accountId) {
+  const { rows } = await query('SELECT record_id FROM record_collection WHERE account_id = $1', [accountId]);
+  return new Set(rows.map((r) => r.record_id));
+}
+
+async function composeShop(account, year, week, pool, tpool, day = localDate(), owned = new Set()) {
   const seed = shopSeed(account, day);
+  // Was man schon besitzt (egal in welcher Seltenheit), steht nicht mehr im Laden. Gezogen wird mit Reserve in
+  // fester Platz-Reihenfolge: Gekauftes fällt heraus und der nächste Kandidat rückt nach – der Rest bleibt gleich.
+  const ownedBases = new Set([...owned].map(baseId));
+  const pickFree = (list, s, n) => (n > 0
+    ? weeklyShop(list, s, n + Math.min(ownedBases.size, 40) + 2, { raw: true }).filter((x) => !ownedBases.has(baseId(x.id))).slice(0, n)
+    : []);
   const disc = await discoverPool(account.spotify_user_id, year, week);
-  const dRec = weeklyShop(disc.records, `${seed}#disc`, DISCOVER_RECORDS);
-  const dCd = weeklyShop(disc.cds, `${seed}#disc-cd`, DISCOVER_CDS);
+  const dRec = pickFree(disc.records, `${seed}#disc`, DISCOVER_RECORDS);
+  const dCd = pickFree(disc.cds, `${seed}#disc-cd`, DISCOVER_CDS);
   const merge = (base, extra, size) => {
-    const ids = new Set(extra.map((x) => x.id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, '')));
-    const rest = weeklyShop(base.filter((x) => !ids.has(x.id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, ''))), seed + (size === CD_SHOP_SIZE ? '#cd' : ''), size - extra.length);
+    const ids = new Set(extra.map((x) => baseId(x.id)));
+    const rest = pickFree(base.filter((x) => !ids.has(baseId(x.id))), seed + (size === CD_SHOP_SIZE ? '#cd' : ''), size - extra.length);
     return [...extra, ...rest].sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || Number(Boolean(b.discover)) - Number(Boolean(a.discover)) || a.artist.localeCompare(b.artist));
   };
   let shopList = merge(pool, dRec, SHOP_SIZE);
   let singleList = merge(tpool, dCd, CD_SHOP_SIZE);
   // Immer genau 15 + 15 – unabhängig davon, wie groß der eigene Hörverlauf ist
   if (shopList.length < SHOP_SIZE || singleList.length < CD_SHOP_SIZE) {
-    const fill = await shopFill(account, day, shopList, singleList);
-    shopList = [...shopList, ...fill.records].slice(0, SHOP_SIZE);
-    singleList = [...singleList, ...fill.cds].slice(0, CD_SHOP_SIZE);
+    const fill = await shopFill(account, day, shopList, singleList, ownedBases);
+    const fresh = (l) => l.filter((x) => !ownedBases.has(baseId(x.id)));
+    shopList = [...shopList, ...fresh(fill.records)].slice(0, SHOP_SIZE);
+    singleList = [...singleList, ...fresh(fill.cds)].slice(0, CD_SHOP_SIZE);
   }
   return { shopList, singleList };
 }
@@ -867,15 +883,16 @@ function variantsOf(seedBase, kind, base, idKey) {
   return out;
 }
 
-async function shopFill(account, day, shopList, singleList) {
+async function shopFill(account, day, shopList, singleList, ownedBases = new Set()) {
   const needRec = SHOP_SIZE - shopList.length;
   const needCd = CD_SHOP_SIZE - singleList.length;
   const saved = await query('SELECT items FROM shop_fill WHERE account_id = $1 AND day = $2', [account.id, day]);
   const have = saved.rows[0]?.items;
-  if (have && have.records.length >= needRec && have.cds.length >= needCd) return have;
+  const usable = (l) => (l || []).filter((x) => !ownedBases.has(baseId(x.id))).length;
+  if (have && usable(have.records) >= needRec && usable(have.cds) >= needCd) return have;
   const seed = `${shopSeed(account, day)}#fill`;
   const baseOf = (id) => id.replace(/-(cd-)?(common|rare|epic|legendary|mythic)$/, '');
-  const taken = new Set([...shopList, ...singleList].map((x) => baseOf(x.id)));
+  const taken = new Set([...shopList, ...singleList].map((x) => baseOf(x.id)).concat([...ownedBases]));
   // Gesamtkatalog: alle Alben/Songs, die irgendein Nutzer gehört hat – pro Tag zufällig gemischt
   const [albums, tracks] = await Promise.all([
     query(
@@ -906,9 +923,10 @@ async function shopFill(account, day, shopList, singleList) {
   const free = (l) => l.filter((x) => !taken.has(baseOf(x.id)));
   await attachFame([...recPool, ...cdPool]);
   const pick = (pool, s, n) => (n > 0 ? weeklyShop(free(pool), s, n).map((x) => ({ ...x, fill: true })) : []);
-  const records = pick(recPool, `${seed}#rec`, Math.max(needRec, 0));
+  // mit Reserve (+6), damit nach einem Kauf am selben Tag ein Stück nachrücken kann
+  const records = pick(recPool, `${seed}#rec`, needRec > 0 ? needRec + 6 : 0);
   const recBases = new Set(records.map((x) => baseOf(x.id)));
-  const cds = pick(cdPool.filter((x) => !recBases.has(baseOf(x.id))), `${seed}#cd`, Math.max(needCd, 0));
+  const cds = pick(cdPool.filter((x) => !recBases.has(baseOf(x.id))), `${seed}#cd`, needCd > 0 ? needCd + 6 : 0);
   const result = { records, cds };
   await query(
     `INSERT INTO shop_fill (account_id, day, items) VALUES ($1, $2, $3)

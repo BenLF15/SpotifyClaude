@@ -266,6 +266,8 @@ Admins können jedes Fest über das Test-Datum ansehen.
 
 Nicht jedes Album gibt es in jeder Seltenheit. 4 Noten einer Stufe lassen sich gegen 1 Note der nächsten Stufe tauschen. Die Noten-Münzen glänzen: Ein Lichtstreif mit kurzem Funkeln wandert nacheinander über Bronze, Silber, Gold und Platin (abgeschaltet bei „Bewegung reduzieren“).
 
+**Schon gekauft = nicht mehr im Laden**: Stücke, die man bereits besitzt (egal in welcher Seltenheit), erscheinen nicht mehr im Angebot. Gezogen wird mit Reserve in fester Reihenfolge – nach einem Kauf rückt genau ein neues Stück nach, der Rest des Tagesangebots bleibt gleich.
+
 **CD-Singles**: Auf der zweiten Seite des Ladens gibt es jeden Tag 15 einzelne Songs deiner Lieblingskünstler als CD-Single, günstiger als Schallplatten. Sie kommen in ein eigenes **CD-Regal** (gleiches warmes Design, CDs schräg nebeneinander).
 
 | Seltenheit | Ausführung | Preis |
