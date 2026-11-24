@@ -3484,3 +3484,6 @@ html, body { overscroll-behavior-y: contain; }
 .fr-spark i { width: 8px; height: 8px; border-radius: 0; background: var(--c); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
 .fr-petal i { width: 8px; height: 11px; border-radius: 80% 0 80% 0; background: linear-gradient(135deg, #fff, var(--c)); }
 @media (prefers-reduced-motion: reduce) { .fest-rain { display: none; } }
+
+/* Längste Serie: Zeitraum in eigener Zeile */
+.insight-value small.insight-sub { display: block; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

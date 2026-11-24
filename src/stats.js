@@ -28,9 +28,23 @@ export const ARTIST_LOOKUP = (nameCol, idCol) => `
     ) x ORDER BY prio LIMIT 1
   ) ai ON true`;
 
+/** Längste Serie aufeinanderfolgender Tage über den ganzen Verlauf (Tage als 'YYYY-MM-DD', sortiert). */
+function longestRun(days) {
+  let best = { len: 0, from: null, to: null };
+  let cur = { len: 0, from: null, to: null };
+  let prev = null;
+  for (const d of days) {
+    const t = Date.parse(`${d}T12:00:00Z`);
+    cur = prev !== null && Math.round((t - prev) / 864e5) === 1 ? { ...cur, len: cur.len + 1, to: d } : { len: 1, from: d, to: d };
+    if (cur.len > best.len) best = { ...cur };
+    prev = t;
+  }
+  return best;
+}
+
 export async function overview(userId, days) {
   const tz = config.timezone;
-  const [cur, prev, first, fresh] = await Promise.all([
+  const [cur, prev, first, allDays, fresh] = await Promise.all([
     query(
       `WITH ${PLAYS_CTE}
        SELECT COALESCE(sum(ms_played), 0) AS ms, count(*) AS plays,
@@ -49,6 +63,11 @@ export async function overview(userId, days) {
         )
       : Promise.resolve({ rows: [null] }),
     query('SELECT min(played_at) AS first, max(played_at) AS last, count(*) AS total FROM plays WHERE user_id = $1', [userId]),
+    // alle Tage mit Plays (für die längste Serie über den ganzen Verlauf)
+    query(
+      `SELECT DISTINCT to_char((played_at AT TIME ZONE $1)::date, 'YYYY-MM-DD') AS day FROM plays WHERE user_id = $2 ORDER BY 1`,
+      [tz, userId],
+    ),
     // Künstler, die im Zeitraum zum ersten Mal überhaupt gehört wurden
     query(
       `SELECT count(*) AS n FROM (
@@ -73,6 +92,7 @@ export async function overview(userId, days) {
     lastPlay: first.rows[0].last,
     totalPlays: first.rows[0].total,
     newArtists: days ? fresh.rows[0].n : null,
+    bestStreak: longestRun(allDays.rows.map((r) => r.day)),
   };
 }
 

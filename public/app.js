@@ -104,6 +104,7 @@
   const longDayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
   const longDate = new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'long' });
   const shortDate = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const monthYear = new Intl.DateTimeFormat(LOCALE, { month: '2-digit', year: 'numeric' });
   const dateTimeFmt = new Intl.DateTimeFormat(LOCALE, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
   const parseDay = (s) => new Date(`${s}T12:00:00`);
   // Wochentage ab Montag in der gewählten Sprache (1.1.2024 war ein Montag)
@@ -1056,10 +1057,10 @@
     calendar: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5"/></svg>',
   };
-  const insight = (icon, labelKey, value, sub = '') =>
+  const insight = (icon, labelKey, value, sub = '', subBlock = false) =>
     `<div class="insight"><div class="insight-icon">${ICONS[icon]}</div>
       <div class="insight-label">${esc(t(labelKey))}</div>
-      <div class="insight-value" title="${esc(value)}">${esc(value)}${sub ? ` <small>${esc(sub)}</small>` : ''}</div></div>`;
+      <div class="insight-value" title="${esc(value)}">${esc(value)}${sub ? ` <small${subBlock ? ' class="insight-sub"' : ''}>${esc(sub)}</small>` : ''}</div></div>`;
 
   function peakOf(grid) {
     let best = { d: 0, h: 0, v: -1 };
@@ -1081,14 +1082,17 @@
     const daily = d.timeline.daily.slice(-days);
     const peak = peakOf(d.heatmap);
     const bestDay = daily.reduce((a, r) => (r.minutes > (a?.minutes ?? -1) ? r : a), null);
-    const streak = longestStreak(daily);
+    // längste Serie über den ganzen Verlauf (nicht nur im gewählten Zeitraum und nicht die aktuelle)
+    const best = d.overview.bestStreak;
+    const streak = best ? best.len : longestStreak(daily);
     const topGenre = d.genres.items[0];
     $('#insights').innerHTML = [
       peak.v > 0 ? insight('clock', 'insight.favTime', `${DAYS[peak.d]} · ${hourRange(peak.h)}`) : insight('clock', 'insight.favTime', '–'),
       bestDay?.minutes
         ? insight('star', 'insight.bestDay', dateFmt.format(parseDay(bestDay.day)), `${fmt(bestDay.minutes)} ${t('unit.min')}`)
         : insight('star', 'insight.bestDay', '–'),
-      insight('flame', 'insight.streak', tn('unit.day', streak, { n: fmt(streak) }), t('insight.inARow')),
+      insight('flame', 'insight.streak', tn('unit.day', streak, { n: fmt(streak) }),
+        best?.from && streak > 1 ? `${monthYear.format(parseDay(best.from))} – ${monthYear.format(parseDay(best.to))}` : t('insight.inARow'), Boolean(best?.from && streak > 1)),
       d.overview.newArtists != null
         ? insight('spark', 'insight.discovered', t('unit.artists', { n: fmt(d.overview.newArtists) }))
         : insight('tag', 'insight.topGenre', topGenre ? genreName(topGenre.genre) : '–', topGenre ? `${Math.round(topGenre.share * 100)} %` : ''),
