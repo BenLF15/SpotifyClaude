@@ -13,7 +13,7 @@ window.SpotlfyNews = [
       {
         icon: '🔥', go: 'overview',
         t: ['Längste Serie = Rekord', 'Longest streak = record', 'Plus longue série = record', 'Racha más larga = récord', 'Serie più lunga = record', 'Längsta svit = rekord', 'Længste stime = rekord'],
-        d: ['„Längste Serie“ zeigt jetzt deinen Rekord über den ganzen Verlauf – mit Zeitraum.', '“Longest streak” now shows your all-time record – with its time span.', '« Plus longue série » affiche votre record de tous les temps – avec la période.', '«Racha más larga» muestra ahora tu récord de siempre, con su periodo.', '«Serie più lunga» ora mostra il tuo record assoluto – con il periodo.', '”Längsta svit” visar nu ditt rekord genom tiderna – med tidsperiod.', '”Længste stime” viser nu din rekord gennem tiden – med periode.'],
+        d: ['„Längste Serie“ zeigt jetzt deinen Rekord über den ganzen Verlauf.', '“Longest streak” now shows your all-time record.', '« Plus longue série » affiche votre record de tous les temps.', '«Racha más larga» muestra ahora tu récord de siempre.', '«Serie più lunga» ora mostra il tuo record assoluto.', '”Längsta svit” visar nu ditt rekord genom tiderna.', '”Længste stime” viser nu din rekord gennem tiden.'],
       },
     ],
   },

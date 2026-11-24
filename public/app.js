@@ -1092,7 +1092,7 @@
         ? insight('star', 'insight.bestDay', dateFmt.format(parseDay(bestDay.day)), `${fmt(bestDay.minutes)} ${t('unit.min')}`)
         : insight('star', 'insight.bestDay', '–'),
       insight('flame', 'insight.streak', tn('unit.day', streak, { n: fmt(streak) }),
-        best?.from && streak > 1 ? `${monthYear.format(parseDay(best.from))} – ${monthYear.format(parseDay(best.to))}` : t('insight.inARow'), Boolean(best?.from && streak > 1)),
+        t('insight.inARow')),
       d.overview.newArtists != null
         ? insight('spark', 'insight.discovered', t('unit.artists', { n: fmt(d.overview.newArtists) }))
         : insight('tag', 'insight.topGenre', topGenre ? genreName(topGenre.genre) : '–', topGenre ? `${Math.round(topGenre.share * 100)} %` : ''),
